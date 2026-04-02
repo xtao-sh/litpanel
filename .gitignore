@@ -1,0 +1,31 @@
+.DS_Store
+
+# Root build artifacts
+.next/
+
+# Frontend
+frontend/.env.local
+frontend/.next/
+frontend/node_modules/
+frontend/tsconfig.tsbuildinfo
+
+# Backend
+backend/.env
+backend/.next/
+backend/__pycache__/
+backend/*.pyc
+backend/kb.db
+backend/kb.db-shm
+backend/kb.db-wal
+backend/.venv/
+
+# Desktop MVP / packaging
+desktop-mvp/node_modules/
+desktop-mvp/dist/
+desktop-mvp/.runtime/
+desktop-mvp/.bundle/
+desktop-mvp/.staging/
+
+# Python virtualenvs
+.venv/
+venv/
