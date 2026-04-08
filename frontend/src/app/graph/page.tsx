@@ -11,7 +11,6 @@ import {
   GET_ATOM_NEIGHBORHOOD,
   GET_PAPER_SET_NETWORK,
   RESEARCH_PAPERS,
-  SEARCH,
 } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { GraphControls } from "@/components/graph/graph-controls";
@@ -182,10 +181,6 @@ function GraphPageInner() {
       fetchPolicy: "network-only",
     });
 
-  const [runSearch] = useLazyQuery<{ search: SearchResult }>(SEARCH, {
-    fetchPolicy: "network-only",
-  });
-
   const loading =
     paperLoading ||
     atomLoading ||
@@ -206,6 +201,11 @@ function GraphPageInner() {
           setGraphData(null);
         } else {
           setErrorMsg(null);
+          setSearchMessage(
+            net.nodes.length <= 1 || net.edges.length === 0
+              ? `"${nextContext?.label ?? paperId}" does not yet have structured graph links. Try topic keywords to open a broader paper-set graph.`
+              : null
+          );
           setGraphData(net);
           setGraphContext({
             label: nextContext?.label ?? paperId,
@@ -236,6 +236,11 @@ function GraphPageInner() {
           setGraphData(null);
         } else {
           setErrorMsg(null);
+          setSearchMessage(
+            net.nodes.length <= 1 || net.edges.length === 0
+              ? `"${nextContext?.label ?? slug}" does not yet connect to a larger visible neighborhood.`
+              : null
+          );
           setGraphData(net);
           setGraphContext({
             label: nextContext?.label ?? slug,
@@ -381,66 +386,13 @@ function GraphPageInner() {
         return;
       }
 
-      setTopicSearchLoading(true);
-      try {
-        const result = await runSearch({
-          variables: { query: trimmed, limit: 10 },
-        });
-        const hits = result.data?.search?.hits ?? [];
-
-        if (hits.length === 0) {
-          setErrorMsg(`No results found for "${trimmed}". Try a paper ID (e.g. w31161) or different keywords.`);
-          setGraphData(null);
-          setHasSearched(true);
-          return;
-        }
-
-        const paperHit = hits.find((h: SearchHit) => h.entityType === "paper");
-        if (paperHit) {
-          setSearchMessage(
-            `Showing the paper neighborhood for "${paperHit.title}" (best match for "${trimmed}").`
-          );
-          setSearchQuery(paperHit.entityId);
-          await loadPaperNetwork(paperHit.entityId, depth, {
-            label: paperHit.title,
-            ...inheritedContext,
-          });
-          return;
-        }
-
-        const atomHit = hits.find(
-          (h: SearchHit) =>
-            h.entityType === "mechanism" ||
-            h.entityType === "method" ||
-            h.entityType === "dataset" ||
-            h.entityType === "puzzle"
-        );
-        if (atomHit) {
-          setSearchMessage(
-            `Showing the atom neighborhood for "${atomHit.title}" (best match for "${trimmed}").`
-          );
-          setSearchQuery(atomHit.entityId);
-          await loadAtomNeighborhood(atomHit.entityId, depth, {
-            label: atomHit.title,
-            ...inheritedContext,
-          });
-          return;
-        }
-
-        setErrorMsg(
-          `Found results for "${trimmed}" but none could be graphed. Try a paper ID like w31161.`
-        );
-        setGraphData(null);
-        setHasSearched(true);
-      } catch (err) {
-        setErrorMsg(
-          `Search failed: ${err instanceof Error ? err.message : "Unknown error"}`
-        );
-        setGraphData(null);
-        setHasSearched(true);
-      } finally {
-        setTopicSearchLoading(false);
-      }
+      setSearchMessage(
+        `Showing a topic graph for "${trimmed}". Use a paper ID or atom slug if you want a single-entity neighborhood instead.`
+      );
+      await loadResearchContextGraph(trimmed, {}, depth, {
+        label: trimmed,
+        ...inheritedContext,
+      });
     },
     [
       depth,
@@ -449,7 +401,7 @@ function GraphPageInner() {
       initialSource,
       loadAtomNeighborhood,
       loadPaperNetwork,
-      runSearch,
+      loadResearchContextGraph,
     ]
   );
 
@@ -839,7 +791,7 @@ function EmptyState({
                   ? errorMsg
                   : hasSearched
                     ? "No results found. Try a different search term."
-                    : "Search by paper ID, atom slug, or topic keywords to inspect local entity neighborhoods. Research-mode links can also open a scoped paper-set graph here."}
+                    : "Search by topic keywords to open a paper-set graph. Use a paper ID or atom slug when you want a single-entity neighborhood instead."}
               </p>
               <div className="mt-6">
                 <div className="relative flex gap-2">
@@ -861,7 +813,7 @@ function EmptyState({
                         if (suggestions.length > 0) setShowSuggestions(true);
                       }}
                       onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                      placeholder='e.g., w31161, staggered_did, or "medical device"'
+                      placeholder='e.g., "medical device", w31161, or staggered_did'
                       className="flex h-11 w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     />
                     {showSuggestions && suggestions.length > 0 && (

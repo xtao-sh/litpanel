@@ -356,6 +356,7 @@ function IdeaDevelopmentView({
   const [dataNeeded, setDataNeeded] = useState(idea.dataNeeded);
   const [notes, setNotes] = useState(idea.notes);
   const [debateOpen, setDebateOpen] = useState(false);
+  const [debateExpanded, setDebateExpanded] = useState(false);
   const [linkPickerOpen, setLinkPickerOpen] = useState(false);
 
   // Mutations
@@ -611,16 +612,35 @@ function IdeaDevelopmentView({
                 size="sm"
                 className="w-full justify-start text-xs text-purple-600 border-purple-200 hover:bg-purple-50"
                 disabled={!ideaText.trim()}
-                onClick={() => setDebateOpen(true)}
+                onClick={() => {
+                  setDebateExpanded(false);
+                  setDebateOpen(true);
+                }}
               >
                 <Scale className="mr-2 h-3.5 w-3.5" />
-                Launch Debate
+                {debateOpen ? "Show Debate Panel" : "Launch Debate"}
               </Button>
               <p className="mt-2 text-[10px] text-muted-foreground">
                 Multi-agent debate: Advocate, Skeptic, Methodologist + Moderator verdict
               </p>
             </CardContent>
           </Card>
+
+          {debateOpen && (
+            <DebateModal
+              open={debateOpen}
+              variant={debateExpanded ? "modal" : "inline"}
+              onClose={() => {
+                setDebateExpanded(false);
+                setDebateOpen(false);
+              }}
+              onExpand={() => setDebateExpanded(true)}
+              onCollapseToInline={() => setDebateExpanded(false)}
+              ideaTitle={title}
+              ideaText={ideaText}
+              paperIds={relatedPapers}
+            />
+          )}
 
           {/* Check Novelty */}
           <Card>
@@ -823,15 +843,6 @@ function IdeaDevelopmentView({
           </Card>
         </div>
       </div>
-
-      {/* Debate modal */}
-      <DebateModal
-        open={debateOpen}
-        onClose={() => setDebateOpen(false)}
-        ideaTitle={title}
-        ideaText={ideaText}
-        paperIds={relatedPapers}
-      />
 
       {/* Link idea picker dialog */}
       <LinkIdeaPicker

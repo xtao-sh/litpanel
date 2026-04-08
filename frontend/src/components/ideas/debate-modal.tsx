@@ -1,6 +1,14 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, {
+  memo,
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import {
   X,
@@ -8,6 +16,8 @@ import {
   ShieldAlert,
   FlaskConical,
   Scale,
+  Minimize2,
+  Maximize2,
   Copy,
   Check,
   Loader2,
@@ -58,7 +68,8 @@ const AGENT_CONFIG: Record<
   },
 };
 
-const PAPER_ID_RE = /\b(w\d{4,5})\b/g;
+const INLINE_MARKDOWN_RE =
+  /(\*\*w(\d{4,5})(?::\s*[^*]+?)?\*\*)|(\*\*([^*]+)\*\*)|\b(w(\d{4,5}))\b/g;
 
 // ---------------------------------------------------------------------------
 // Props
@@ -70,31 +81,54 @@ interface DebateModalProps {
   ideaTitle: string;
   ideaText: string;
   paperIds?: string[];
+  variant?: "modal" | "inline";
+  onExpand?: () => void;
+  onCollapseToInline?: () => void;
 }
 
 // ---------------------------------------------------------------------------
 // Inline text with paper ID links
 // ---------------------------------------------------------------------------
 
-function renderInlineText(text: string): React.ReactNode[] {
+function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  PAPER_ID_RE.lastIndex = 0;
-  while ((match = PAPER_ID_RE.exec(text)) !== null) {
+  INLINE_MARKDOWN_RE.lastIndex = 0;
+  while ((match = INLINE_MARKDOWN_RE.exec(text)) !== null) {
     if (match.index > lastIndex) {
       nodes.push(text.slice(lastIndex, match.index));
     }
-    nodes.push(
-      <Link
-        key={`p-${match.index}`}
-        href={`/paper/${match[1]}`}
-        className="inline rounded bg-blue-50 px-1 py-0.5 font-mono text-xs font-semibold text-blue-600 hover:bg-blue-100"
-      >
-        {match[1]}
-      </Link>
-    );
+
+    if (match[1]) {
+      const paperId = `w${match[2]}`;
+      const display = match[1].slice(2, -2);
+      nodes.push(
+        <Link
+          key={`${keyPrefix}-paper-bold-${match.index}`}
+          href={`/paper/${paperId}`}
+          className="inline rounded bg-blue-50 px-1 py-0.5 font-mono text-xs font-semibold text-blue-600 hover:bg-blue-100"
+        >
+          {display}
+        </Link>
+      );
+    } else if (match[3]) {
+      nodes.push(
+        <strong key={`${keyPrefix}-bold-${match.index}`}>{match[4]}</strong>
+      );
+    } else if (match[5]) {
+      nodes.push(
+        <Link
+          key={`${keyPrefix}-paper-${match.index}`}
+          href={`/paper/${match[5]}`}
+          className="inline rounded bg-blue-50 px-1 py-0.5 font-mono text-xs font-semibold text-blue-600 hover:bg-blue-100"
+        >
+          {match[5]}
+        </Link>
+      );
+    }
+
     lastIndex = match.index + match[0].length;
   }
   if (lastIndex < text.length) {
@@ -107,56 +141,120 @@ function renderInlineText(text: string): React.ReactNode[] {
 // Lightweight markdown renderer
 // ---------------------------------------------------------------------------
 
-function renderMarkdown(text: string): React.ReactNode[] {
-  const lines = text.split("\n");
-  const elements: React.ReactNode[] = [];
+function renderMarkdownBlock(block: string, blockIndex: number): React.ReactNode {
+  const trimmed = block.trim();
+  if (!trimmed) return null;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    if (line.startsWith("## ")) {
-      elements.push(
-        <h3 key={i} className="mt-4 mb-1.5 text-sm font-bold text-foreground">
-          {renderInlineText(line.slice(3))}
-        </h3>
-      );
-    } else if (line.startsWith("### ")) {
-      elements.push(
-        <h4 key={i} className="mt-3 mb-1 text-sm font-semibold text-foreground">
-          {renderInlineText(line.slice(4))}
-        </h4>
-      );
-    } else if (/^[-*]\s/.test(line)) {
-      elements.push(
-        <li key={i} className="ml-4 text-sm text-muted-foreground leading-relaxed list-disc">
-          {renderInlineText(line.replace(/^[-*]\s+/, ""))}
-        </li>
-      );
-    } else if (/^\d+\.\s/.test(line)) {
-      elements.push(
-        <li key={i} className="ml-4 text-sm text-muted-foreground leading-relaxed list-decimal">
-          {renderInlineText(line.replace(/^\d+\.\s+/, ""))}
-        </li>
-      );
-    } else if (line.trim() === "") {
-      elements.push(<div key={i} className="h-2" />);
-    } else {
-      elements.push(
-        <p key={i} className="text-sm text-muted-foreground leading-relaxed">
-          {renderInlineText(line)}
-        </p>
-      );
-    }
+  if (trimmed.startsWith("## ")) {
+    return (
+      <h3 key={`h3-${blockIndex}`} className="text-sm font-bold text-foreground">
+        {renderInlineText(trimmed.slice(3), `h3-${blockIndex}`)}
+      </h3>
+    );
   }
 
-  return elements;
+  if (trimmed.startsWith("### ")) {
+    return (
+      <h4 key={`h4-${blockIndex}`} className="text-sm font-semibold text-foreground">
+        {renderInlineText(trimmed.slice(4), `h4-${blockIndex}`)}
+      </h4>
+    );
+  }
+
+  const lines = trimmed.split("\n");
+  const parts: React.ReactNode[] = [];
+  let bulletItems: string[] = [];
+  let orderedItems: string[] = [];
+
+  const flushLists = () => {
+    if (bulletItems.length > 0) {
+      const items = [...bulletItems];
+      parts.push(
+        <ul key={`ul-${blockIndex}-${parts.length}`} className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+          {items.map((item, index) => (
+            <li key={`uli-${blockIndex}-${index}`} className="leading-relaxed">
+              {renderInlineText(item, `ul-${blockIndex}-${index}`)}
+            </li>
+          ))}
+        </ul>
+      );
+      bulletItems = [];
+    }
+
+    if (orderedItems.length > 0) {
+      const items = [...orderedItems];
+      parts.push(
+        <ol key={`ol-${blockIndex}-${parts.length}`} className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+          {items.map((item, index) => (
+            <li key={`oli-${blockIndex}-${index}`} className="leading-relaxed">
+              {renderInlineText(item, `ol-${blockIndex}-${index}`)}
+            </li>
+          ))}
+        </ol>
+      );
+      orderedItems = [];
+    }
+  };
+
+  for (const line of lines) {
+    const stripped = line.trim();
+
+    if (!stripped) {
+      flushLists();
+      continue;
+    }
+
+    if (/^[-*]\s/.test(stripped)) {
+      if (orderedItems.length > 0) {
+        flushLists();
+      }
+      bulletItems.push(stripped.replace(/^[-*]\s+/, ""));
+      continue;
+    }
+
+    if (/^\d+\.\s/.test(stripped)) {
+      if (bulletItems.length > 0) {
+        flushLists();
+      }
+      orderedItems.push(stripped.replace(/^\d+\.\s+/, ""));
+      continue;
+    }
+
+    flushLists();
+    parts.push(
+      <p key={`p-${blockIndex}-${parts.length}`} className="text-sm leading-relaxed text-muted-foreground">
+        {renderInlineText(stripped, `p-${blockIndex}-${parts.length}`)}
+      </p>
+    );
+  }
+
+  flushLists();
+
+  if (parts.length === 1) return parts[0];
+  return (
+    <div key={`block-${blockIndex}`} className="space-y-2.5">
+      {parts}
+    </div>
+  );
 }
+
+const DebateMarkdown = memo(function DebateMarkdown({ content }: { content: string }) {
+  const rendered = useMemo(() => {
+    if (!content) return null;
+    return content
+      .split(/\n\n+/)
+      .map((block, index) => renderMarkdownBlock(block, index))
+      .filter(Boolean);
+  }, [content]);
+
+  return <div className="space-y-2.5">{rendered}</div>;
+});
 
 // ---------------------------------------------------------------------------
 // Agent message card
 // ---------------------------------------------------------------------------
 
-function AgentMessageCard({
+const AgentMessageCard = memo(function AgentMessageCard({
   message,
 }: {
   message: DebateAgentMessage;
@@ -181,14 +279,14 @@ function AgentMessageCard({
         )}
       </div>
       <div className="pl-10">
-        {renderMarkdown(message.text)}
+        <DebateMarkdown content={message.text} />
         {message.isStreaming && (
           <span className="inline-block h-4 w-1.5 animate-pulse rounded-sm bg-muted-foreground align-middle" />
         )}
       </div>
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Verdict card
@@ -309,12 +407,13 @@ export function DebateModal({
   ideaTitle,
   ideaText,
   paperIds,
+  variant = "modal",
+  onExpand,
+  onCollapseToInline,
 }: DebateModalProps) {
   const [status, setStatus] = useState<"idle" | "debating" | "done" | "error">("idle");
   const [messages, setMessages] = useState<DebateAgentMessage[]>([]);
   const [currentRound, setCurrentRound] = useState(0);
-  const [rounds, setRounds] = useState<number[]>([]);
-  const [synthesis, setSynthesis] = useState("");
   const [verdict, setVerdict] = useState<DebateVerdict | null>(null);
   const [contextItems, setContextItems] = useState<
     { entity_type: string; entity_id: string; title: string }[]
@@ -325,13 +424,60 @@ export function DebateModal({
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const activeRoleRef = useRef<AgentRole | null>(null);
+  const pendingChunkRef = useRef("");
+  const flushTimerRef = useRef<number | null>(null);
+
+  const clearScheduledFlush = useCallback(() => {
+    if (flushTimerRef.current !== null) {
+      window.clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    }
+  }, []);
+
+  const flushPendingChunk = useCallback(() => {
+    clearScheduledFlush();
+    const pendingChunk = pendingChunkRef.current;
+    if (!pendingChunk) {
+      return;
+    }
+
+    pendingChunkRef.current = "";
+    startTransition(() => {
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (!last || !last.isStreaming) {
+          return prev;
+        }
+
+        const next = prev.slice();
+        next[next.length - 1] = {
+          ...last,
+          text: last.text + pendingChunk,
+        };
+        return next;
+      });
+    });
+  }, [clearScheduledFlush]);
+
+  const enqueueChunk = useCallback(
+    (chunk: string) => {
+      pendingChunkRef.current += chunk;
+      if (flushTimerRef.current !== null) {
+        return;
+      }
+      flushTimerRef.current = window.setTimeout(() => {
+        flushPendingChunk();
+      }, 48);
+    },
+    [flushPendingChunk]
+  );
 
   // Auto-scroll
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, synthesis, verdict, rounds, showSynthesisDivider]);
+  }, [messages, verdict, showSynthesisDivider]);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -339,15 +485,15 @@ export function DebateModal({
       setStatus("idle");
       setMessages([]);
       setCurrentRound(0);
-      setRounds([]);
-      setSynthesis("");
       setVerdict(null);
       setContextItems([]);
       setErrorMessage("");
       setShowSynthesisDivider(false);
       activeRoleRef.current = null;
+      pendingChunkRef.current = "";
+      clearScheduledFlush();
     }
-  }, [open]);
+  }, [clearScheduledFlush, open]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -355,19 +501,20 @@ export function DebateModal({
       if (abortRef.current) {
         abortRef.current.abort();
       }
+      clearScheduledFlush();
     };
-  }, []);
+  }, [clearScheduledFlush]);
 
   const startDebate = useCallback(async () => {
     setStatus("debating");
     setMessages([]);
-    setRounds([]);
-    setSynthesis("");
     setVerdict(null);
     setContextItems([]);
     setErrorMessage("");
     setShowSynthesisDivider(false);
     activeRoleRef.current = null;
+    pendingChunkRef.current = "";
+    clearScheduledFlush();
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -423,7 +570,6 @@ export function DebateModal({
           } else if (eventType === "round_start") {
             const round = data.round as number;
             setCurrentRound(round);
-            setRounds((prev) => [...prev, round]);
           } else if (eventType === "agent_start") {
             const role = data.role as AgentRole;
             const label = data.label as string;
@@ -440,18 +586,9 @@ export function DebateModal({
             ]);
           } else if (eventType === "chunk") {
             const text = data.text as string;
-            setMessages((prev) => {
-              const updated = [...prev];
-              const last = updated[updated.length - 1];
-              if (last && last.isStreaming) {
-                updated[updated.length - 1] = {
-                  ...last,
-                  text: last.text + text,
-                };
-              }
-              return updated;
-            });
+            enqueueChunk(text);
           } else if (eventType === "agent_done") {
+            flushPendingChunk();
             setMessages((prev) => {
               const updated = [...prev];
               const last = updated[updated.length - 1];
@@ -466,6 +603,7 @@ export function DebateModal({
           } else if (eventType === "synthesis_done") {
             // handled by agent_done for moderator
           } else if (eventType === "verdict") {
+            flushPendingChunk();
             const d = data.data as Record<string, unknown>;
             setVerdict({
               overallStrength: (d.overall_strength as number) ?? 3,
@@ -476,8 +614,10 @@ export function DebateModal({
               nextSteps: (d.next_steps as string[]) ?? [],
             });
           } else if (eventType === "done") {
+            flushPendingChunk();
             setStatus("done");
           } else if (eventType === "error") {
+            flushPendingChunk();
             setErrorMessage((data.message as string) ?? "An error occurred.");
             setStatus("error");
           }
@@ -485,8 +625,10 @@ export function DebateModal({
       }
 
       // In case stream finishes without explicit done
+      flushPendingChunk();
       setStatus((prev) => (prev === "debating" ? "done" : prev));
     } catch (err: unknown) {
+      flushPendingChunk();
       if (err instanceof DOMException && err.name === "AbortError") {
         setStatus("idle");
       } else {
@@ -500,22 +642,32 @@ export function DebateModal({
         setStatus("error");
       }
     } finally {
+      clearScheduledFlush();
       abortRef.current = null;
     }
-  }, [ideaTitle, ideaText, paperIds]);
+  }, [clearScheduledFlush, enqueueChunk, flushPendingChunk, ideaTitle, ideaText, paperIds]);
 
   const handleClose = () => {
     if (abortRef.current) {
       abortRef.current.abort();
     }
+    pendingChunkRef.current = "";
+    clearScheduledFlush();
     onClose();
   };
 
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="relative mx-4 flex h-[90vh] w-full max-w-[800px] flex-col overflow-hidden rounded-xl border border-border bg-muted shadow-2xl">
+  const isInline = variant === "inline";
+
+  const shell = (
+    <div
+      className={
+        isInline
+          ? "relative flex min-h-[420px] w-full flex-col overflow-hidden rounded-xl border border-border bg-muted shadow-sm"
+          : "relative mx-4 flex h-[90vh] w-full max-w-[800px] flex-col overflow-hidden rounded-xl border border-border bg-muted shadow-2xl"
+      }
+    >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-border bg-card px-6 py-4">
           <div className="min-w-0 flex-1">
@@ -537,18 +689,39 @@ export function DebateModal({
               <p className="mt-1 text-xs text-green-600 font-medium">Debate complete</p>
             )}
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-4 h-8 w-8 shrink-0 p-0"
-            onClick={handleClose}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="ml-4 flex items-center gap-2">
+            {isInline && onExpand && (
+              <Button variant="outline" size="sm" className="text-xs" onClick={onExpand}>
+                <Maximize2 className="mr-1.5 h-3.5 w-3.5" />
+                Expand
+              </Button>
+            )}
+            {!isInline && onCollapseToInline && (
+              <Button variant="outline" size="sm" className="text-xs" onClick={onCollapseToInline}>
+                <Minimize2 className="mr-1.5 h-3.5 w-3.5" />
+                Back to page
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 shrink-0 p-0"
+              onClick={handleClose}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Body */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4">
+        <div
+          ref={scrollRef}
+          className={
+            isInline
+              ? "max-h-[560px] flex-1 overflow-y-auto px-6 py-4"
+              : "flex-1 overflow-y-auto px-6 py-4"
+          }
+        >
           {/* Idle state: start button */}
           {status === "idle" && (
             <div className="flex flex-col items-center justify-center py-16">
@@ -700,7 +873,16 @@ export function DebateModal({
             </Button>
           </div>
         </div>
-      </div>
+    </div>
+  );
+
+  if (isInline) {
+    return shell;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      {shell}
     </div>
   );
 }

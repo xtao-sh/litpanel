@@ -18,12 +18,11 @@ import re
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-from strawberry.fastapi import GraphQLRouter
 
 import resolvers
 from auth import verify_api_key
@@ -94,6 +93,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
         *extra_origins,
     ],
     allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
@@ -101,14 +102,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Mount Strawberry GraphQL (GraphiQL disabled in production)
-graphql_router = GraphQLRouter(
-    schema,
-    graphiql=os.environ.get("NBER_ENV", "development") != "production",
-)
-app.include_router(graphql_router, prefix="/graphql")
-
 
 # ---------------------------------------------------------------------------
 # REST endpoints
@@ -131,6 +124,12 @@ class CreateProjectDraftRequest(BaseModel):
     description: Optional[str] = None
 
 
+class GraphQLRequest(BaseModel):
+    query: str
+    variables: Optional[dict[str, Any]] = None
+    operationName: Optional[str] = None
+
+
 @app.get("/api/health")
 async def health():
     db_path = os.environ.get(
@@ -141,6 +140,33 @@ async def health():
         "status": "ok",
         "db_exists": os.path.isfile(db_path),
     }
+
+
+@app.get("/graphql")
+async def graphql_info() -> PlainTextResponse:
+    return PlainTextResponse(
+        "GraphQL endpoint is available at POST /graphql with a JSON body containing query, variables, and optional operationName.",
+    )
+
+
+@app.post("/graphql")
+async def graphql_endpoint(body: GraphQLRequest) -> JSONResponse:
+    result = await schema.execute(
+        body.query,
+        variable_values=body.variables,
+        operation_name=body.operationName,
+    )
+
+    payload: dict[str, Any] = {"data": result.data}
+    status_code = 200
+    if result.errors:
+        payload["errors"] = [error.formatted for error in result.errors]
+        if result.data is None:
+            status_code = 400
+    if result.extensions:
+        payload["extensions"] = result.extensions
+
+    return JSONResponse(payload, status_code=status_code)
 
 
 # ---------------------------------------------------------------------------
