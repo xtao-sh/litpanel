@@ -8,25 +8,26 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-# Load .env file if present (before any other imports that read env vars)
-_env_path = Path(__file__).parent / ".env"
-if _env_path.exists():
-    for line in _env_path.read_text().splitlines():
-        line = line.strip()
-        if line and not line.startswith("#") and "=" in line:
-            key, _, value = line.partition("=")
-            os.environ.setdefault(key.strip(), value.strip())
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / ".env")
+except ImportError:
+    pass
 
 import re
 
 import aiosqlite
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from strawberry.fastapi import GraphQLRouter
 
 import resolvers
+from auth import verify_api_key
 from schema import schema
 from rag import ask_knowledge_base, ask_knowledge_base_sync, ask_contextual, _extract_citations, generate_literature_review
 from debate import run_debate
@@ -72,17 +73,28 @@ async def lifespan(app: FastAPI):
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="NBER Research Knowledge Base",
-    version="0.1.0",
+    title="NBER Research Knowledge Base API",
+    version="1.0.0",
+    description="API for searching, browsing, and exporting NBER working paper analysis",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
     lifespan=lifespan,
 )
 
-# CORS — allow the Next.js frontend during development
+# Rate limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS — allow the Next.js frontend during development + configurable extra origins
+extra_origins = os.environ.get("NBER_CORS_ORIGINS", "").split(",")
+extra_origins = [o.strip() for o in extra_origins if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        *extra_origins,
     ],
     allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
@@ -90,8 +102,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount Strawberry GraphQL (GraphiQL UI enabled)
-graphql_router = GraphQLRouter(schema, graphiql=True)
+# Mount Strawberry GraphQL (GraphiQL disabled in production)
+graphql_router = GraphQLRouter(
+    schema,
+    graphiql=os.environ.get("NBER_ENV", "development") != "production",
+)
 app.include_router(graphql_router, prefix="/graphql")
 
 
@@ -128,6 +143,30 @@ async def health():
     }
 
 
+# ---------------------------------------------------------------------------
+# External REST search (v1, API-key protected)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/v1/search", dependencies=[Depends(verify_api_key)])
+@limiter.limit("60/minute")
+async def search_papers(
+    request: Request,
+    q: str = Query(..., description="Search query"),
+    type: Optional[str] = Query(None, description="Entity type: paper, atom, idea, map"),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    """REST search interface for external tools."""
+    from hybrid_search import hybrid_search
+    result = await hybrid_search(q, entity_type=type, limit=limit + offset)
+    hits = result["hits"][offset: offset + limit]
+    return {
+        "results": hits,
+        "total": result["total"],
+        "query": q,
+    }
+
+
 @app.post("/api/projects/draft")
 async def create_project_draft_endpoint(request: CreateProjectDraftRequest) -> dict:
     """Create a file-backed Research Draft from a Research-mode paper set."""
@@ -159,16 +198,17 @@ async def create_project_draft_endpoint(request: CreateProjectDraftRequest) -> d
 
 
 @app.post("/api/ask")
-async def ask_endpoint(request: AskRequest) -> StreamingResponse:
+@limiter.limit("10/minute")
+async def ask_endpoint(request: Request, body: AskRequest) -> StreamingResponse:
     """Stream RAG answer via Server-Sent Events."""
 
     async def event_stream():
         full_answer = []
         event_index = 0
         async for chunk in ask_knowledge_base(
-            request.question,
-            max_context=request.max_context,
-            session_id=request.session_id,
+            body.question,
+            max_context=body.max_context,
+            session_id=body.session_id,
         ):
             if event_index < 2:
                 # First two yields are JSON metadata (session, then context)
@@ -197,12 +237,13 @@ async def ask_endpoint(request: AskRequest) -> StreamingResponse:
 
 
 @app.post("/api/ask/sync")
-async def ask_sync_endpoint(request: AskRequest) -> dict:
+@limiter.limit("10/minute")
+async def ask_sync_endpoint(request: Request, body: AskRequest) -> dict:
     """Non-streaming RAG answer."""
     return await ask_knowledge_base_sync(
-        request.question,
-        max_context=request.max_context,
-        session_id=request.session_id,
+        body.question,
+        max_context=body.max_context,
+        session_id=body.session_id,
     )
 
 
@@ -219,18 +260,19 @@ class ContextualAskRequest(BaseModel):
 
 
 @app.post("/api/ask/contextual")
-async def contextual_ask_endpoint(request: ContextualAskRequest) -> StreamingResponse:
+@limiter.limit("10/minute")
+async def contextual_ask_endpoint(request: Request, body: ContextualAskRequest) -> StreamingResponse:
     """Stream contextual RAG answer via Server-Sent Events for Research Mode."""
 
     async def event_stream():
         full_answer = []
         event_index = 0
         async for chunk in ask_contextual(
-            question=request.question,
-            paper_ids=request.paper_ids,
-            search_query=request.search_query,
-            landscape_summary=request.landscape_summary,
-            session_id=request.session_id,
+            question=body.question,
+            paper_ids=body.paper_ids,
+            search_query=body.search_query,
+            landscape_summary=body.landscape_summary,
+            session_id=body.session_id,
         ):
             if event_index < 2:
                 # First two yields are JSON metadata (session, then context)
@@ -269,15 +311,16 @@ class LitReviewRequest(BaseModel):
 
 
 @app.post("/api/generate/lit-review")
-async def generate_lit_review(request: LitReviewRequest) -> StreamingResponse:
+@limiter.limit("10/minute")
+async def generate_lit_review(request: Request, body: LitReviewRequest) -> StreamingResponse:
     """Generate a literature review draft from selected papers via SSE."""
 
     async def event_stream():
         full_answer: list[str] = []
         async for chunk in generate_literature_review(
-            paper_ids=request.paper_ids,
-            focus=request.focus,
-            style=request.style,
+            paper_ids=body.paper_ids,
+            focus=body.focus,
+            style=body.style,
         ):
             full_answer.append(chunk)
             event = json.dumps({"type": "chunk", "text": chunk})
@@ -408,12 +451,16 @@ async def export_bibtex(ids: str = Query(..., description="Comma-separated paper
         try:
             async with aiosqlite.connect(db_path) as db:
                 db.row_factory = aiosqlite.Row
+                placeholders = ",".join("?" for _ in paper_ids)
+                cursor = await db.execute(
+                    f"SELECT paper_id, title, authors, year FROM papers WHERE paper_id IN ({placeholders})",
+                    paper_ids,
+                )
+                rows = await cursor.fetchall()
+                # Preserve the requested order
+                row_map = {r["paper_id"]: r for r in rows}
                 for pid in paper_ids:
-                    cursor = await db.execute(
-                        "SELECT paper_id, title, authors, year FROM papers WHERE paper_id = ?",
-                        (pid,),
-                    )
-                    row = await cursor.fetchone()
+                    row = row_map.get(pid)
                     if row is not None:
                         entries.append(
                             _paper_to_bibtex(
@@ -462,12 +509,16 @@ async def export_csv(ids: str = Query(..., description="Comma-separated paper ID
             try:
                 async with aiosqlite.connect(db_path) as db:
                     db.row_factory = aiosqlite.Row
+                    placeholders = ",".join("?" for _ in paper_ids)
+                    cursor = await db.execute(
+                        f"SELECT paper_id, title, authors, year, fields, average_score, triage_decision, nber_url FROM papers WHERE paper_id IN ({placeholders})",
+                        paper_ids,
+                    )
+                    rows = await cursor.fetchall()
+                    # Preserve requested order
+                    row_map = {r["paper_id"]: r for r in rows}
                     for pid in paper_ids:
-                        cursor = await db.execute(
-                            "SELECT paper_id, title, authors, year, fields, average_score, triage_decision, nber_url FROM papers WHERE paper_id = ?",
-                            (pid,),
-                        )
-                        row = await cursor.fetchone()
+                        row = row_map.get(pid)
                         if row is not None:
                             authors = _parse_authors_bibtex(row["authors"])
                             fields_raw = row["fields"]
@@ -518,12 +569,29 @@ async def export_markdown(ids: str = Query(..., description="Comma-separated pap
             try:
                 async with aiosqlite.connect(db_path) as db:
                     db.row_factory = aiosqlite.Row
+                    placeholders = ",".join("?" for _ in paper_ids)
+
+                    # Batch fetch papers
+                    cursor = await db.execute(
+                        f"SELECT paper_id, title, authors, year, average_score FROM papers WHERE paper_id IN ({placeholders})",
+                        paper_ids,
+                    )
+                    rows = await cursor.fetchall()
+                    row_map = {r["paper_id"]: r for r in rows}
+
+                    # Batch fetch card sections
+                    sec_cursor = await db.execute(
+                        f"SELECT paper_id, section, content FROM card_sections WHERE paper_id IN ({placeholders})",
+                        paper_ids,
+                    )
+                    sec_rows = await sec_cursor.fetchall()
+                    sections_by_paper: dict[str, dict[str, str]] = {}
+                    for sr in sec_rows:
+                        sections_by_paper.setdefault(sr["paper_id"], {})[sr["section"]] = sr["content"]
+
+                    # Build markdown in requested order
                     for pid in paper_ids:
-                        cursor = await db.execute(
-                            "SELECT paper_id, title, authors, year, average_score FROM papers WHERE paper_id = ?",
-                            (pid,),
-                        )
-                        row = await cursor.fetchone()
+                        row = row_map.get(pid)
                         if row is None:
                             continue
 
@@ -535,13 +603,7 @@ async def export_markdown(ids: str = Query(..., description="Comma-separated pap
                         lines.append(f'## {row["paper_id"]}: {row["title"] or "Untitled"}')
                         lines.append(f"**Authors:** {author_str} | **Year:** {year_str} | **Score:** {score_str}\n")
 
-                        # Fetch card sections
-                        sec_cursor = await db.execute(
-                            "SELECT section, content FROM card_sections WHERE paper_id = ?",
-                            (pid,),
-                        )
-                        sections = {r["section"]: r["content"] for r in await sec_cursor.fetchall()}
-
+                        sections = sections_by_paper.get(pid, {})
                         section_labels = [
                             ("Research Question", "Research Question"),
                             ("Key Findings", "Key Findings"),
@@ -571,8 +633,6 @@ async def export_markdown(ids: str = Query(..., description="Comma-separated pap
 # ---------------------------------------------------------------------------
 # Paper comparison endpoint
 # ---------------------------------------------------------------------------
-
-import resolvers
 
 
 class CompareRequest(BaseModel):
@@ -686,9 +746,9 @@ def _extract_cell(column: str, sections_map: dict[str, str]) -> str:
 async def compare_papers(request: CompareRequest) -> dict:
     """Generate a structured comparison table across papers."""
     if len(request.paper_ids) < 2:
-        return {"error": "At least 2 paper IDs are required.", "columns": [], "papers": []}
+        raise HTTPException(status_code=400, detail="At least 2 paper IDs are required.")
     if len(request.paper_ids) > 8:
-        return {"error": "At most 8 papers can be compared.", "columns": [], "papers": []}
+        raise HTTPException(status_code=400, detail="At most 8 papers can be compared.")
 
     valid_columns = ["research_question", "method", "data", "key_finding", "limitation"]
     columns = [c for c in request.columns if c in valid_columns] or valid_columns
@@ -775,10 +835,11 @@ async def upload_paper(
 
     content = await file.read()
     if len(content) > MAX_UPLOAD_BYTES:
-        return {
-            "error": f"File too large ({len(content)} bytes). "
-                     f"Maximum is {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
-        }
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large ({len(content)} bytes). "
+                   f"Maximum is {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
+        )
 
     result = process_uploaded_pdf(
         content,
@@ -824,13 +885,14 @@ class ConsensusRequest(BaseModel):
 
 
 @app.post("/api/analyze/consensus")
-async def analyze_consensus_endpoint(request: ConsensusRequest) -> dict:
+@limiter.limit("10/minute")
+async def analyze_consensus_endpoint(request: Request, body: ConsensusRequest) -> dict:
     """Classify papers' stance on a research question using LLM.
     Returns supports/contradicts/neutral counts and per-paper classifications.
     """
     result = await resolvers.analyze_consensus(
-        paper_ids=request.paper_ids,
-        query=request.query,
+        paper_ids=body.paper_ids,
+        query=body.query,
     )
     return result
 
@@ -847,16 +909,17 @@ class DebateRequest(BaseModel):
 
 
 @app.post("/api/debate")
-async def debate_endpoint(request: DebateRequest) -> StreamingResponse:
+@limiter.limit("10/minute")
+async def debate_endpoint(request: Request, body: DebateRequest) -> StreamingResponse:
     """Run multi-agent research debate via SSE."""
 
     async def event_stream():
         try:
             async for chunk in run_debate(
-                idea_title=request.idea_title,
-                idea_text=request.idea_text,
-                paper_ids=request.paper_ids,
-                rounds=min(request.rounds, 3),
+                idea_title=body.idea_title,
+                idea_text=body.idea_text,
+                paper_ids=body.paper_ids,
+                rounds=min(body.rounds, 3),
             ):
                 yield f"data: {chunk}\n\n"
         except ValueError as e:

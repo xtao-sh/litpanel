@@ -200,13 +200,13 @@ async def run_debate(
             # Stream agent response
             agent_text_parts: list[str] = []
             try:
-                with client.messages.stream(
+                async with client.messages.stream(
                     model=_API_MODEL,
                     max_tokens=1500,
                     system=agent["system"],
                     messages=[{"role": "user", "content": user_msg}],
                 ) as stream:
-                    for text in stream.text_stream:
+                    async for text in stream.text_stream:
                         agent_text_parts.append(text)
                         yield json.dumps({"type": "chunk", "text": text})
             except Exception as e:
@@ -244,13 +244,13 @@ async def run_debate(
 
     synthesis_parts: list[str] = []
     try:
-        with client.messages.stream(
+        async with client.messages.stream(
             model=_API_MODEL,
             max_tokens=2000,
             system=AGENT_ROLES["moderator"]["system"],
             messages=[{"role": "user", "content": user_msg}],
         ) as stream:
-            for text in stream.text_stream:
+            async for text in stream.text_stream:
                 synthesis_parts.append(text)
                 yield json.dumps({"type": "chunk", "text": text})
     except Exception as e:
@@ -264,7 +264,7 @@ async def run_debate(
 
     # 5. Extract verdict (non-streaming)
     try:
-        verdict_response = client.messages.create(
+        verdict_response = await client.messages.create(
             model=_API_MODEL,
             max_tokens=500,
             system="You extract structured verdicts from debate syntheses. Respond with ONLY valid JSON.",

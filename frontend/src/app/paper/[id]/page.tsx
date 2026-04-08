@@ -205,32 +205,32 @@ function AddToCollectionDropdown({ paperId }: { paperId: string }) {
       </Button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-50 w-64 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+        <div className="absolute left-0 top-full mt-1 z-50 w-64 rounded-lg border border-border bg-card shadow-lg py-1">
           {collections.length === 0 && !creating && (
-            <p className="px-3 py-2 text-xs text-gray-500">No collections yet.</p>
+            <p className="px-3 py-2 text-xs text-muted-foreground">No collections yet.</p>
           )}
           {collections.map((col) => (
             <button
               key={col.id}
               type="button"
               onClick={() => handleToggle(col.id)}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-muted transition-colors"
             >
               <span
                 className={`flex h-4 w-4 items-center justify-center rounded border ${
                   paperCollectionIds.has(col.id)
                     ? "border-blue-500 bg-blue-500 text-white"
-                    : "border-gray-300"
+                    : "border-border"
                 }`}
               >
                 {paperCollectionIds.has(col.id) && <Check className="h-3 w-3" />}
               </span>
               <span className="truncate flex-1">{col.name}</span>
-              <span className="text-[10px] text-gray-400 shrink-0">{col.paperCount}</span>
+              <span className="text-[10px] text-muted-foreground shrink-0">{col.paperCount}</span>
             </button>
           ))}
 
-          <div className="border-t border-gray-100 mt-1 pt-1">
+          <div className="border-t border-border mt-1 pt-1">
             {creating ? (
               <div className="px-3 py-2">
                 <input
@@ -238,7 +238,7 @@ function AddToCollectionDropdown({ paperId }: { paperId: string }) {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="Collection name"
-                  className="w-full rounded border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded border border-border px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleCreate();
@@ -255,7 +255,7 @@ function AddToCollectionDropdown({ paperId }: { paperId: string }) {
                   </button>
                   <button
                     onClick={() => { setCreating(false); setNewName(""); }}
-                    className="rounded px-2 py-0.5 text-[10px] font-medium text-gray-600 hover:bg-gray-100"
+                    className="rounded px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted"
                   >
                     Cancel
                   </button>
@@ -337,10 +337,10 @@ function AddToIdeaDropdown({ paperId }: { paperId: string }) {
       </Button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-50 w-72 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+        <div className="absolute left-0 top-full mt-1 z-50 w-72 rounded-lg border border-border bg-card shadow-lg py-1">
           {ideas.length === 0 && (
             <div className="px-3 py-3">
-              <p className="text-xs text-gray-500">No workspace ideas yet.</p>
+              <p className="text-xs text-muted-foreground">No workspace ideas yet.</p>
               <a
                 href="/ideas/workspace"
                 className="mt-1 inline-block text-xs text-blue-600 hover:underline"
@@ -356,13 +356,13 @@ function AddToIdeaDropdown({ paperId }: { paperId: string }) {
                 key={idea.id}
                 type="button"
                 onClick={() => handleToggle(idea.id, isLinked)}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-muted transition-colors"
               >
                 <span
                   className={`flex h-4 w-4 items-center justify-center rounded border ${
                     isLinked
                       ? "border-blue-500 bg-blue-500 text-white"
-                      : "border-gray-300"
+                      : "border-border"
                   }`}
                 >
                   {isLinked && <Check className="h-3 w-3" />}
@@ -385,8 +385,8 @@ function PaperSkeleton({ paperId }: { paperId: string }) {
   return (
     <div className="space-y-8">
       <div>
-        <span className="text-xs text-gray-400">Paper</span>
-        <p className="mt-1 font-mono text-sm text-gray-500">{paperId}</p>
+        <span className="text-xs text-muted-foreground">Paper</span>
+        <p className="mt-1 font-mono text-sm text-muted-foreground">{paperId}</p>
       </div>
 
       <div className="flex flex-col gap-8 lg:flex-row">
@@ -401,7 +401,7 @@ function PaperSkeleton({ paperId }: { paperId: string }) {
             </div>
           </div>
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="border-gray-200 shadow-none">
+            <Card key={i} className="border-border shadow-none">
               <CardHeader className="p-4">
                 <Skeleton className="h-4 w-40" />
               </CardHeader>
@@ -415,7 +415,7 @@ function PaperSkeleton({ paperId }: { paperId: string }) {
         </div>
 
         <div className="w-full space-y-6 lg:w-[35%]">
-          <Card className="border-gray-200 shadow-none">
+          <Card className="border-border shadow-none">
             <CardHeader className="p-4">
               <Skeleton className="h-4 w-28" />
             </CardHeader>
@@ -423,7 +423,7 @@ function PaperSkeleton({ paperId }: { paperId: string }) {
               <Skeleton className="mx-auto h-64 w-full rounded" />
             </CardContent>
           </Card>
-          <Card className="border-gray-200 shadow-none">
+          <Card className="border-border shadow-none">
             <CardHeader className="p-4">
               <Skeleton className="h-4 w-32" />
             </CardHeader>
@@ -458,10 +458,10 @@ function PaperNotFound({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-24">
-      <h2 className="text-xl font-semibold text-gray-900">
+      <h2 className="text-xl font-semibold text-foreground">
         Paper {paperId} not found
       </h2>
-      <p className="mt-2 text-sm text-gray-500">
+      <p className="mt-2 text-sm text-muted-foreground">
         The paper you are looking for does not exist or has not been ingested
         yet.
       </p>
@@ -716,9 +716,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
         <div className="flex-1 space-y-6 lg:max-w-[65%]">
           {/* --- Header --- */}
           <div className="space-y-3">
-            <p className="font-mono text-xs text-gray-400">{paper.paperId}</p>
+            <p className="font-mono text-xs text-muted-foreground">{paper.paperId}</p>
             <div className="flex items-start gap-3">
-              <h1 className="text-2xl font-semibold tracking-tight leading-tight text-gray-900 flex-1">
+              <h1 className="text-2xl font-semibold tracking-tight leading-tight text-foreground flex-1">
                 {paper.title ?? "Untitled Paper"}
               </h1>
               {paper.nberUrl && (
@@ -726,7 +726,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                   href={paper.nberUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="shrink-0 mt-1 inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+                  className="shrink-0 mt-1 inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   View on NBER
                   <ExternalLink className="h-3 w-3" />
@@ -753,13 +753,13 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             {/* Metadata row */}
             <div className="flex flex-wrap gap-2 items-center">
               {paper.year && (
-                <span className="text-sm font-medium text-gray-500">
+                <span className="text-sm font-medium text-muted-foreground">
                   {paper.year}
                 </span>
               )}
 
               {totalWords > 0 && (
-                <span className="flex items-center gap-1 text-xs text-gray-400">
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Clock className="h-3 w-3" /> ~{readingMin} min read
                 </span>
               )}
@@ -874,7 +874,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             {/* Average score */}
             {paper.averageScore !== null && (
               <div
-                className={`inline-flex items-center gap-3 rounded-xl border px-4 py-2.5 ${scoreBg(paper.averageScore)} ${paper.averageScore >= 4.5 ? "border-green-200" : paper.averageScore >= 3.5 ? "border-blue-200" : "border-gray-200"}`}
+                className={`inline-flex items-center gap-3 rounded-xl border px-4 py-2.5 ${scoreBg(paper.averageScore)} ${paper.averageScore >= 4.5 ? "border-green-200" : paper.averageScore >= 3.5 ? "border-blue-200" : "border-border"}`}
               >
                 <span
                   className={`text-3xl font-bold tabular-nums ${scoreColor(paper.averageScore)}`}
@@ -882,10 +882,10 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                   {paper.averageScore.toFixed(1)}
                 </span>
                 <div className="flex flex-col">
-                  <span className="text-xs font-medium text-gray-500">
+                  <span className="text-xs font-medium text-muted-foreground">
                     Average Score
                   </span>
-                  <span className="text-xs text-gray-400">out of 5.0</span>
+                  <span className="text-xs text-muted-foreground">out of 5.0</span>
                 </div>
               </div>
             )}
@@ -893,9 +893,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
           {/* --- Abstract --- */}
           {paper.abstract && (
-            <Card className="border-gray-200 bg-gray-50/50 shadow-none">
+            <Card className="border-border bg-muted/50 shadow-none">
               <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm font-semibold text-gray-500">
+                <CardTitle className="text-sm font-semibold text-muted-foreground">
                   Abstract
                 </CardTitle>
               </CardHeader>
@@ -911,7 +911,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
           {paper.tldr && (
             <div className="rounded-xl border-l-4 border-blue-400 bg-blue-50/50 p-4">
               <p className="text-sm font-semibold text-blue-800 mb-1">TL;DR</p>
-              <p className="text-base text-gray-800 leading-relaxed">{paper.tldr}</p>
+              <p className="text-base text-foreground leading-relaxed">{paper.tldr}</p>
             </div>
           )}
 
@@ -933,9 +933,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             ) : null
           ) : (
             <div className="space-y-4">
-              <Card className="border-gray-200 bg-gray-50/50 shadow-none">
+              <Card className="border-border bg-muted/50 shadow-none">
                 <CardContent className="p-4">
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     Full analysis not yet available. Key information shown below.
                   </p>
                 </CardContent>
@@ -944,7 +944,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               {/* Connected Atoms (fallback) */}
               {atoms.length > 0 && (
                 <div className="space-y-3">
-                  <h2 className="text-lg font-semibold text-gray-900">
+                  <h2 className="text-lg font-semibold text-foreground">
                     Connected Atoms
                   </h2>
                   <AtomChips
@@ -977,14 +977,14 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                             className="block rounded-md border border-purple-100 p-3 transition-colors hover:bg-purple-50/50"
                           >
                             <div className="flex items-start justify-between gap-2">
-                              <span className="font-mono text-xs text-gray-400">
+                              <span className="font-mono text-xs text-muted-foreground">
                                 {sp.paperId}
                               </span>
                               <span className="shrink-0 rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700">
                                 {pct}% match
                               </span>
                             </div>
-                            <p className="mt-1 line-clamp-2 text-sm text-gray-700">
+                            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                               {sp.title ?? "Untitled"}
                             </p>
                           </Link>
@@ -997,12 +997,12 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
               {/* Related Papers (fallback) */}
               {related.length > 0 && (
-                <Card className="border-gray-200 shadow-none">
+                <Card className="border-border shadow-none">
                   <CardHeader className="p-4 pb-2">
-                    <CardTitle className="text-sm font-semibold text-gray-700">
+                    <CardTitle className="text-sm font-semibold text-muted-foreground">
                       Related Papers
                     </CardTitle>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
                       Shared knowledge atoms
                     </p>
                   </CardHeader>
@@ -1012,10 +1012,10 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         <Link
                           key={rp.paperId}
                           href={getPaperHref(rp.paperId)}
-                          className="block rounded-md border border-gray-100 p-3 transition-colors hover:bg-gray-50"
+                          className="block rounded-md border border-border p-3 transition-colors hover:bg-muted"
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <span className="font-mono text-xs text-gray-400">
+                            <span className="font-mono text-xs text-muted-foreground">
                               {rp.paperId}
                             </span>
                             {rp.sharedAtomCount > 0 && (
@@ -1024,7 +1024,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                               </span>
                             )}
                           </div>
-                          <p className="mt-1 line-clamp-2 text-sm text-gray-700">
+                          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                             {rp.title ?? "Untitled"}
                           </p>
                         </Link>
@@ -1052,7 +1052,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                     className={`space-y-2 ${idx > 0 ? "border-t border-orange-100 pt-4" : ""}`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="text-sm font-semibold text-gray-900">
+                      <h3 className="text-sm font-semibold text-foreground">
                         {debate.title}
                       </h3>
                       <span
@@ -1071,12 +1071,12 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                           : "Discussed"}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-600 leading-relaxed">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
                       {debate.context}
                     </p>
                     {debate.otherPapers.length > 0 && (
                       <div className="flex flex-wrap gap-1 pt-1">
-                        <span className="text-[10px] text-gray-400 mr-1 self-center">
+                        <span className="text-[10px] text-muted-foreground mr-1 self-center">
                           Also in this debate:
                         </span>
                         {debate.otherPapers.map((pid) => (
@@ -1099,7 +1099,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
           {/* --- Connected Atoms --- */}
           {atoms.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-foreground">
                 Connected Atoms
               </h2>
               <AtomChips
@@ -1111,7 +1111,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
           )}
 
           {/* --- My Notes --- */}
-          <Card className="border-gray-200 shadow-none">
+          <Card className="border-border shadow-none">
             <CardHeader
               className="p-4 cursor-pointer select-none"
               onClick={() =>
@@ -1122,7 +1122,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               }
             >
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-700">
+                <CardTitle className="text-sm font-semibold text-muted-foreground">
                   My Notes
                 </CardTitle>
                 <div className="flex items-center gap-2">
@@ -1133,9 +1133,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                     </span>
                   )}
                   {notesOpen ? (
-                    <ChevronUp className="h-4 w-4 text-gray-400" />
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
                   ) : (
-                    <ChevronDown className="h-4 w-4 text-gray-400" />
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
                   )}
                 </div>
               </div>
@@ -1143,7 +1143,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             {notesOpen && (
               <CardContent className="px-4 pb-4 pt-0 space-y-3">
                 <textarea
-                  className="w-full min-h-[120px] rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 resize-y"
+                  className="w-full min-h-[120px] rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 resize-y"
                   placeholder="Add your notes about this paper..."
                   value={noteText}
                   onChange={(e) =>
@@ -1154,14 +1154,14 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                   }
                   onBlur={handleNoteBlur}
                 />
-                <p className="mt-1.5 text-xs text-gray-400">
+                <p className="mt-1.5 text-xs text-muted-foreground">
                   Notes auto-save when you click away. Use [[w31184]] to link to other papers, [[atom_slug]] to link to atoms.
                 </p>
                 {/* Rendered note preview with linked references */}
                 {noteText.includes("[[") && (
                   <div className="rounded-md border border-blue-100 bg-blue-50/50 px-3 py-2">
                     <p className="text-[10px] font-medium text-blue-500 mb-1">Preview</p>
-                    <div className="text-sm text-gray-700">
+                    <div className="text-sm text-muted-foreground">
                       <NoteRenderer content={noteText} />
                     </div>
                   </div>
@@ -1194,7 +1194,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                       <Link
                         key={`${bl.entityType}-${bl.entityId}`}
                         href={blHref}
-                        className="flex items-start gap-2 rounded-md border border-blue-100 bg-white p-2.5 hover:bg-blue-50 transition-colors"
+                        className="flex items-start gap-2 rounded-md border border-blue-100 bg-card p-2.5 hover:bg-blue-50 transition-colors"
                       >
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 mt-0.5">
                           {bl.entityType}
@@ -1203,7 +1203,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                           <span className="font-mono text-xs text-blue-600">
                             {bl.entityId}
                           </span>
-                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                             {bl.notePreview}
                           </p>
                         </div>
@@ -1222,9 +1222,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
         <div className="w-full space-y-6 lg:w-[35%] lg:sticky lg:top-6 lg:self-start">
           {/* --- Radar Chart --- */}
           {paper.hasCard && scores.length > 0 && (
-            <Card className="border-gray-200 shadow-none">
+            <Card className="border-border shadow-none">
               <CardHeader className="p-4 pb-0">
-                <CardTitle className="text-sm font-semibold text-gray-700">
+                <CardTitle className="text-sm font-semibold text-muted-foreground">
                   Score Profile
                 </CardTitle>
               </CardHeader>
@@ -1236,9 +1236,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
           {/* --- Score Breakdown --- */}
           {scores.length > 0 && (
-            <Card className="border-gray-200 shadow-none">
+            <Card className="border-border shadow-none">
               <CardHeader className="p-4 pb-0">
-                <CardTitle className="text-sm font-semibold text-gray-700">
+                <CardTitle className="text-sm font-semibold text-muted-foreground">
                   Score Breakdown
                 </CardTitle>
               </CardHeader>
@@ -1250,9 +1250,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
           {/* --- Related Papers with Axis Control --- */}
           {related.length > 0 && (
-            <Card className="border-gray-200 shadow-none">
+            <Card className="border-border shadow-none">
               <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm font-semibold text-gray-700">
+                <CardTitle className="text-sm font-semibold text-muted-foreground">
                   More Like This
                 </CardTitle>
                 {/* Axis control buttons */}
@@ -1270,7 +1270,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                       className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
                         activeAxis === btn.key
                           ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
                       }`}
                     >
                       {btn.label}
@@ -1281,7 +1281,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               <CardContent className="p-4 pt-2">
                 {axisLoading ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
                   <>
@@ -1290,7 +1290,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                       const isTopic = activeAxis === "topic";
                       if (displayPapers.length === 0) {
                         return (
-                          <p className="py-4 text-center text-xs text-gray-400">
+                          <p className="py-4 text-center text-xs text-muted-foreground">
                             No related papers found for this axis.
                           </p>
                         );
@@ -1302,10 +1302,10 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                               <Link
                                 key={rp.paperId}
                                 href={getPaperHref(rp.paperId)}
-                                className="block rounded-md border border-gray-100 p-3 transition-colors hover:bg-gray-50"
+                                className="block rounded-md border border-border p-3 transition-colors hover:bg-muted"
                               >
                                 <div className="flex items-start justify-between gap-2">
-                                  <span className="font-mono text-xs text-gray-400">
+                                  <span className="font-mono text-xs text-muted-foreground">
                                     {rp.paperId}
                                   </span>
                                   <div className="flex items-center gap-1.5 shrink-0">
@@ -1346,11 +1346,11 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                                     )}
                                   </div>
                                 </div>
-                                <p className="mt-1 line-clamp-2 text-sm text-gray-700">
+                                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                                   {rp.title ?? "Untitled"}
                                 </p>
                                 {rp.year && (
-                                  <span className="mt-1 text-xs text-gray-400">
+                                  <span className="mt-1 text-xs text-muted-foreground">
                                     {rp.year}
                                   </span>
                                 )}
@@ -1396,14 +1396,14 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         className="block rounded-md border border-purple-100 p-3 transition-colors hover:bg-purple-50/50"
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <span className="font-mono text-xs text-gray-400">
+                          <span className="font-mono text-xs text-muted-foreground">
                             {sp.paperId}
                           </span>
                           <span className="shrink-0 rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700">
                             {pct}% match
                           </span>
                         </div>
-                        <p className="mt-1 line-clamp-2 text-sm text-gray-700">
+                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                           {sp.title ?? "Untitled"}
                         </p>
                         <div className="mt-1.5 flex items-center gap-2">
@@ -1414,7 +1414,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                             />
                           </div>
                           {sp.year && (
-                            <span className="text-xs text-gray-400 shrink-0">
+                            <span className="text-xs text-muted-foreground shrink-0">
                               {sp.year}
                             </span>
                           )}

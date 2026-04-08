@@ -228,6 +228,12 @@ def init_db() -> None:
         except sqlite3.OperationalError:
             pass  # Column already exists
 
+    # Add triage_summary column (migration-safe — for older DBs created before it was in CREATE TABLE)
+    try:
+        cur.execute("ALTER TABLE papers ADD COLUMN triage_summary TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
     # Add theme column to atoms (migration-safe)
     try:
         cur.execute("ALTER TABLE atoms ADD COLUMN theme TEXT")
@@ -239,6 +245,14 @@ def init_db() -> None:
 
     # Index for RAG sessions
     cur.execute("CREATE INDEX IF NOT EXISTS idx_rag_sessions ON rag_sessions(session_id, created_at)")
+
+    # Performance indexes for common query patterns
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_papers_year ON papers(year)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_papers_avg_score ON papers(average_score)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_apr_paper ON atom_paper_refs(paper_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_cs_paper ON card_sections(paper_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_tc_paper ON triage_cards(paper_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_cp_paper ON collection_papers(paper_id)")
 
     # FTS5 virtual table -- drop and recreate to avoid stale data
     cur.execute("DROP TABLE IF EXISTS search_index")

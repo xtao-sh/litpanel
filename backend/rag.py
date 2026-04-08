@@ -87,8 +87,8 @@ def _load_api_key() -> str:
     return key
 
 
-def _get_client() -> anthropic.Anthropic:
-    """Create an Anthropic client pointed at the Kimi Coding API.
+def _get_client() -> anthropic.AsyncAnthropic:
+    """Create an async Anthropic client pointed at the Kimi Coding API.
 
     Raises ValueError when no API key is available.
     """
@@ -97,7 +97,7 @@ def _get_client() -> anthropic.Anthropic:
         raise ValueError(
             "LLM API key not configured. Set KIMI_API_KEY environment variable."
         )
-    return anthropic.Anthropic(base_url=_API_BASE_URL, api_key=key)
+    return anthropic.AsyncAnthropic(base_url=_API_BASE_URL, api_key=key)
 
 
 # ---------------------------------------------------------------------------
@@ -488,13 +488,13 @@ async def ask_knowledge_base(
     full_answer_parts: list[str] = []
     try:
         client = _get_client()
-        with client.messages.stream(
+        async with client.messages.stream(
             model=_API_MODEL,
             max_tokens=4096,
             system=_SYSTEM_PROMPT,
             messages=messages,
         ) as stream:
-            for text in stream.text_stream:
+            async for text in stream.text_stream:
                 full_answer_parts.append(text)
                 yield text
     except ValueError as e:
@@ -571,7 +571,7 @@ async def ask_knowledge_base_sync(
 
     try:
         client = _get_client()
-        response = client.messages.create(
+        response = await client.messages.create(
             model=_API_MODEL,
             max_tokens=4096,
             system=_SYSTEM_PROMPT,
@@ -742,13 +742,13 @@ async def ask_contextual(
     full_answer_parts: list[str] = []
     try:
         client = _get_client()
-        with client.messages.stream(
+        async with client.messages.stream(
             model=_API_MODEL,
             max_tokens=4096,
             system=system_prompt,
             messages=messages,
         ) as stream:
-            for text in stream.text_stream:
+            async for text in stream.text_stream:
                 full_answer_parts.append(text)
                 yield text
     except ValueError as e:
@@ -900,13 +900,13 @@ Requirements:
     # 4. Stream from LLM
     try:
         client = _get_client()
-        with client.messages.stream(
+        async with client.messages.stream(
             model=_API_MODEL,
             max_tokens=4096,
             system=system_prompt,
             messages=messages,
         ) as stream:
-            for text in stream.text_stream:
+            async for text in stream.text_stream:
                 yield text
     except ValueError as e:
         yield f"\n\n[Error: {e}]"

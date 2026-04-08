@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -92,6 +92,30 @@ export function Sidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Collect all nav hrefs to determine the best (longest) prefix match
+  const allNavItems = useMemo(() => {
+    const items: NavItem[] = [];
+    for (const section of navSections) {
+      items.push(...section.items);
+    }
+    items.push(...secondaryNavItems);
+    return items;
+  }, []);
+
+  const bestMatch = useMemo(() => {
+    if (pathname === "/") return "/";
+    let best = "";
+    for (const item of allNavItems) {
+      if (item.href === "/") continue;
+      if (pathname === item.href || pathname.startsWith(item.href + "/") || pathname.startsWith(item.href + "?")) {
+        if (item.href.length > best.length) {
+          best = item.href;
+        }
+      }
+    }
+    return best;
+  }, [pathname, allNavItems]);
+
   return (
     <>
       {/* Mobile toggle button */}
@@ -116,7 +140,7 @@ export function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-border bg-slate-50/50 transition-transform duration-200 lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-border bg-muted/50 transition-transform duration-200 lg:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -147,7 +171,7 @@ export function Sidebar() {
                     const isActive =
                       item.href === "/"
                         ? pathname === "/"
-                        : pathname.startsWith(item.href);
+                        : item.href === bestMatch;
 
                     return (
                       <Link
@@ -180,7 +204,7 @@ export function Sidebar() {
             </p>
             <div className="mt-2 space-y-1">
               {secondaryNavItems.map((item) => {
-                const isActive = pathname.startsWith(item.href);
+                const isActive = item.href === bestMatch;
                 return (
                   <Link
                     key={item.label}

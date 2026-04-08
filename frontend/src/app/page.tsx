@@ -214,7 +214,7 @@ export default function DashboardPage() {
             <h2 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h2>
             <p className="mt-1 text-sm text-muted-foreground">Overview of the NBER Research Knowledge Base</p>
           </div>
-          <div className="h-96 animate-pulse rounded-lg border border-gray-200 bg-gray-50" />
+          <div className="h-96 animate-pulse rounded-lg border border-border bg-muted" />
         </div>
       }
     >
@@ -417,7 +417,7 @@ function DashboardContent() {
 
       {/* Hero search section */}
       <div className="mb-8 rounded-xl border bg-gradient-to-r from-blue-50 to-indigo-50 p-8 text-center">
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">What are you researching?</h2>
+        <h2 className="text-xl font-semibold text-foreground mb-2">What are you researching?</h2>
         <p className="text-sm text-muted-foreground mb-4">Search across 14,000+ NBER papers, methods, mechanisms, and datasets</p>
         <form onSubmit={handleSearch} className="mx-auto max-w-xl flex gap-2">
           <Input

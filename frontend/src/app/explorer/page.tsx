@@ -22,6 +22,7 @@ import { DetailPanel } from "@/components/explorer/detail-panel";
 import { GET_PAPERS, GET_ATOMS, GET_IDEAS } from "@/lib/queries";
 import { buildCompareHref } from "@/lib/navigation";
 import { ArrowRight, FolderOpen, Microscope, SlidersHorizontal } from "lucide-react";
+import { ExportMenu } from "@/components/shared/export-menu";
 import type { Paper, Atom, Idea } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -560,9 +561,16 @@ function ExplorerContent() {
 
       {/* Results count */}
       {activeTab === "papers" && !papersLoading && (
-        <p className="text-xs text-muted-foreground">
-          Showing {papers.length} of {papersTotal} papers
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            Showing {papers.length} of {papersTotal} papers
+          </p>
+          <ExportMenu
+            paperIds={papers.map((p) => p.paperId)}
+            label="Export"
+            compact
+          />
+        </div>
       )}
       {activeTab === "atoms" && !atomsLoading && (
         <p className="text-xs text-muted-foreground">
@@ -576,7 +584,7 @@ function ExplorerContent() {
       )}
 
       {/* Main layout: sidebar + table + detail */}
-      <div className="flex gap-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="flex gap-0 overflow-hidden rounded-lg border border-border bg-card">
         {/* Filter sidebar */}
         <FilterPanel
           activeTab={activeTab}
@@ -670,7 +678,7 @@ export default function ExplorerPage() {
               Browse and filter papers, atoms, and research ideas.
             </p>
           </div>
-          <div className="h-96 animate-pulse rounded-lg border border-gray-200 bg-gray-50" />
+          <div className="h-96 animate-pulse rounded-lg border border-border bg-muted" />
         </div>
       }
     >

@@ -26,7 +26,7 @@ function AskPageInner() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const initialQueryHandled = useRef(false);
 
@@ -307,7 +307,7 @@ function AskPageInner() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
               <Sparkles className="h-5 w-5 text-blue-600" />
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               Ask the Knowledge Base
             </h1>
           </div>
@@ -353,7 +353,7 @@ function AskPageInner() {
             <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
               <Sparkles className="h-7 w-7 text-blue-500" />
             </div>
-            <p className="mb-6 text-center text-sm text-gray-500">
+            <p className="mb-6 text-center text-sm text-muted-foreground">
               Ask a question to get started. The AI will search the knowledge
               base and provide an answer with citations.
             </p>
@@ -384,16 +384,28 @@ function AskPageInner() {
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 border-t border-gray-200 bg-white pt-4 pb-2">
-        <form onSubmit={handleSubmit} className="flex items-center gap-3">
-          <input
+      <div className="shrink-0 border-t border-border bg-card pt-4 pb-2">
+        <form onSubmit={handleSubmit} className="flex items-end gap-3">
+          <textarea
             ref={inputRef}
-            type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              // Auto-resize
+              const el = e.target;
+              el.style.height = "auto";
+              el.style.height = `${Math.min(el.scrollHeight, 4 * 24 + 24)}px`;
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(e);
+              }
+            }}
             placeholder="Ask a question about your research knowledge..."
             disabled={isStreaming}
-            className="flex h-12 flex-1 rounded-xl border border-gray-200 bg-gray-50/50 px-5 py-3 text-sm shadow-sm ring-offset-white placeholder:text-gray-400 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            rows={1}
+            className="flex min-h-[48px] max-h-[120px] flex-1 resize-none rounded-xl border border-border bg-muted/50 px-5 py-3 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus-visible:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           />
           <Button
             type="submit"

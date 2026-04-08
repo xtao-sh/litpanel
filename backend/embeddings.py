@@ -6,6 +6,7 @@ Embeddings stored in SQLite as numpy arrays, loaded into memory at startup.
 Brute-force cosine search over ~24K vectors takes <10ms.
 """
 
+import asyncio
 import logging
 import sqlite3
 import warnings
@@ -175,7 +176,7 @@ def compute_atom_embeddings():
 # In-memory index for fast search
 # ---------------------------------------------------------------------------
 
-_paper_index: Optional[dict] = None   # {"ids": [...], "vectors": np.ndarray}
+_paper_index: Optional[dict] = None   # {"ids": [...], "vectors": np.ndarray, "id_to_idx": {id: int}}
 _atom_index: Optional[dict] = None
 
 
@@ -197,7 +198,8 @@ async def load_index():
         if rows:
             ids = [r[0] for r in rows]
             vecs = np.array([np.frombuffer(r[1], dtype=np.float32) for r in rows])
-            _paper_index = {"ids": ids, "vectors": vecs}
+            id_to_idx = {eid: i for i, eid in enumerate(ids)}
+            _paper_index = {"ids": ids, "vectors": vecs, "id_to_idx": id_to_idx}
             logger.info(f"Loaded {len(ids)} paper embeddings into memory ({vecs.shape})")
         else:
             logger.info("No paper embeddings found in database")
@@ -210,7 +212,8 @@ async def load_index():
         if rows:
             ids = [r[0] for r in rows]
             vecs = np.array([np.frombuffer(r[1], dtype=np.float32) for r in rows])
-            _atom_index = {"ids": ids, "vectors": vecs}
+            id_to_idx = {eid: i for i, eid in enumerate(ids)}
+            _atom_index = {"ids": ids, "vectors": vecs, "id_to_idx": id_to_idx}
             logger.info(f"Loaded {len(ids)} atom embeddings into memory ({vecs.shape})")
         else:
             logger.info("No atom embeddings found in database")
@@ -242,7 +245,7 @@ async def semantic_search(query: str, entity_type: str = "all", limit: int = 20)
     if not is_loaded():
         return []
 
-    query_vec = embed_text(query)
+    query_vec = await asyncio.to_thread(embed_text, query)
     results = []
 
     if entity_type in ("all", "paper") and _paper_index is not None:
@@ -273,9 +276,8 @@ async def find_similar_papers(paper_id: str, limit: int = 20) -> list[dict]:
     if _paper_index is None:
         return []
 
-    try:
-        idx = _paper_index["ids"].index(paper_id)
-    except ValueError:
+    idx = _paper_index["id_to_idx"].get(paper_id)
+    if idx is None:
         return []
 
     query_vec = _paper_index["vectors"][idx]
@@ -293,9 +295,8 @@ async def find_similar_atoms(atom_slug: str, limit: int = 20) -> list[dict]:
     if _atom_index is None:
         return []
 
-    try:
-        idx = _atom_index["ids"].index(atom_slug)
-    except ValueError:
+    idx = _atom_index["id_to_idx"].get(atom_slug)
+    if idx is None:
         return []
 
     query_vec = _atom_index["vectors"][idx]
