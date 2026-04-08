@@ -1,9 +1,7 @@
 "use client";
 
-import type { ErrorLike } from "@apollo/client";
-
 interface QueryErrorBannerProps {
-  error: ErrorLike | undefined;
+  error: { message?: string } | undefined;
   message?: string;
 }
 

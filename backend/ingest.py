@@ -608,11 +608,15 @@ def stage7_merge_existing(conn: sqlite3.Connection) -> int:
     ext_conn = sqlite3.connect(str(existing_path))
     ext_conn.row_factory = sqlite3.Row
 
-    rows = ext_conn.execute(
-        """SELECT paper_id, year, field_tags, status,
-                  triage_decision, triage_summary
-           FROM papers"""
-    ).fetchall()
+    # Check which columns exist in the external DB (triage_summary may not exist in older versions)
+    ext_columns = {col[1] for col in ext_conn.execute("PRAGMA table_info(papers)").fetchall()}
+    has_triage_summary = "triage_summary" in ext_columns
+
+    select_cols = "paper_id, year, field_tags, status, triage_decision"
+    if has_triage_summary:
+        select_cols += ", triage_summary"
+
+    rows = ext_conn.execute(f"SELECT {select_cols} FROM papers").fetchall()
 
     count = 0
     for row in rows:
@@ -630,6 +634,7 @@ def stage7_merge_existing(conn: sqlite3.Connection) -> int:
                 pass
 
         # Only insert if paper doesn't already have a card
+        triage_summary_val = row["triage_summary"] if has_triage_summary else None
         conn.execute(
             """INSERT OR IGNORE INTO papers
                (paper_id, year, fields, triage_decision, triage_summary, has_card)
@@ -639,8 +644,7 @@ def stage7_merge_existing(conn: sqlite3.Connection) -> int:
                 row["year"],
                 fields,
                 row["triage_decision"],
-                row["triage_summary"],
-                # has_card stays 0 for these
+                triage_summary_val,
             ),
         )
         count += 1

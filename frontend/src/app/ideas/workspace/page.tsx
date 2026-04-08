@@ -990,7 +990,7 @@ export default function IdeaWorkspacePage() {
             <button
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                 viewMode === "list"
-                  ? "bg-gray-900 text-white"
+                  ? "bg-foreground text-background"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setViewMode("list")}
@@ -1001,7 +1001,7 @@ export default function IdeaWorkspacePage() {
             <button
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                 viewMode === "kanban"
-                  ? "bg-gray-900 text-white"
+                  ? "bg-foreground text-background"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setViewMode("kanban")}

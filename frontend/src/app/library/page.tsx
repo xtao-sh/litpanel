@@ -280,7 +280,7 @@ function ReadingListTab() {
             }}
             className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
               statusFilter === tab.value
-                ? "bg-gray-900 text-white"
+                ? "bg-foreground text-background"
                 : "text-muted-foreground hover:bg-muted"
             }`}
           >
