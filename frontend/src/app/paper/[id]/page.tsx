@@ -915,6 +915,25 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             </div>
           )}
 
+          {/* --- Section Navigation --- */}
+          {paper.hasCard && orderedSections.filter((s) => s.content && s.content.trim().length > 0).length > 0 && (
+            <nav className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-4 py-2 flex gap-2 overflow-x-auto rounded-lg">
+              {orderedSections
+                .filter((s) => s.content && s.content.trim().length > 0)
+                .map((s) => (
+                  <button
+                    key={s.section}
+                    onClick={() => {
+                      document.getElementById(`section-${s.section.replace(/\s+/g, '-').toLowerCase()}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className="shrink-0 rounded-full px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  >
+                    {s.section.replace(/_/g, ' ')}
+                  </button>
+                ))}
+            </nav>
+          )}
+
           {/* --- Card Sections --- */}
           {paper.hasCard ? (
             orderedSections.length > 0 ? (
@@ -922,12 +941,13 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                 {orderedSections
                   .filter((s) => s.content && s.content.trim().length > 0)
                   .map((s) => (
-                    <SectionCard
-                      key={s.section}
-                      title={s.section}
-                      content={s.content}
-                      defaultExpanded={s.section.toLowerCase().includes("research_question")}
-                    />
+                    <div key={s.section} id={`section-${s.section.replace(/\s+/g, '-').toLowerCase()}`}>
+                      <SectionCard
+                        title={s.section}
+                        content={s.content}
+                        defaultExpanded={s.section.toLowerCase().includes("research_question")}
+                      />
+                    </div>
                   ))}
               </div>
             ) : null

@@ -189,6 +189,9 @@ function ResearchPageInner() {
   const [creatingProject, setCreatingProject] = useState(false);
   const [projectError, setProjectError] = useState<string | null>(null);
 
+  // Delete confirmation state
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+
   // Whether a search has been performed
   const hasSearched = submittedQuery.length > 0;
   const currentResearchHref = useMemo(
@@ -724,14 +727,34 @@ function ResearchPageInner() {
                     <span className="text-[10px] text-muted-foreground">
                       {new Date(session.updatedAt).toLocaleDateString()}
                     </span>
-                    <button
-                      type="button"
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 transition-all"
-                      onClick={(e) => handleDeleteSession(session.id, e)}
-                      title="Delete session"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
-                    </button>
+                    {confirmDeleteId === session.id ? (
+                      <div className="flex items-center gap-1 text-xs" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-red-600">Delete?</span>
+                        <button
+                          type="button"
+                          onClick={(e) => { handleDeleteSession(session.id, e); setConfirmDeleteId(null); }}
+                          className="text-red-600 font-medium hover:underline"
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}
+                          className="text-muted-foreground hover:underline"
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 transition-all"
+                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(session.id); }}
+                        title="Delete session"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
+                      </button>
+                    )}
                   </div>
                 </button>
               ))}

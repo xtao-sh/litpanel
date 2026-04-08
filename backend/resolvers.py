@@ -2441,6 +2441,63 @@ async def get_stats() -> dict[str, int]:
         return zeros
 
 
+async def get_whats_changed(since: str) -> dict[str, Any]:
+    """Return papers, atoms, and ideas added or updated since a given date."""
+    if not _db_exists():
+        return {"new_papers": [], "new_atoms": [], "new_ideas": [], "updated_papers": []}
+    try:
+        db = await _get_db()
+
+        # New papers (registered after 'since' date, approximated by paper_id or year)
+        cursor = await db.execute(
+            "SELECT * FROM papers WHERE paper_id IN (SELECT paper_id FROM triage_cards WHERE triaged_at >= ?) ORDER BY paper_id DESC LIMIT 50",
+            (since,),
+        )
+        new_papers = [_row_to_paper(r) for r in await cursor.fetchall()]
+
+        # Papers that got new cards since the date
+        # (Use card_sections — papers whose sections were recently added)
+        cursor2 = await db.execute(
+            "SELECT DISTINCT paper_id FROM papers WHERE has_card = 1 AND paper_id NOT IN (SELECT paper_id FROM triage_cards WHERE triaged_at < ?) LIMIT 50",
+            (since,),
+        )
+        updated_ids = [r["paper_id"] for r in await cursor2.fetchall()]
+        updated_papers = await get_papers_by_ids(updated_ids) if updated_ids else []
+
+        # New ideas
+        cursor3 = await db.execute(
+            "SELECT * FROM ideas WHERE generated_date >= ? ORDER BY composite DESC LIMIT 20",
+            (since,),
+        )
+        new_ideas = []
+        for r in await cursor3.fetchall():
+            new_ideas.append({
+                "id": r["id"], "title": r["title"], "status": r["status"],
+                "composite": r["composite"], "generated_date": r["generated_date"],
+            })
+
+        # New digests
+        cursor4 = await db.execute(
+            "SELECT date, content FROM digests WHERE date >= ? ORDER BY date DESC LIMIT 10",
+            (since,),
+        )
+        new_digests = [{"date": r["date"], "content": r["content"][:200]} for r in await cursor4.fetchall()]
+
+        return {
+            "new_papers": new_papers,
+            "updated_papers": updated_papers,
+            "new_ideas": new_ideas,
+            "new_digests": new_digests,
+            "total_new_papers": len(new_papers),
+            "total_updated_papers": len(updated_papers),
+            "total_new_ideas": len(new_ideas),
+        }
+    except Exception:
+        logger.exception("get_whats_changed failed")
+        return {"new_papers": [], "updated_papers": [], "new_ideas": [], "new_digests": [],
+                "total_new_papers": 0, "total_updated_papers": 0, "total_new_ideas": 0}
+
+
 async def get_whats_new(limit: int = 10) -> dict[str, Any]:
     """Return the latest papers (by paper_id DESC), recent ideas count, and total papers.
 

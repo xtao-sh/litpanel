@@ -628,6 +628,122 @@ async def export_markdown(ids: str = Query(..., description="Comma-separated pap
 
 
 # ---------------------------------------------------------------------------
+# Annotated bibliography export
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/export/annotated-bib")
+async def export_annotated_bibliography(
+    ids: str = Query(..., description="Comma-separated paper IDs"),
+    grouping: str = Query("thematic", description="thematic | chronological | methodological"),
+):
+    """Export an annotated bibliography with per-paper summaries grouped by theme."""
+    paper_ids = [pid.strip() for pid in ids.split(",") if pid.strip()]
+    if not paper_ids:
+        return PlainTextResponse("", media_type="text/markdown")
+
+    db = await resolvers._get_db()
+    placeholders = ",".join("?" for _ in paper_ids)
+
+    # Fetch papers
+    cursor = await db.execute(
+        f"SELECT paper_id, title, authors, year, fields, average_score FROM papers WHERE paper_id IN ({placeholders})",
+        paper_ids,
+    )
+    rows = await cursor.fetchall()
+
+    # Fetch card sections
+    sec_cursor = await db.execute(
+        f"SELECT paper_id, section, content FROM card_sections WHERE paper_id IN ({placeholders})",
+        paper_ids,
+    )
+    sec_rows = await sec_cursor.fetchall()
+    sections_by_paper = {}
+    for sr in sec_rows:
+        sections_by_paper.setdefault(sr["paper_id"], {})[sr["section"]] = sr["content"]
+
+    # Build annotated entries
+    entries = []
+    for row in rows:
+        pid = row["paper_id"]
+        authors = _parse_authors_bibtex(row["authors"])
+        sections = sections_by_paper.get(pid, {})
+
+        # Build annotation: research question + key finding (first 2 sentences each)
+        rq = sections.get("Research Question", "")
+        kf = sections.get("Key Findings", "")
+        method = sections.get("Identification & Method", "")
+
+        annotation = ""
+        if rq:
+            annotation += rq.split(".")[0].strip() + ". "
+        if method:
+            first_sent = method.split(".")[0].strip()
+            annotation += f"Uses {first_sent.lower() if not first_sent[0:1].isupper() else first_sent}. "
+        if kf:
+            annotation += kf.split(".")[0].strip() + "."
+
+        fields = []
+        try:
+            fields = json.loads(row["fields"]) if row["fields"] else []
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        entries.append({
+            "paper_id": pid,
+            "title": row["title"] or pid,
+            "authors": authors,
+            "year": row["year"],
+            "fields": fields,
+            "annotation": annotation[:500],
+        })
+
+    # Group entries
+    lines = ["# Annotated Bibliography\n"]
+
+    if grouping == "chronological":
+        entries.sort(key=lambda e: e["year"] or 0)
+        current_year = None
+        for e in entries:
+            if e["year"] != current_year:
+                current_year = e["year"]
+                lines.append(f"\n## {current_year or 'Unknown Year'}\n")
+            lines.append(f"**{e['paper_id']}**: {e['title']}")
+            lines.append(f"*{', '.join(e['authors'][:3])}* ({e['year'] or 'N/A'})\n")
+            lines.append(f"> {e['annotation']}\n")
+    elif grouping == "methodological":
+        # Group by first field
+        by_field: dict[str, list] = {}
+        for e in entries:
+            field = e["fields"][0] if e["fields"] else "Other"
+            by_field.setdefault(field, []).append(e)
+        for field, field_entries in sorted(by_field.items()):
+            lines.append(f"\n## {field}\n")
+            for e in field_entries:
+                lines.append(f"**{e['paper_id']}**: {e['title']}")
+                lines.append(f"*{', '.join(e['authors'][:3])}* ({e['year'] or 'N/A'})\n")
+                lines.append(f"> {e['annotation']}\n")
+    else:  # thematic (default) — group by field
+        by_field_t: dict[str, list] = {}
+        for e in entries:
+            field = e["fields"][0] if e["fields"] else "Other"
+            by_field_t.setdefault(field, []).append(e)
+        for field, field_entries in sorted(by_field_t.items()):
+            lines.append(f"\n## {field}\n")
+            for e in sorted(field_entries, key=lambda x: x["year"] or 0, reverse=True):
+                lines.append(f"**{e['paper_id']}**: {e['title']}")
+                lines.append(f"*{', '.join(e['authors'][:3])}* ({e['year'] or 'N/A'})\n")
+                lines.append(f"> {e['annotation']}\n")
+
+    content = "\n".join(lines)
+    return PlainTextResponse(
+        content,
+        media_type="text/markdown",
+        headers={"Content-Disposition": 'attachment; filename="annotated_bibliography.md"'},
+    )
+
+
+# ---------------------------------------------------------------------------
 # Paper comparison endpoint
 # ---------------------------------------------------------------------------
 

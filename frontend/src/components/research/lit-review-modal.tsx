@@ -52,25 +52,25 @@ function renderMarkdown(text: string): React.ReactNode[] {
     // Headers
     if (line.startsWith("## ")) {
       elements.push(
-        <h2 key={i} className="text-lg font-semibold text-gray-900 mt-6 mb-2">
+        <h2 key={i} className="text-lg font-semibold text-foreground mt-6 mb-2">
           {renderInline(line.slice(3))}
         </h2>
       );
     } else if (line.startsWith("### ")) {
       elements.push(
-        <h3 key={i} className="text-base font-semibold text-gray-800 mt-4 mb-1.5">
+        <h3 key={i} className="text-base font-semibold text-foreground mt-4 mb-1.5">
           {renderInline(line.slice(4))}
         </h3>
       );
     } else if (line.startsWith("# ")) {
       elements.push(
-        <h1 key={i} className="text-xl font-bold text-gray-900 mt-6 mb-3">
+        <h1 key={i} className="text-xl font-bold text-foreground mt-6 mb-3">
           {renderInline(line.slice(2))}
         </h1>
       );
     } else if (line.startsWith("- ") || line.startsWith("* ")) {
       elements.push(
-        <li key={i} className="text-sm text-gray-700 leading-relaxed ml-4 list-disc">
+        <li key={i} className="text-sm text-muted-foreground leading-relaxed ml-4 list-disc">
           {renderInline(line.slice(2))}
         </li>
       );
@@ -78,7 +78,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
       elements.push(<div key={i} className="h-2" />);
     } else {
       elements.push(
-        <p key={i} className="text-sm text-gray-700 leading-relaxed">
+        <p key={i} className="text-sm text-muted-foreground leading-relaxed">
           {renderInline(line)}
         </p>
       );
@@ -279,13 +279,13 @@ export function LitReviewModal({
         <button
           type="button"
           onClick={() => setPapersExpanded(!papersExpanded)}
-          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           {papersExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           {paperIds.length} paper{paperIds.length !== 1 ? "s" : ""} included
         </button>
         {papersExpanded && (
-          <div className="max-h-32 overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-2">
+          <div className="max-h-32 overflow-y-auto rounded-md border border-border bg-muted p-2">
             <div className="flex flex-wrap gap-1">
               {paperIds.map((id) => (
                 <a
@@ -293,7 +293,7 @@ export function LitReviewModal({
                   href={`/paper/${id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-block rounded bg-white border border-gray-200 px-2 py-0.5 text-xs font-mono text-blue-600 hover:bg-blue-50 transition-colors"
+                  className="inline-block rounded bg-card border border-border px-2 py-0.5 text-xs font-mono text-blue-600 hover:bg-blue-50 transition-colors"
                 >
                   {id}
                 </a>
@@ -307,7 +307,7 @@ export function LitReviewModal({
           <div className="space-y-3">
             {/* Style selector */}
             <div>
-              <label className="text-xs font-medium text-gray-700 mb-1.5 block">
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                 Organization Style
               </label>
               <div className="flex gap-2">
@@ -319,13 +319,13 @@ export function LitReviewModal({
                     className={`flex-1 rounded-lg border px-3 py-2 text-left transition-colors ${
                       style === opt.value
                         ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500"
-                        : "border-gray-200 hover:bg-gray-50"
+                        : "border-border hover:bg-muted/50"
                     }`}
                   >
-                    <p className={`text-xs font-medium ${style === opt.value ? "text-blue-700" : "text-gray-700"}`}>
+                    <p className={`text-xs font-medium ${style === opt.value ? "text-blue-700" : "text-muted-foreground"}`}>
                       {opt.label}
                     </p>
-                    <p className="text-[10px] text-gray-500">{opt.desc}</p>
+                    <p className="text-[10px] text-muted-foreground">{opt.desc}</p>
                   </button>
                 ))}
               </div>
@@ -333,7 +333,7 @@ export function LitReviewModal({
 
             {/* Focus input */}
             <div>
-              <label className="text-xs font-medium text-gray-700 mb-1.5 block">
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                 Topic Focus (optional)
               </label>
               <input
@@ -341,7 +341,7 @@ export function LitReviewModal({
                 value={focus}
                 onChange={(e) => setFocus(e.target.value)}
                 placeholder="e.g., causal identification strategies, effects on labor markets..."
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -360,14 +360,14 @@ export function LitReviewModal({
           <>
             <div
               ref={contentRef}
-              className="flex-1 overflow-y-auto rounded-md border border-gray-200 bg-white p-4 min-h-[300px] max-h-[50vh]"
+              className="flex-1 overflow-y-auto rounded-md border border-border bg-card p-4 min-h-[300px] max-h-[50vh]"
             >
               {content ? (
                 <div className="prose prose-sm max-w-none">
                   {renderMarkdown(content)}
                 </div>
               ) : isGenerating ? (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Generating literature review...
                 </div>

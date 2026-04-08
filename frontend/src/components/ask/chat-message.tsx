@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { User, Bot, Microscope, GitBranch } from "lucide-react";
+import { User, Bot, Microscope, GitBranch, Copy, Check } from "lucide-react";
 import { buildPaperSetGraphHref } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { ContextPanel, type ContextItem } from "./context-panel";
@@ -89,6 +89,13 @@ interface ChatMessageProps {
 
 export function ChatMessage({ message, userQuestion }: ChatMessageProps) {
   const isUser = message.role === "user";
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(message.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   return (
     <div
@@ -116,7 +123,7 @@ export function ChatMessage({ message, userQuestion }: ChatMessageProps) {
       {/* Bubble */}
       <div
         className={cn(
-          "max-w-[85%] px-4 py-3 shadow-sm",
+          "max-w-[85%] px-4 py-3 shadow-sm relative group",
           isUser
             ? "rounded-2xl rounded-br-sm bg-primary text-primary-foreground"
             : message.error
@@ -124,6 +131,21 @@ export function ChatMessage({ message, userQuestion }: ChatMessageProps) {
               : "rounded-2xl rounded-bl-sm bg-muted text-gray-900"
         )}
       >
+        {/* Copy button for assistant messages */}
+        {!isUser && !message.isStreaming && message.content && (
+          <button
+            onClick={handleCopy}
+            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 rounded p-1 text-muted-foreground hover:text-foreground hover:bg-gray-200 transition-all"
+            title="Copy as text"
+          >
+            {copied ? (
+              <Check className="h-3.5 w-3.5 text-green-600" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
+          </button>
+        )}
+
         {/* Context panel for assistant messages */}
         {!isUser && message.context && message.context.length > 0 && (
           <ContextPanel items={message.context} />

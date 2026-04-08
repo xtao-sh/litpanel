@@ -95,7 +95,7 @@ function PaperDetail({ paperId }: { paperId: string }) {
 
   const paper = data?.paper;
   if (!paper) {
-    return <p className="text-sm text-gray-500">Paper not found.</p>;
+    return <p className="text-sm text-muted-foreground">Paper not found.</p>;
   }
 
   return (
@@ -108,20 +108,20 @@ function PaperDetail({ paperId }: { paperId: string }) {
           {paper.title || paper.paperId}
           <ExternalLink className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
         </Link>
-        <p className="mt-1 font-mono text-xs text-gray-500">{paper.paperId}</p>
+        <p className="mt-1 font-mono text-xs text-muted-foreground">{paper.paperId}</p>
       </div>
 
       {paper.authors && paper.authors.length > 0 && (
         <div>
           <Label>Authors</Label>
-          <p className="text-sm text-gray-700">{paper.authors.join(", ")}</p>
+          <p className="text-sm text-muted-foreground">{paper.authors.join(", ")}</p>
         </div>
       )}
 
       {paper.year && (
         <div>
           <Label>Year</Label>
-          <p className="text-sm text-gray-700">{paper.year}</p>
+          <p className="text-sm text-muted-foreground">{paper.year}</p>
         </div>
       )}
 
@@ -148,7 +148,7 @@ function PaperDetail({ paperId }: { paperId: string }) {
                   ? "text-green-600"
                   : paper.averageScore >= 3
                     ? "text-yellow-600"
-                    : "text-gray-500"
+                    : "text-muted-foreground"
               }`}
             >
               {paper.averageScore.toFixed(1)}
@@ -177,7 +177,7 @@ function PaperDetail({ paperId }: { paperId: string }) {
           <div className="mt-1 space-y-1">
             {paper.scores.map((s) => (
               <div key={s.dimension} className="flex items-center justify-between text-sm">
-                <span className="capitalize text-gray-600">{s.dimension}</span>
+                <span className="capitalize text-muted-foreground">{s.dimension}</span>
                 <span className="font-medium tabular-nums">{s.score}</span>
               </div>
             ))}
@@ -191,7 +191,7 @@ function PaperDetail({ paperId }: { paperId: string }) {
           <div className="mt-1 space-y-3">
             {paper.sections.slice(0, 3).map((sec) => (
               <div key={sec.section}>
-                <h5 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {sec.section.replace(/_/g, " ")}
                 </h5>
                 <div className="mt-0.5">
@@ -234,7 +234,7 @@ function AtomDetail({ slug }: { slug: string }) {
   const atom = data?.atom;
 
   if (!atom) {
-    return <p className="text-sm text-gray-500">Atom not found.</p>;
+    return <p className="text-sm text-muted-foreground">Atom not found.</p>;
   }
 
   return (
@@ -289,10 +289,10 @@ function AtomDetail({ slug }: { slug: string }) {
               <Link
                 key={p.paperId}
                 href={`/paper/${p.paperId}`}
-                className="block rounded border border-gray-100 p-2 text-sm transition-colors hover:bg-gray-50"
+                className="block rounded border border-border p-2 text-sm transition-colors hover:bg-muted/50"
               >
                 <span className="text-blue-600">{p.title || p.paperId}</span>
-                <div className="mt-0.5 flex gap-3 text-xs text-gray-500">
+                <div className="mt-0.5 flex gap-3 text-xs text-muted-foreground">
                   {p.year && <span>{p.year}</span>}
                   {p.averageScore != null && (
                     <span>Score: {p.averageScore.toFixed(1)}</span>
@@ -323,8 +323,8 @@ function IdeaDetail({ idea }: { idea: Idea }) {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">{idea.title}</h2>
-        <p className="mt-1 font-mono text-xs text-gray-500">{idea.id}</p>
+        <h2 className="text-lg font-semibold text-foreground">{idea.title}</h2>
+        <p className="mt-1 font-mono text-xs text-muted-foreground">{idea.id}</p>
       </div>
 
       {idea.status && (
@@ -347,7 +347,7 @@ function IdeaDetail({ idea }: { idea: Idea }) {
       {idea.composite != null && (
         <div>
           <Label>Composite Score</Label>
-          <p className="text-xl font-semibold tabular-nums text-gray-900">
+          <p className="text-xl font-semibold tabular-nums text-foreground">
             {idea.composite.toFixed(1)}
           </p>
         </div>
@@ -356,7 +356,7 @@ function IdeaDetail({ idea }: { idea: Idea }) {
       {idea.generatedDate && (
         <div>
           <Label>Generated</Label>
-          <p className="text-sm text-gray-700">{idea.generatedDate}</p>
+          <p className="text-sm text-muted-foreground">{idea.generatedDate}</p>
         </div>
       )}
 

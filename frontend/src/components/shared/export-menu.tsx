@@ -60,7 +60,7 @@ export function ExportMenu({ paperIds, label = "Export", compact = false }: Expo
 
   const btnClass = compact
     ? "inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-    : "inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50";
+    : "inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50";
 
   const iconSize = compact ? "h-2.5 w-2.5" : "h-3.5 w-3.5";
 
@@ -77,41 +77,41 @@ export function ExportMenu({ paperIds, label = "Export", compact = false }: Expo
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+        <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-border bg-card shadow-lg py-1">
           <button
             type="button"
             onClick={() => handleExport("bibtex")}
-            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-muted/50 transition-colors"
           >
-            <FileText className="h-3.5 w-3.5 text-gray-400" />
+            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
             Download BibTeX
           </button>
           <button
             type="button"
             onClick={() => handleExport("csv")}
-            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-muted/50 transition-colors"
           >
-            <Table2 className="h-3.5 w-3.5 text-gray-400" />
+            <Table2 className="h-3.5 w-3.5 text-muted-foreground" />
             Download CSV
           </button>
           <button
             type="button"
             onClick={() => handleExport("markdown")}
-            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-muted/50 transition-colors"
           >
-            <FileText className="h-3.5 w-3.5 text-gray-400" />
+            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
             Download Markdown
           </button>
-          <div className="border-t border-gray-100 my-1" />
+          <div className="border-t border-border my-1" />
           <button
             type="button"
             onClick={handleCopyIds}
-            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-muted/50 transition-colors"
           >
             {copied ? (
               <Check className="h-3.5 w-3.5 text-green-500" />
             ) : (
-              <Copy className="h-3.5 w-3.5 text-gray-400" />
+              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
             )}
             {copied ? "Copied!" : "Copy IDs"}
           </button>

@@ -369,6 +369,17 @@ class WhatsNew:
 
 
 @strawberry.type
+class WhatsChanged:
+    new_papers: list[Paper]
+    updated_papers: list[Paper]
+    new_ideas: list[Idea]
+    new_digests: list[Digest]
+    total_new_papers: int
+    total_updated_papers: int
+    total_new_ideas: int
+
+
+@strawberry.type
 class PaperConnection:
     items: list[Paper]
     total: int
@@ -1698,6 +1709,34 @@ class Query:
             latest_papers_count=data["latest_papers_count"],
             recent_ideas_count=data["recent_ideas_count"],
             total_papers=data["total_papers"],
+        )
+
+    @strawberry.field
+    async def whats_changed(self, since: str) -> WhatsChanged:
+        data = await resolvers.get_whats_changed(since)
+        return WhatsChanged(
+            new_papers=[_dict_to_paper(p) for p in data["new_papers"]],
+            updated_papers=[_dict_to_paper(p) for p in data["updated_papers"]],
+            new_ideas=[
+                Idea(
+                    id=i["id"],
+                    title=i["title"],
+                    status=i.get("status"),
+                    generated_date=i.get("generated_date"),
+                    heuristic=i.get("heuristic"),
+                    source_papers=i.get("source_papers", []),
+                    content=i.get("content"),
+                    novelty=i.get("novelty"),
+                    feasibility=i.get("feasibility"),
+                    impact=i.get("impact"),
+                    composite=i.get("composite"),
+                )
+                for i in data["new_ideas"]
+            ],
+            new_digests=[Digest(date=d["date"], content=d["content"]) for d in data["new_digests"]],
+            total_new_papers=data["total_new_papers"],
+            total_updated_papers=data["total_updated_papers"],
+            total_new_ideas=data["total_new_ideas"],
         )
 
     @strawberry.field

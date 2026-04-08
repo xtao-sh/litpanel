@@ -131,6 +131,34 @@ export function ComparisonTableSkeleton() {
   );
 }
 
+function getSimilarity(texts: string[]): "similar" | "mixed" | "diverse" {
+  const nonEmpty = texts.filter(t => t.length > 10);
+  if (nonEmpty.length < 2) return "similar";
+
+  // Simple word overlap check between pairs
+  const wordSets = nonEmpty.map(t => new Set(t.toLowerCase().split(/\s+/).filter(w => w.length > 3)));
+  let totalOverlap = 0;
+  let pairs = 0;
+  for (let i = 0; i < wordSets.length; i++) {
+    for (let j = i + 1; j < wordSets.length; j++) {
+      const overlap = [...wordSets[i]].filter(w => wordSets[j].has(w)).length;
+      const maxSize = Math.max(wordSets[i].size, wordSets[j].size);
+      totalOverlap += maxSize > 0 ? overlap / maxSize : 0;
+      pairs++;
+    }
+  }
+  const avgOverlap = pairs > 0 ? totalOverlap / pairs : 0;
+  if (avgOverlap > 0.4) return "similar";
+  if (avgOverlap > 0.15) return "mixed";
+  return "diverse";
+}
+
+function getSimilarityIndicator(similarity: "similar" | "mixed" | "diverse") {
+  const indicatorColor = similarity === "similar" ? "bg-green-500" : similarity === "mixed" ? "bg-yellow-500" : "bg-orange-500";
+  const indicatorLabel = similarity === "similar" ? "Similar approaches" : similarity === "mixed" ? "Some differences" : "Divergent";
+  return { indicatorColor, indicatorLabel };
+}
+
 interface ComparisonTableViewProps {
   result: ComparisonResult;
   paperIds: string[];
@@ -220,7 +248,10 @@ export function ComparisonTableView({
           </thead>
 
           <tbody>
-            {result.columns.map((column, idx) => (
+            {result.columns.map((column, idx) => {
+              const similarity = getSimilarity(papers.map(p => p.cells[column] || ""));
+              const { indicatorColor, indicatorLabel } = getSimilarityIndicator(similarity);
+              return (
               <tr
                 key={column}
                 className={`border-b border-gray-100 last:border-b-0 ${idx % 2 === 0 ? ROW_COLORS[column] || "bg-white" : "bg-white"}`}
@@ -228,7 +259,10 @@ export function ComparisonTableView({
                 <td
                   className={`sticky left-0 z-10 w-40 min-w-[160px] border-l-[3px] border-r border-gray-200 bg-inherit p-4 align-top text-sm font-semibold text-gray-900 ${ROW_BORDER_COLORS[column] || "border-l-gray-300"}`}
                 >
-                  {COLUMN_LABELS[column] || column}
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-block h-2 w-2 rounded-full ${indicatorColor}`} title={indicatorLabel} />
+                    <span>{COLUMN_LABELS[column] || column}</span>
+                  </div>
                 </td>
                 {papers.map((paper) => (
                   <td
@@ -239,7 +273,8 @@ export function ComparisonTableView({
                   </td>
                 ))}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

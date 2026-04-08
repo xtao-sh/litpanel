@@ -41,6 +41,7 @@ import {
   DELETE_COLLECTION,
   RENAME_COLLECTION,
   REMOVE_FROM_COLLECTION,
+  TOGGLE_BOOKMARK,
 } from "@/lib/queries";
 import type { Paper, NoteItem, Collection } from "@/lib/types";
 import { LitReviewModal } from "@/components/research/lit-review-modal";
@@ -201,12 +202,15 @@ function Pagination({
 
 function BookmarksTab() {
   const [page, setPage] = useState(1);
+  const [selectedPapers, setSelectedPapers] = useState<Set<string>>(new Set());
 
-  const { data, loading, error } = useQuery<{
+  const { data, loading, error, refetch } = useQuery<{
     bookmarks: { items: Paper[]; total: number };
   }>(GET_BOOKMARKS, {
     variables: { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE },
   });
+
+  const [toggleBookmark] = useMutation(TOGGLE_BOOKMARK);
 
   const papers = data?.bookmarks?.items ?? [];
   const total = data?.bookmarks?.total ?? 0;
@@ -224,14 +228,66 @@ function BookmarksTab() {
 
   return (
     <div>
-      {papers.length > 0 && (
-        <div className="flex items-center justify-end px-4 py-2 border-b border-border">
-          <ExportMenu paperIds={papers.map((p) => p.paperId)} label="Export" compact />
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={selectedPapers.size === papers.length && papers.length > 0}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setSelectedPapers(new Set(papers.map((b: any) => b.paperId)));
+              } else {
+                setSelectedPapers(new Set());
+              }
+            }}
+            className="rounded border-border"
+          />
+          Select all
+        </label>
+        <ExportMenu paperIds={papers.map((p) => p.paperId)} label="Export" compact />
+      </div>
+      {selectedPapers.size > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-muted p-2 mb-3 mx-4 mt-2">
+          <span className="text-sm font-medium">{selectedPapers.size} selected</span>
+          <ExportMenu paperIds={Array.from(selectedPapers)} label="Export" compact />
+          <button
+            onClick={() => {
+              Array.from(selectedPapers).forEach(pid => {
+                toggleBookmark({ variables: { paperId: pid } });
+              });
+              setSelectedPapers(new Set());
+              setTimeout(() => refetch(), 500);
+            }}
+            className="text-xs text-red-600 hover:underline"
+          >
+            Remove all
+          </button>
+          <button
+            onClick={() => setSelectedPapers(new Set())}
+            className="ml-auto text-xs text-muted-foreground hover:underline"
+          >
+            Clear selection
+          </button>
         </div>
       )}
       <div className="divide-y divide-border">
         {papers.map((p) => (
-          <PaperRow key={p.paperId} paper={p} />
+          <div key={p.paperId} className="flex items-center gap-2 px-4">
+            <input
+              type="checkbox"
+              checked={selectedPapers.has(p.paperId)}
+              onChange={(e) => {
+                const next = new Set(selectedPapers);
+                if (e.target.checked) next.add(p.paperId);
+                else next.delete(p.paperId);
+                setSelectedPapers(next);
+              }}
+              className="rounded border-border shrink-0"
+            />
+            <div className="flex-1 min-w-0">
+              <PaperRow paper={p} />
+            </div>
+          </div>
         ))}
       </div>
       <Pagination

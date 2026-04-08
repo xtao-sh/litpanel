@@ -141,10 +141,10 @@ export function GraphControls({
       <div className="p-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">Controls</h3>
+          <h3 className="text-sm font-semibold text-foreground">Controls</h3>
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
             aria-label={collapsed ? "Expand controls" : "Collapse controls"}
           >
             {collapsed ? (
@@ -159,13 +159,13 @@ export function GraphControls({
           <div className="mt-3 space-y-4">
             {/* Search */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
                 Search
               </label>
               <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 {topicSuggestionsLoading && (
-                  <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-gray-400" />
+                  <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
                 )}
                 <Input
                   value={searchQuery}
@@ -180,11 +180,11 @@ export function GraphControls({
                   className="h-9 pl-9 text-sm"
                 />
                 {showSuggestions && (localSuggestions.length > 0 || topicSuggestions.length > 0) && (
-                  <div className="absolute top-full z-50 mt-1 w-[320px] rounded-lg border border-gray-200 bg-white py-1.5 shadow-xl max-h-72 overflow-y-auto ring-1 ring-black/5">
+                  <div className="absolute top-full z-50 mt-1 w-[320px] rounded-lg border border-border bg-card py-1.5 shadow-xl max-h-72 overflow-y-auto ring-1 ring-black/5">
                     {/* Local graph node suggestions */}
                     {localSuggestions.length > 0 && (
                       <>
-                        <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-blue-600 bg-blue-50/60 border-b border-gray-100">
+                        <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-blue-600 bg-blue-50/60 border-b border-border">
                           In current graph
                         </div>
                         {localSuggestions.map((node) => (
@@ -202,10 +202,10 @@ export function GraphControls({
                                   )?.color ?? "#999",
                               }}
                             />
-                            <span className="min-w-0 flex-1 truncate font-medium text-gray-800">
+                            <span className="min-w-0 flex-1 truncate font-medium text-foreground">
                               {node.label}
                             </span>
-                            <span className="ml-auto flex-shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500">
+                            <span className="ml-auto flex-shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
                               {node.type}
                             </span>
                           </button>
@@ -215,7 +215,7 @@ export function GraphControls({
                     {/* Backend search suggestions for topic keywords */}
                     {topicSuggestions.length > 0 && (
                       <>
-                        <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-purple-600 bg-purple-50/60 border-b border-gray-100">
+                        <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-purple-600 bg-purple-50/60 border-b border-border">
                           Search results
                         </div>
                         {topicSuggestions.map((hit) => (
@@ -233,10 +233,10 @@ export function GraphControls({
                                   )?.color ?? "#999",
                               }}
                             />
-                            <span className="min-w-0 flex-1 truncate font-medium text-gray-800">
+                            <span className="min-w-0 flex-1 truncate font-medium text-foreground">
                               {hit.title}
                             </span>
-                            <span className="ml-auto flex-shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500">
+                            <span className="ml-auto flex-shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
                               {hit.entityType}
                             </span>
                           </button>
@@ -250,7 +250,7 @@ export function GraphControls({
 
             {/* Depth */}
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-500">
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                 Depth
               </label>
               <div className="flex gap-1.5">
@@ -270,7 +270,7 @@ export function GraphControls({
 
             {/* Node types */}
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-500">
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                 Node Types
               </label>
               <div className="space-y-1.5">
@@ -294,7 +294,7 @@ export function GraphControls({
                       className="inline-block h-2 w-2 rounded-full"
                       style={{ backgroundColor: color }}
                     />
-                    <span className="text-xs text-gray-700">{label}</span>
+                    <span className="text-xs text-muted-foreground">{label}</span>
                   </label>
                 ))}
               </div>
@@ -302,26 +302,26 @@ export function GraphControls({
 
             {/* Layout */}
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-500">
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                 Layout
               </label>
               <div className="relative">
                 <button
                   onClick={() => setLayoutOpen(!layoutOpen)}
-                  className="flex h-9 w-full items-center justify-between rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-700 hover:bg-gray-50"
+                  className="flex h-9 w-full items-center justify-between rounded-md border border-border bg-card px-3 text-sm text-muted-foreground hover:bg-muted/50"
                 >
                   <span>{selectedLayout?.label ?? "Force-directed"}</span>
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 </button>
                 {layoutOpen && (
-                  <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+                  <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-border bg-card py-1 shadow-lg">
                     {LAYOUT_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
-                        className={`w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 ${
+                        className={`w-full px-3 py-1.5 text-left text-xs hover:bg-muted/50 ${
                           layout === opt.value
                             ? "bg-blue-50 font-medium text-blue-700"
-                            : "text-gray-700"
+                            : "text-muted-foreground"
                         }`}
                         onClick={() => {
                           onLayoutChange(opt.value);
@@ -337,14 +337,14 @@ export function GraphControls({
             </div>
 
             {/* Stats & reset */}
-            <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-              <span className="text-xs text-gray-500">
+            <div className="flex items-center justify-between border-t border-border pt-3">
+              <span className="text-xs text-muted-foreground">
                 {nodeCount} nodes / {edgeCount} edges
               </span>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 gap-1 text-xs text-gray-500"
+                className="h-7 gap-1 text-xs text-muted-foreground"
                 onClick={onReset}
               >
                 <RotateCcw className="h-3 w-3" />

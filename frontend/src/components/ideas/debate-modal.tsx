@@ -116,25 +116,25 @@ function renderMarkdown(text: string): React.ReactNode[] {
 
     if (line.startsWith("## ")) {
       elements.push(
-        <h3 key={i} className="mt-4 mb-1.5 text-sm font-bold text-gray-900">
+        <h3 key={i} className="mt-4 mb-1.5 text-sm font-bold text-foreground">
           {renderInlineText(line.slice(3))}
         </h3>
       );
     } else if (line.startsWith("### ")) {
       elements.push(
-        <h4 key={i} className="mt-3 mb-1 text-sm font-semibold text-gray-800">
+        <h4 key={i} className="mt-3 mb-1 text-sm font-semibold text-foreground">
           {renderInlineText(line.slice(4))}
         </h4>
       );
     } else if (/^[-*]\s/.test(line)) {
       elements.push(
-        <li key={i} className="ml-4 text-sm text-gray-700 leading-relaxed list-disc">
+        <li key={i} className="ml-4 text-sm text-muted-foreground leading-relaxed list-disc">
           {renderInlineText(line.replace(/^[-*]\s+/, ""))}
         </li>
       );
     } else if (/^\d+\.\s/.test(line)) {
       elements.push(
-        <li key={i} className="ml-4 text-sm text-gray-700 leading-relaxed list-decimal">
+        <li key={i} className="ml-4 text-sm text-muted-foreground leading-relaxed list-decimal">
           {renderInlineText(line.replace(/^\d+\.\s+/, ""))}
         </li>
       );
@@ -142,7 +142,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
       elements.push(<div key={i} className="h-2" />);
     } else {
       elements.push(
-        <p key={i} className="text-sm text-gray-700 leading-relaxed">
+        <p key={i} className="text-sm text-muted-foreground leading-relaxed">
           {renderInlineText(line)}
         </p>
       );
@@ -165,25 +165,25 @@ function AgentMessageCard({
   const Icon = cfg.icon;
 
   return (
-    <div className={`rounded-lg border-l-[3px] ${cfg.borderColor} bg-white p-4 shadow-sm`}>
+    <div className={`rounded-lg border-l-[3px] ${cfg.borderColor} bg-card p-4 shadow-sm`}>
       <div className="mb-2 flex items-center gap-2">
         <div
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${cfg.bgColor}`}
         >
           <Icon className="h-4 w-4 text-white" />
         </div>
-        <span className="text-sm font-semibold text-gray-900">{message.label}</span>
+        <span className="text-sm font-semibold text-foreground">{message.label}</span>
         <Badge variant="outline" className={`text-[10px] ${cfg.badgeClass}`}>
           {message.role}
         </Badge>
         {message.round > 0 && (
-          <span className="text-[10px] text-gray-400">Round {message.round}</span>
+          <span className="text-[10px] text-muted-foreground">Round {message.round}</span>
         )}
       </div>
       <div className="pl-10">
         {renderMarkdown(message.text)}
         {message.isStreaming && (
-          <span className="inline-block h-4 w-1.5 animate-pulse rounded-sm bg-gray-400 align-middle" />
+          <span className="inline-block h-4 w-1.5 animate-pulse rounded-sm bg-muted-foreground align-middle" />
         )}
       </div>
     </div>
@@ -236,7 +236,7 @@ function VerdictCard({
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Scale className="h-5 w-5 text-purple-600" />
-          <span className="text-base font-bold text-gray-900">Verdict</span>
+          <span className="text-base font-bold text-foreground">Verdict</span>
           <Badge className={`text-xs uppercase ${recBadgeClass}`}>
             {verdict.recommendation}
           </Badge>
@@ -254,7 +254,7 @@ function VerdictCard({
         </Button>
       </div>
 
-      <p className="mb-4 text-sm text-gray-700">{verdict.summary}</p>
+      <p className="mb-4 text-sm text-muted-foreground">{verdict.summary}</p>
 
       <div className="mb-4 space-y-1.5">
         <ScoreBar label="Overall" value={verdict.overallStrength} />
@@ -264,13 +264,13 @@ function VerdictCard({
 
       {verdict.nextSteps.length > 0 && (
         <div>
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Next Steps
           </p>
           <ol className="space-y-1">
             {verdict.nextSteps.map((step, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-500">
+              <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
                   {i + 1}
                 </span>
                 {step}
@@ -290,11 +290,11 @@ function VerdictCard({
 function RoundDivider({ round }: { round: number }) {
   return (
     <div className="flex items-center gap-3 py-3">
-      <div className="h-px flex-1 bg-gray-200" />
-      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500">
+      <div className="h-px flex-1 bg-border" />
+      <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
         Round {round}
       </span>
-      <div className="h-px flex-1 bg-gray-200" />
+      <div className="h-px flex-1 bg-border" />
     </div>
   );
 }
@@ -515,13 +515,13 @@ export function DebateModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="relative mx-4 flex h-[90vh] w-full max-w-[800px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-2xl">
+      <div className="relative mx-4 flex h-[90vh] w-full max-w-[800px] flex-col overflow-hidden rounded-xl border border-border bg-muted shadow-2xl">
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-border bg-card px-6 py-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <Scale className="h-5 w-5 text-purple-600 shrink-0" />
-              <h2 className="truncate text-lg font-bold text-gray-900">
+              <h2 className="truncate text-lg font-bold text-foreground">
                 {ideaTitle}
               </h2>
               <Badge className="shrink-0 bg-purple-100 text-purple-700 border-purple-200 text-[10px]">
@@ -529,7 +529,7 @@ export function DebateModal({
               </Badge>
             </div>
             {status === "debating" && currentRound > 0 && (
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Round {currentRound} in progress...
               </p>
             )}
@@ -555,10 +555,10 @@ export function DebateModal({
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-50">
                 <Scale className="h-8 w-8 text-purple-500" />
               </div>
-              <h3 className="mb-2 text-lg font-semibold text-gray-900">
+              <h3 className="mb-2 text-lg font-semibold text-foreground">
                 Multi-Agent Research Debate
               </h3>
-              <p className="mb-6 max-w-md text-center text-sm text-gray-500">
+              <p className="mb-6 max-w-md text-center text-sm text-muted-foreground">
                 Three AI agents will debate this research idea from different perspectives:
                 an Advocate, a Skeptic, and a Methodologist. A Moderator will then
                 synthesize the discussion and deliver a verdict.
@@ -575,7 +575,7 @@ export function DebateModal({
                         >
                           <Icon className="h-5 w-5 text-white" />
                         </div>
-                        <span className="text-[10px] capitalize text-gray-500">{role}</span>
+                        <span className="text-[10px] capitalize text-muted-foreground">{role}</span>
                       </div>
                     );
                   }
@@ -670,12 +670,12 @@ export function DebateModal({
         </div>
 
         {/* Footer */}
-        <div className="flex shrink-0 items-center justify-between border-t border-gray-200 bg-white px-6 py-3">
+        <div className="flex shrink-0 items-center justify-between border-t border-border bg-card px-6 py-3">
           <div className="flex items-center gap-2">
             {status === "debating" && (
               <>
                 <Loader2 className="h-4 w-4 animate-spin text-purple-500" />
-                <span className="text-xs text-gray-500">Debate in progress...</span>
+                <span className="text-xs text-muted-foreground">Debate in progress...</span>
               </>
             )}
             {status === "done" && (
