@@ -16,7 +16,6 @@ except ImportError:
 
 import re
 
-import aiosqlite
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, StreamingResponse
@@ -66,6 +65,7 @@ async def lifespan(app: FastAPI):
 
     yield  # app runs
     logger.info("Shutting down")
+    await resolvers._close_db()
 
 
 # ---------------------------------------------------------------------------
@@ -449,27 +449,26 @@ async def export_bibtex(ids: str = Query(..., description="Comma-separated paper
 
     if os.path.isfile(db_path):
         try:
-            async with aiosqlite.connect(db_path) as db:
-                db.row_factory = aiosqlite.Row
-                placeholders = ",".join("?" for _ in paper_ids)
-                cursor = await db.execute(
-                    f"SELECT paper_id, title, authors, year FROM papers WHERE paper_id IN ({placeholders})",
-                    paper_ids,
-                )
-                rows = await cursor.fetchall()
-                # Preserve the requested order
-                row_map = {r["paper_id"]: r for r in rows}
-                for pid in paper_ids:
-                    row = row_map.get(pid)
-                    if row is not None:
-                        entries.append(
-                            _paper_to_bibtex(
-                                row["paper_id"],
-                                row["title"],
-                                row["authors"],
-                                row["year"],
-                            )
+            db = await resolvers._get_db()
+            placeholders = ",".join("?" for _ in paper_ids)
+            cursor = await db.execute(
+                f"SELECT paper_id, title, authors, year FROM papers WHERE paper_id IN ({placeholders})",
+                paper_ids,
+            )
+            rows = await cursor.fetchall()
+            # Preserve the requested order
+            row_map = {r["paper_id"]: r for r in rows}
+            for pid in paper_ids:
+                row = row_map.get(pid)
+                if row is not None:
+                    entries.append(
+                        _paper_to_bibtex(
+                            row["paper_id"],
+                            row["title"],
+                            row["authors"],
+                            row["year"],
                         )
+                    )
         except Exception:
             logger.exception("export_bibtex failed")
 
@@ -507,35 +506,34 @@ async def export_csv(ids: str = Query(..., description="Comma-separated paper ID
 
         if os.path.isfile(db_path):
             try:
-                async with aiosqlite.connect(db_path) as db:
-                    db.row_factory = aiosqlite.Row
-                    placeholders = ",".join("?" for _ in paper_ids)
-                    cursor = await db.execute(
-                        f"SELECT paper_id, title, authors, year, fields, average_score, triage_decision, nber_url FROM papers WHERE paper_id IN ({placeholders})",
-                        paper_ids,
-                    )
-                    rows = await cursor.fetchall()
-                    # Preserve requested order
-                    row_map = {r["paper_id"]: r for r in rows}
-                    for pid in paper_ids:
-                        row = row_map.get(pid)
-                        if row is not None:
-                            authors = _parse_authors_bibtex(row["authors"])
-                            fields_raw = row["fields"]
-                            try:
-                                fields_list = json.loads(fields_raw) if fields_raw else []
-                            except (json.JSONDecodeError, TypeError):
-                                fields_list = []
-                            writer.writerow([
-                                row["paper_id"],
-                                row["title"] or "",
-                                "; ".join(authors),
-                                row["year"] or "",
-                                "; ".join(fields_list) if isinstance(fields_list, list) else "",
-                                f'{row["average_score"]:.1f}' if row["average_score"] is not None else "",
-                                row["triage_decision"] or "",
-                                row["nber_url"] or f'https://www.nber.org/papers/{row["paper_id"]}',
-                            ])
+                db = await resolvers._get_db()
+                placeholders = ",".join("?" for _ in paper_ids)
+                cursor = await db.execute(
+                    f"SELECT paper_id, title, authors, year, fields, average_score, triage_decision, nber_url FROM papers WHERE paper_id IN ({placeholders})",
+                    paper_ids,
+                )
+                rows = await cursor.fetchall()
+                # Preserve requested order
+                row_map = {r["paper_id"]: r for r in rows}
+                for pid in paper_ids:
+                    row = row_map.get(pid)
+                    if row is not None:
+                        authors = _parse_authors_bibtex(row["authors"])
+                        fields_raw = row["fields"]
+                        try:
+                            fields_list = json.loads(fields_raw) if fields_raw else []
+                        except (json.JSONDecodeError, TypeError):
+                            fields_list = []
+                        writer.writerow([
+                            row["paper_id"],
+                            row["title"] or "",
+                            "; ".join(authors),
+                            row["year"] or "",
+                            "; ".join(fields_list) if isinstance(fields_list, list) else "",
+                            f'{row["average_score"]:.1f}' if row["average_score"] is not None else "",
+                            row["triage_decision"] or "",
+                            row["nber_url"] or f'https://www.nber.org/papers/{row["paper_id"]}',
+                        ])
             except Exception:
                 logger.exception("export_csv failed")
 
@@ -567,57 +565,56 @@ async def export_markdown(ids: str = Query(..., description="Comma-separated pap
 
         if os.path.isfile(db_path):
             try:
-                async with aiosqlite.connect(db_path) as db:
-                    db.row_factory = aiosqlite.Row
-                    placeholders = ",".join("?" for _ in paper_ids)
+                db = await resolvers._get_db()
+                placeholders = ",".join("?" for _ in paper_ids)
 
-                    # Batch fetch papers
-                    cursor = await db.execute(
-                        f"SELECT paper_id, title, authors, year, average_score FROM papers WHERE paper_id IN ({placeholders})",
-                        paper_ids,
-                    )
-                    rows = await cursor.fetchall()
-                    row_map = {r["paper_id"]: r for r in rows}
+                # Batch fetch papers
+                cursor = await db.execute(
+                    f"SELECT paper_id, title, authors, year, average_score FROM papers WHERE paper_id IN ({placeholders})",
+                    paper_ids,
+                )
+                rows = await cursor.fetchall()
+                row_map = {r["paper_id"]: r for r in rows}
 
-                    # Batch fetch card sections
-                    sec_cursor = await db.execute(
-                        f"SELECT paper_id, section, content FROM card_sections WHERE paper_id IN ({placeholders})",
-                        paper_ids,
-                    )
-                    sec_rows = await sec_cursor.fetchall()
-                    sections_by_paper: dict[str, dict[str, str]] = {}
-                    for sr in sec_rows:
-                        sections_by_paper.setdefault(sr["paper_id"], {})[sr["section"]] = sr["content"]
+                # Batch fetch card sections
+                sec_cursor = await db.execute(
+                    f"SELECT paper_id, section, content FROM card_sections WHERE paper_id IN ({placeholders})",
+                    paper_ids,
+                )
+                sec_rows = await sec_cursor.fetchall()
+                sections_by_paper: dict[str, dict[str, str]] = {}
+                for sr in sec_rows:
+                    sections_by_paper.setdefault(sr["paper_id"], {})[sr["section"]] = sr["content"]
 
-                    # Build markdown in requested order
-                    for pid in paper_ids:
-                        row = row_map.get(pid)
-                        if row is None:
-                            continue
+                # Build markdown in requested order
+                for pid in paper_ids:
+                    row = row_map.get(pid)
+                    if row is None:
+                        continue
 
-                        authors = _parse_authors_bibtex(row["authors"])
-                        author_str = ", ".join(authors) if authors else "Unknown"
-                        year_str = str(row["year"]) if row["year"] else "N/A"
-                        score_str = f'{row["average_score"]:.1f}/5' if row["average_score"] is not None else "N/A"
+                    authors = _parse_authors_bibtex(row["authors"])
+                    author_str = ", ".join(authors) if authors else "Unknown"
+                    year_str = str(row["year"]) if row["year"] else "N/A"
+                    score_str = f'{row["average_score"]:.1f}/5' if row["average_score"] is not None else "N/A"
 
-                        lines.append(f'## {row["paper_id"]}: {row["title"] or "Untitled"}')
-                        lines.append(f"**Authors:** {author_str} | **Year:** {year_str} | **Score:** {score_str}\n")
+                    lines.append(f'## {row["paper_id"]}: {row["title"] or "Untitled"}')
+                    lines.append(f"**Authors:** {author_str} | **Year:** {year_str} | **Score:** {score_str}\n")
 
-                        sections = sections_by_paper.get(pid, {})
-                        section_labels = [
-                            ("Research Question", "Research Question"),
-                            ("Key Findings", "Key Findings"),
-                            ("Identification & Method", "Method"),
-                            ("Limitations & Open Questions", "Limitations"),
-                        ]
+                    sections = sections_by_paper.get(pid, {})
+                    section_labels = [
+                        ("Research Question", "Research Question"),
+                        ("Key Findings", "Key Findings"),
+                        ("Identification & Method", "Method"),
+                        ("Limitations & Open Questions", "Limitations"),
+                    ]
 
-                        for section_key, section_label in section_labels:
-                            if section_key in sections and sections[section_key]:
-                                lines.append(f"### {section_label}")
-                                lines.append(sections[section_key].strip())
-                                lines.append("")
+                    for section_key, section_label in section_labels:
+                        if section_key in sections and sections[section_key]:
+                            lines.append(f"### {section_label}")
+                            lines.append(sections[section_key].strip())
+                            lines.append("")
 
-                        lines.append("---\n")
+                    lines.append("---\n")
 
             except Exception:
                 logger.exception("export_markdown failed")

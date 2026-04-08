@@ -133,7 +133,7 @@ function JelDetailPanel({
   const [page, setPage] = useState(0);
   const pageSize = 25;
 
-  const { data, loading } = useQuery<{
+  const { data, loading, error: papersError } = useQuery<{
     papersByJel: { items: Paper[]; total: number };
   }>(GET_PAPERS_BY_JEL, {
     variables: {
@@ -320,7 +320,7 @@ export default function JelPage() {
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [expandedCode, setExpandedCode] = useState<string | null>(null);
 
-  const { data, loading } = useQuery<{ jelTaxonomy: JelCategory[] }>(
+  const { data, loading, error } = useQuery<{ jelTaxonomy: JelCategory[] }>(
     GET_JEL_TAXONOMY,
     { fetchPolicy: "cache-first" }
   );
@@ -342,6 +342,11 @@ export default function JelPage() {
 
   return (
     <div className="flex h-full flex-col">
+      {error && (
+        <div className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950 p-3 text-sm text-red-800 dark:text-red-200">
+          Failed to load JEL taxonomy. Please refresh the page.
+        </div>
+      )}
       {/* Page header */}
       <div className="shrink-0 border-b border-border px-6 py-4">
         <div className="flex items-center gap-2">

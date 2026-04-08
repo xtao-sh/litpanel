@@ -743,7 +743,7 @@ function EmptyDetail() {
 export default function FieldsPage() {
   const [selectedField, setSelectedField] = useState<string | null>(null);
 
-  const { data, loading } = useQuery<{ fieldTaxonomy: FieldTaxonomyItem[] }>(
+  const { data, loading, error } = useQuery<{ fieldTaxonomy: FieldTaxonomyItem[] }>(
     GET_FIELD_TAXONOMY,
     { fetchPolicy: "cache-first" }
   );
@@ -753,6 +753,11 @@ export default function FieldsPage() {
 
   return (
     <div className="flex h-full flex-col">
+      {error && (
+        <div className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950 p-3 text-sm text-red-800 dark:text-red-200">
+          Failed to load field taxonomy. Please refresh the page.
+        </div>
+      )}
       {/* Page header */}
       <div className="shrink-0 border-b border-border px-6 py-4">
         <h1 className="text-xl font-bold text-foreground">Fields & Subtopics</h1>
