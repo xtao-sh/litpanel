@@ -224,7 +224,7 @@ export default function DigestsPage() {
             <Newspaper className="h-5 w-5 text-amber-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               Research Digests
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -241,7 +241,7 @@ export default function DigestsPage() {
             {[...Array(6)].map((_, i) => (
               <div
                 key={i}
-                className="h-9 w-20 animate-pulse rounded-full bg-gray-100"
+                className="h-9 w-20 animate-pulse rounded-full bg-muted"
               />
             ))}
           </div>
@@ -249,7 +249,7 @@ export default function DigestsPage() {
             {[...Array(4)].map((_, i) => (
               <div
                 key={i}
-                className="h-6 animate-pulse rounded bg-gray-100"
+                className="h-6 animate-pulse rounded bg-muted"
                 style={{ width: `${80 - i * 15}%` }}
               />
             ))}
@@ -267,10 +267,10 @@ export default function DigestsPage() {
       {/* Empty state */}
       {!loading && !error && digests.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
-            <Newspaper className="h-7 w-7 text-gray-400" />
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+            <Newspaper className="h-7 w-7 text-muted-foreground" />
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             No digests available yet. Digests will appear here once they are
             generated.
           </p>
@@ -282,7 +282,7 @@ export default function DigestsPage() {
         <div className="space-y-5">
           {/* Search input */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search digests by keyword..."
@@ -291,10 +291,10 @@ export default function DigestsPage() {
                 setSearchQuery(e.target.value);
                 setSelectedDate(null);
               }}
-              className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100 transition-colors"
+              className="w-full rounded-lg border border-border bg-card py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100 transition-colors"
             />
             {searchQuery && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                 {filteredDigests.length} of {digests.length} digests
               </span>
             )}
@@ -303,7 +303,7 @@ export default function DigestsPage() {
           {/* Scrollable date pills */}
           <div
             ref={pillsRef}
-            className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300"
+            className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-border"
           >
             {filteredDigests.map((digest) => {
               const isActive = activeDate === digest.date;
@@ -315,7 +315,7 @@ export default function DigestsPage() {
                   className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                     isActive
                       ? "bg-amber-100 text-amber-800 ring-1 ring-amber-300"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      : "bg-muted text-muted-foreground hover:bg-muted"
                   }`}
                 >
                   <span className="block">{shortDate(digest.date)}</span>
@@ -340,25 +340,25 @@ export default function DigestsPage() {
                   className={`text-left rounded-lg border p-4 transition-all hover:shadow-md ${
                     isActive
                       ? "border-amber-300 bg-amber-50/50 shadow-sm ring-1 ring-amber-200"
-                      : "border-gray-200 bg-white hover:border-gray-300"
+                      : "border-border bg-card hover:border-border"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-gray-900">
+                    <span className="text-sm font-semibold text-foreground">
                       {shortDate(digest.date)}
                     </span>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full ${
                       isActive
                         ? "bg-amber-100 text-amber-700"
-                        : "bg-gray-100 text-gray-500"
+                        : "bg-muted text-muted-foreground"
                     }`}>
                       {daysAgoLabel(digest.date)}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 leading-relaxed mb-3 line-clamp-2">
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3 line-clamp-2">
                     {extractSummary(digest.content)}
                   </p>
-                  <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
                     {pIds.length > 0 && (
                       <span>{pIds.length} paper{pIds.length !== 1 ? "s" : ""}</span>
                     )}
@@ -374,8 +374,8 @@ export default function DigestsPage() {
           {/* No results for search */}
           {filteredDigests.length === 0 && searchQuery && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Search className="h-8 w-8 text-gray-300 mb-3" />
-              <p className="text-sm text-gray-500">
+              <Search className="h-8 w-8 text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">
                 No digests match &quot;{searchQuery}&quot;
               </p>
               <button
@@ -389,14 +389,14 @@ export default function DigestsPage() {
 
           {/* Selected digest content */}
           {activeDigest && (
-            <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="rounded-lg border border-border bg-card shadow-sm">
               {/* Enhanced content header */}
-              <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-4">
+              <div className="flex items-center gap-3 border-b border-border px-5 py-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50">
                   <Calendar className="h-5 w-5 text-amber-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-base font-medium text-gray-900">
+                  <h2 className="text-base font-medium text-foreground">
                     {formatDate(activeDigest.date)}
                   </h2>
                   <div className="flex items-center gap-3 mt-0.5">
@@ -404,12 +404,12 @@ export default function DigestsPage() {
                       {daysAgoLabel(activeDigest.date)}
                     </span>
                     {paperIds.length > 0 && (
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-muted-foreground">
                         {paperIds.length} paper{paperIds.length !== 1 ? "s" : ""} mentioned
                       </span>
                     )}
                     {sections.length > 0 && (
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-muted-foreground">
                         {sections.length} section{sections.length !== 1 ? "s" : ""}
                       </span>
                     )}
@@ -419,7 +419,7 @@ export default function DigestsPage() {
 
               {/* Section navigation tabs */}
               {sections.length > 0 && (
-                <div className="flex gap-1 overflow-x-auto border-b border-gray-100 px-5 py-2 scrollbar-thin scrollbar-thumb-gray-200">
+                <div className="flex gap-1 overflow-x-auto border-b border-border px-5 py-2 scrollbar-thin scrollbar-thumb-border">
                   {sections.map((section) => (
                     <button
                       key={section.id}
@@ -427,7 +427,7 @@ export default function DigestsPage() {
                       className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                         activeSection === section.id
                           ? "bg-amber-100 text-amber-800"
-                          : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       }`}
                     >
                       {section.title}

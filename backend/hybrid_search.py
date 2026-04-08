@@ -119,9 +119,12 @@ async def hybrid_search(
 
         # If still no title, do a quick DB lookup
         if not item.get("title"):
-            item["title"] = await _lookup_title(
+            title, snippet = await _lookup_title(
                 item["entity_type"], item["entity_id"]
             )
+            item["title"] = title
+            if not item.get("snippet"):
+                item["snippet"] = snippet
 
         # Ensure snippet is always a string
         if not item.get("snippet"):
@@ -129,32 +132,46 @@ async def hybrid_search(
 
         enriched.append(item)
 
-    return {"hits": enriched, "total": len(enriched)}
+    # Before the return statement, get the real total from FTS
+    fts_total = fts_results.get("total", 0) if fts_results else 0
+    return {"hits": enriched, "total": max(fts_total, len(enriched))}
 
 
-async def _lookup_title(entity_type: str, entity_id: str) -> str:
-    """Quick DB lookup for entity title."""
+async def _lookup_title(entity_type: str, entity_id: str) -> tuple[str, str]:
+    """Quick DB lookup for entity title and snippet."""
     import aiosqlite
     from resolvers import DB_PATH, _db_exists
 
     if not _db_exists():
-        return entity_id
+        return entity_id, ""
     try:
         async with aiosqlite.connect(DB_PATH) as db:
             if entity_type == "paper":
                 cursor = await db.execute(
                     "SELECT title FROM papers WHERE paper_id = ?", (entity_id,)
                 )
+                row = await cursor.fetchone()
+                title = row[0] if row and row[0] else entity_id
+                # Try to get a snippet from card sections
+                cursor2 = await db.execute(
+                    "SELECT content FROM card_sections WHERE paper_id = ? LIMIT 1",
+                    (entity_id,),
+                )
+                row2 = await cursor2.fetchone()
+                snippet = row2[0][:200] if row2 and row2[0] else ""
+                return title, snippet
             elif entity_type == "atom":
                 cursor = await db.execute(
-                    "SELECT title FROM atoms WHERE slug = ?", (entity_id,)
+                    "SELECT title, description FROM atoms WHERE slug = ?", (entity_id,)
                 )
+                row = await cursor.fetchone()
+                title = row[0] if row and row[0] else entity_id
+                snippet = row[1][:200] if row and row[1] else ""
+                return title, snippet
             else:
-                return entity_id
-            row = await cursor.fetchone()
-            return row[0] if row and row[0] else entity_id
+                return entity_id, ""
     except Exception:
-        return entity_id
+        return entity_id, ""
 
 
 async def semantic_search_resolver(
@@ -179,12 +196,13 @@ async def semantic_search_resolver(
 
         enriched = []
         for item in sem_results:
-            title = await _lookup_title(item["entity_type"], item["entity_id"])
+            title, snippet = await _lookup_title(item["entity_type"], item["entity_id"])
             enriched.append(
                 {
                     "entity_type": item["entity_type"],
                     "entity_id": item["entity_id"],
                     "title": title,
+                    "snippet": snippet,
                     "score": item.get("score", 0.0),
                 }
             )

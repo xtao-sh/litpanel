@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
 import re
+import time as _time
 from datetime import date
+from functools import wraps
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +23,28 @@ DB_PATH = os.environ.get("KB_DB_PATH", os.path.join(os.path.dirname(__file__), "
 PROJECTS_DIR = (
     Path(__file__).resolve().parent.parent / "Data" / "knowledge_base" / "projects"
 )
+
+
+# ---------------------------------------------------------------------------
+# TTL cache for expensive aggregations
+# ---------------------------------------------------------------------------
+
+def _ttl_cache(seconds: int = 300):
+    """Simple TTL cache for async functions."""
+    def decorator(func):
+        _cache = {}
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            key = (args, tuple(sorted(kwargs.items())))
+            now = _time.time()
+            if key in _cache and now - _cache[key][0] < seconds:
+                return _cache[key][1]
+            result = await func(*args, **kwargs)
+            _cache[key] = (now, result)
+            return result
+        wrapper.cache_clear = lambda: _cache.clear()
+        return wrapper
+    return decorator
 
 
 # ---------------------------------------------------------------------------
@@ -39,13 +64,27 @@ def _parse_json_list(raw: str | None) -> list[str]:
     return []
 
 
+_db_lock = asyncio.Lock()
+_db_conn: aiosqlite.Connection | None = None
+
 async def _get_db() -> aiosqlite.Connection:
-    """Open (or reuse) a connection.  Caller is expected to close it."""
-    db = await aiosqlite.connect(DB_PATH)
-    db.row_factory = aiosqlite.Row
-    # Enable WAL mode for better concurrent read performance
-    await db.execute("PRAGMA journal_mode=WAL")
-    return db
+    """Return a shared database connection. Creates one if needed."""
+    global _db_conn
+    if _db_conn is None:
+        async with _db_lock:
+            if _db_conn is None:
+                _db_conn = await aiosqlite.connect(DB_PATH)
+                _db_conn.row_factory = aiosqlite.Row
+                await _db_conn.execute("PRAGMA journal_mode=WAL")
+                await _db_conn.execute("PRAGMA foreign_keys=ON")
+    return _db_conn
+
+async def _close_db():
+    """Close the shared connection (call on shutdown)."""
+    global _db_conn
+    if _db_conn is not None:
+        await _db_conn.close()
+        _db_conn = None
 
 
 def _db_exists() -> bool:
@@ -349,16 +388,16 @@ async def get_papers_by_ids(paper_ids: list[str]) -> list[dict[str, Any]]:
     if not paper_ids or not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            placeholders = ", ".join("?" for _ in paper_ids)
-            cursor = await db.execute(
-                f"SELECT * FROM papers WHERE paper_id IN ({placeholders})",
-                paper_ids,
-            )
-            rows = await cursor.fetchall()
-            by_id = {_row_to_paper(row)["paper_id"]: _row_to_paper(row) for row in rows}
-            return [by_id[pid] for pid in paper_ids if pid in by_id]
+        db = await _get_db()
+        placeholders = ", ".join("?" for _ in paper_ids)
+        cursor = await db.execute(
+            f"SELECT * FROM papers WHERE paper_id IN ({placeholders})",
+            paper_ids,
+        )
+        rows = await cursor.fetchall()
+        papers = [_row_to_paper(row) for row in rows]
+        by_id = {p["paper_id"]: p for p in papers}
+        return [by_id[pid] for pid in paper_ids if pid in by_id]
     except Exception:
         logger.exception("get_papers_by_ids failed")
         return []
@@ -444,13 +483,12 @@ async def get_paper(paper_id: str) -> dict[str, Any] | None:
     if not _db_exists():
         return None
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute("SELECT * FROM papers WHERE paper_id = ?", (paper_id,))
-            row = await cursor.fetchone()
-            if row is None:
-                return None
-            return _row_to_paper(row)
+        db = await _get_db()
+        cursor = await db.execute("SELECT * FROM papers WHERE paper_id = ?", (paper_id,))
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        return _row_to_paper(row)
     except Exception:
         logger.exception("get_paper failed for %s", paper_id)
         return None
@@ -469,105 +507,104 @@ async def get_papers(
         return empty
 
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            where_parts: list[str] = []
-            binds: list[Any] = []
-            need_triage_join = False
+        where_parts: list[str] = []
+        binds: list[Any] = []
+        need_triage_join = False
 
-            if filter_:
-                if filter_.get("search"):
-                    where_parts.append("(p.title LIKE ? OR p.paper_id LIKE ? OR LOWER(p.authors) LIKE ?)")
-                    term = f"%{filter_['search']}%"
-                    binds.extend([term, term, term.lower()])
-                if filter_.get("year_min") is not None:
-                    where_parts.append("p.year >= ?")
-                    binds.append(filter_["year_min"])
-                if filter_.get("year_max") is not None:
-                    where_parts.append("p.year <= ?")
-                    binds.append(filter_["year_max"])
-                if filter_.get("score_min") is not None:
-                    where_parts.append("p.average_score >= ?")
-                    binds.append(filter_["score_min"])
-                if filter_.get("score_max") is not None:
-                    where_parts.append("p.average_score <= ?")
-                    binds.append(filter_["score_max"])
-                if filter_.get("has_card") is not None:
-                    where_parts.append("p.has_card = ?")
-                    binds.append(1 if filter_["has_card"] else 0)
-                if filter_.get("triage_decision"):
-                    placeholders = ", ".join("?" for _ in filter_["triage_decision"])
-                    where_parts.append(f"p.triage_decision IN ({placeholders})")
-                    binds.extend(filter_["triage_decision"])
-                if filter_.get("fields"):
-                    field_clauses = []
-                    for f in filter_["fields"]:
-                        field_clauses.append("p.fields LIKE ?")
-                        binds.append(f"%{f}%")
-                    where_parts.append(f"({' OR '.join(field_clauses)})")
-                if filter_.get("authors"):
-                    author_clauses = []
-                    for a in filter_["authors"]:
-                        author_clauses.append("LOWER(p.authors) LIKE ?")
-                        binds.append(f"%{a.lower()}%")
-                    where_parts.append(f"({' OR '.join(author_clauses)})")
-                if filter_.get("methods"):
-                    need_triage_join = True
-                    method_clauses = []
-                    for m in filter_["methods"]:
-                        method_clauses.append("LOWER(tc.methods) LIKE ?")
-                        binds.append(f'%"{m.lower()}"%')
-                    where_parts.append(f"({' OR '.join(method_clauses)})")
-                if filter_.get("score_dimensions"):
-                    for sd in filter_["score_dimensions"]:
-                        where_parts.append(
-                            "p.paper_id IN ("
-                            "SELECT ps.paper_id FROM paper_scores ps "
-                            "WHERE ps.dimension = ? AND ps.score >= ?"
-                            ")"
-                        )
-                        binds.append(sd["dimension"])
-                        binds.append(sd["min_score"])
-                if filter_.get("atom_slugs"):
-                    # AND logic: paper must be linked to ALL specified atoms
-                    for slug in filter_["atom_slugs"]:
-                        where_parts.append(
-                            "p.paper_id IN ("
-                            "SELECT paper_id FROM atom_paper_refs WHERE atom_slug = ?"
-                            ")"
-                        )
-                        binds.append(slug)
+        if filter_:
+            if filter_.get("search"):
+                where_parts.append("(p.title LIKE ? OR p.paper_id LIKE ? OR LOWER(p.authors) LIKE ?)")
+                term = f"%{filter_['search']}%"
+                binds.extend([term, term, term.lower()])
+            if filter_.get("year_min") is not None:
+                where_parts.append("p.year >= ?")
+                binds.append(filter_["year_min"])
+            if filter_.get("year_max") is not None:
+                where_parts.append("p.year <= ?")
+                binds.append(filter_["year_max"])
+            if filter_.get("score_min") is not None:
+                where_parts.append("p.average_score >= ?")
+                binds.append(filter_["score_min"])
+            if filter_.get("score_max") is not None:
+                where_parts.append("p.average_score <= ?")
+                binds.append(filter_["score_max"])
+            if filter_.get("has_card") is not None:
+                where_parts.append("p.has_card = ?")
+                binds.append(1 if filter_["has_card"] else 0)
+            if filter_.get("triage_decision"):
+                placeholders = ", ".join("?" for _ in filter_["triage_decision"])
+                where_parts.append(f"p.triage_decision IN ({placeholders})")
+                binds.extend(filter_["triage_decision"])
+            if filter_.get("fields"):
+                field_clauses = []
+                for f in filter_["fields"]:
+                    field_clauses.append("p.fields LIKE ?")
+                    binds.append(f"%{f}%")
+                where_parts.append(f"({' OR '.join(field_clauses)})")
+            if filter_.get("authors"):
+                author_clauses = []
+                for a in filter_["authors"]:
+                    author_clauses.append("LOWER(p.authors) LIKE ?")
+                    binds.append(f"%{a.lower()}%")
+                where_parts.append(f"({' OR '.join(author_clauses)})")
+            if filter_.get("methods"):
+                need_triage_join = True
+                method_clauses = []
+                for m in filter_["methods"]:
+                    method_clauses.append("LOWER(tc.methods) LIKE ?")
+                    binds.append(f'%"{m.lower()}"%')
+                where_parts.append(f"({' OR '.join(method_clauses)})")
+            if filter_.get("score_dimensions"):
+                for sd in filter_["score_dimensions"]:
+                    where_parts.append(
+                        "p.paper_id IN ("
+                        "SELECT ps.paper_id FROM paper_scores ps "
+                        "WHERE ps.dimension = ? AND ps.score >= ?"
+                        ")"
+                    )
+                    binds.append(sd["dimension"])
+                    binds.append(sd["min_score"])
+            if filter_.get("atom_slugs"):
+                # AND logic: paper must be linked to ALL specified atoms
+                for slug in filter_["atom_slugs"]:
+                    where_parts.append(
+                        "p.paper_id IN ("
+                        "SELECT paper_id FROM atom_paper_refs WHERE atom_slug = ?"
+                        ")"
+                    )
+                    binds.append(slug)
 
-            where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
-            from_sql = "papers p"
-            if need_triage_join:
-                from_sql = "papers p INNER JOIN triage_cards tc ON p.paper_id = tc.paper_id"
+        where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
+        from_sql = "papers p"
+        if need_triage_join:
+            from_sql = "papers p INNER JOIN triage_cards tc ON p.paper_id = tc.paper_id"
 
-            # Order
-            order_map = {
-                "year_desc": "p.year DESC",
-                "year_asc": "p.year ASC",
-                "score_desc": "p.average_score DESC",
-                "score_asc": "p.average_score ASC",
-                "id_desc": "p.paper_id DESC",
-            }
-            order_sql = "ORDER BY " + order_map.get(sort or "", "p.paper_id DESC")
+        # Order
+        order_map = {
+            "year_desc": "p.year DESC",
+            "year_asc": "p.year ASC",
+            "score_desc": "p.average_score DESC",
+            "score_asc": "p.average_score ASC",
+            "id_desc": "p.paper_id DESC",
+        }
+        order_sql = "ORDER BY " + order_map.get(sort or "", "p.paper_id DESC")
 
-            # Total count
-            count_cursor = await db.execute(
-                f"SELECT COUNT(DISTINCT p.paper_id) FROM {from_sql}{where_sql}", binds
-            )
-            total = (await count_cursor.fetchone())[0]
+        # Total count
+        count_cursor = await db.execute(
+            f"SELECT COUNT(DISTINCT p.paper_id) FROM {from_sql}{where_sql}", binds
+        )
+        total = (await count_cursor.fetchone())[0]
 
-            # Page
-            cursor = await db.execute(
-                f"SELECT DISTINCT p.* FROM {from_sql}{where_sql} {order_sql} LIMIT ? OFFSET ?",
-                binds + [limit, offset],
-            )
-            rows = await cursor.fetchall()
+        # Page
+        cursor = await db.execute(
+            f"SELECT DISTINCT p.* FROM {from_sql}{where_sql} {order_sql} LIMIT ? OFFSET ?",
+            binds + [limit, offset],
+        )
+        rows = await cursor.fetchall()
 
-            return {"items": [_row_to_paper(r) for r in rows], "total": total}
+        return {"items": [_row_to_paper(r) for r in rows], "total": total}
     except Exception:
         logger.exception("get_papers failed")
         return empty
@@ -590,20 +627,20 @@ async def _load_author_index() -> list[tuple[str, int]]:
     from collections import Counter
     counts: Counter[str] = Counter()
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            cursor = await db.execute(
-                "SELECT authors FROM papers WHERE authors IS NOT NULL AND authors != '' AND authors != '[]'"
-            )
-            rows = await cursor.fetchall()
-            for row in rows:
-                try:
-                    authors = json.loads(row[0])
-                    if isinstance(authors, list):
-                        for a in authors:
-                            if isinstance(a, str) and a.strip():
-                                counts[a.strip()] += 1
-                except (json.JSONDecodeError, TypeError):
-                    pass
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT authors FROM papers WHERE authors IS NOT NULL AND authors != '' AND authors != '[]'"
+        )
+        rows = await cursor.fetchall()
+        for row in rows:
+            try:
+                authors = json.loads(row[0])
+                if isinstance(authors, list):
+                    for a in authors:
+                        if isinstance(a, str) and a.strip():
+                            counts[a.strip()] += 1
+            except (json.JSONDecodeError, TypeError):
+                pass
         result = sorted(counts.items(), key=lambda x: (-x[1], x[0]))
         _author_cache = {"all": result}
         return result
@@ -640,20 +677,20 @@ async def get_available_methods() -> list[str]:
     from collections import Counter
     counts: Counter[str] = Counter()
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            cursor = await db.execute(
-                "SELECT methods FROM triage_cards WHERE methods IS NOT NULL"
-            )
-            rows = await cursor.fetchall()
-            for row in rows:
-                try:
-                    methods = json.loads(row[0])
-                    if isinstance(methods, list):
-                        for m in methods:
-                            if isinstance(m, str) and m.strip():
-                                counts[m.strip()] += 1
-                except (json.JSONDecodeError, TypeError):
-                    pass
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT methods FROM triage_cards WHERE methods IS NOT NULL"
+        )
+        rows = await cursor.fetchall()
+        for row in rows:
+            try:
+                methods = json.loads(row[0])
+                if isinstance(methods, list):
+                    for m in methods:
+                        if isinstance(m, str) and m.strip():
+                            counts[m.strip()] += 1
+            except (json.JSONDecodeError, TypeError):
+                pass
         result = [m for m, _ in counts.most_common()]
         _methods_cache = result
         return result
@@ -666,13 +703,12 @@ async def get_paper_scores(paper_id: str) -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT dimension, score FROM paper_scores WHERE paper_id = ?",
-                (paper_id,),
-            )
-            return [{"dimension": r["dimension"], "score": r["score"]} for r in await cursor.fetchall()]
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT dimension, score FROM paper_scores WHERE paper_id = ?",
+            (paper_id,),
+        )
+        return [{"dimension": r["dimension"], "score": r["score"]} for r in await cursor.fetchall()]
     except Exception:
         logger.exception("get_paper_scores failed for %s", paper_id)
         return []
@@ -682,13 +718,12 @@ async def get_card_sections(paper_id: str) -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT section, content FROM card_sections WHERE paper_id = ?",
-                (paper_id,),
-            )
-            return [{"section": r["section"], "content": r["content"]} for r in await cursor.fetchall()]
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT section, content FROM card_sections WHERE paper_id = ?",
+            (paper_id,),
+        )
+        return [{"section": r["section"], "content": r["content"]} for r in await cursor.fetchall()]
     except Exception:
         logger.exception("get_card_sections failed for %s", paper_id)
         return []
@@ -721,25 +756,24 @@ async def get_paper_tldr(paper_id: str) -> str | None:
         return text[:147] + "..."
 
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            # Try Research Question section first
-            cursor = await db.execute(
-                "SELECT content FROM card_sections WHERE paper_id = ? AND section = 'Research Question'",
-                (paper_id,),
-            )
-            row = await cursor.fetchone()
-            if row and row["content"] and row["content"].strip():
-                return _first_sentence(row["content"])
+        db = await _get_db()
+        # Try Research Question section first
+        cursor = await db.execute(
+            "SELECT content FROM card_sections WHERE paper_id = ? AND section = 'Research Question'",
+            (paper_id,),
+        )
+        row = await cursor.fetchone()
+        if row and row["content"] and row["content"].strip():
+            return _first_sentence(row["content"])
 
-            # Fall back to triage summary
-            cursor = await db.execute(
-                "SELECT summary FROM triage_cards WHERE paper_id = ?",
-                (paper_id,),
-            )
-            row = await cursor.fetchone()
-            if row and row["summary"] and row["summary"].strip():
-                return _first_sentence(row["summary"])
+        # Fall back to triage summary
+        cursor = await db.execute(
+            "SELECT summary FROM triage_cards WHERE paper_id = ?",
+            (paper_id,),
+        )
+        row = await cursor.fetchone()
+        if row and row["summary"] and row["summary"].strip():
+            return _first_sentence(row["summary"])
 
         return None
     except Exception:
@@ -752,13 +786,13 @@ async def get_idea_count_for_paper(paper_id: str) -> int:
     if not _db_exists():
         return 0
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            cursor = await db.execute(
-                "SELECT COUNT(*) FROM ideas WHERE source_papers LIKE ?",
-                (f"%{paper_id}%",),
-            )
-            row = await cursor.fetchone()
-            return row[0] if row else 0
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM ideas WHERE source_papers LIKE ?",
+            (f"%{paper_id}%",),
+        )
+        row = await cursor.fetchone()
+        return row[0] if row else 0
     except Exception:
         logger.exception("get_idea_count_for_paper failed for %s", paper_id)
         return 0
@@ -769,17 +803,16 @@ async def get_paper_atoms(paper_id: str) -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                """
-                SELECT a.* FROM atoms a
-                JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                WHERE apr.paper_id = ?
-                """,
-                (paper_id,),
-            )
-            return [_row_to_atom(r) for r in await cursor.fetchall()]
+        db = await _get_db()
+        cursor = await db.execute(
+            """
+            SELECT a.* FROM atoms a
+            JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+            WHERE apr.paper_id = ?
+            """,
+            (paper_id,),
+        )
+        return [_row_to_atom(r) for r in await cursor.fetchall()]
     except Exception:
         logger.exception("get_paper_atoms failed for %s", paper_id)
         return []
@@ -790,19 +823,18 @@ async def get_related_papers(paper_id: str, limit: int = 10) -> list[dict[str, A
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                """
-                SELECT DISTINCT p.* FROM atom_paper_refs apr1
-                JOIN atom_paper_refs apr2 ON apr1.atom_slug = apr2.atom_slug
-                JOIN papers p ON p.paper_id = apr2.paper_id
-                WHERE apr1.paper_id = ? AND apr2.paper_id != ?
-                LIMIT ?
-                """,
-                (paper_id, paper_id, limit),
-            )
-            return [_row_to_paper(r) for r in await cursor.fetchall()]
+        db = await _get_db()
+        cursor = await db.execute(
+            """
+            SELECT DISTINCT p.* FROM atom_paper_refs apr1
+            JOIN atom_paper_refs apr2 ON apr1.atom_slug = apr2.atom_slug
+            JOIN papers p ON p.paper_id = apr2.paper_id
+            WHERE apr1.paper_id = ? AND apr2.paper_id != ?
+            LIMIT ?
+            """,
+            (paper_id, paper_id, limit),
+        )
+        return [_row_to_paper(r) for r in await cursor.fetchall()]
     except Exception:
         logger.exception("get_related_papers failed for %s", paper_id)
         return []
@@ -813,29 +845,28 @@ async def get_related_papers_scored(paper_id: str, limit: int = 10) -> list[dict
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                """
-                SELECT p.*, COUNT(DISTINCT apr1.atom_slug) as shared_count,
-                       GROUP_CONCAT(DISTINCT apr1.atom_slug) as shared_slugs
-                FROM atom_paper_refs apr1
-                JOIN atom_paper_refs apr2 ON apr1.atom_slug = apr2.atom_slug
-                JOIN papers p ON p.paper_id = apr2.paper_id
-                WHERE apr1.paper_id = ? AND apr2.paper_id != ?
-                GROUP BY apr2.paper_id
-                ORDER BY shared_count DESC
-                LIMIT ?
-                """,
-                (paper_id, paper_id, limit),
-            )
-            results = []
-            for r in await cursor.fetchall():
-                paper = _row_to_paper(r)
-                paper["shared_atom_count"] = r["shared_count"]
-                paper["shared_atoms"] = (r["shared_slugs"] or "").split(",") if r["shared_slugs"] else []
-                results.append(paper)
-            return results
+        db = await _get_db()
+        cursor = await db.execute(
+            """
+            SELECT p.*, COUNT(DISTINCT apr1.atom_slug) as shared_count,
+                   GROUP_CONCAT(DISTINCT apr1.atom_slug) as shared_slugs
+            FROM atom_paper_refs apr1
+            JOIN atom_paper_refs apr2 ON apr1.atom_slug = apr2.atom_slug
+            JOIN papers p ON p.paper_id = apr2.paper_id
+            WHERE apr1.paper_id = ? AND apr2.paper_id != ?
+            GROUP BY apr2.paper_id
+            ORDER BY shared_count DESC
+            LIMIT ?
+            """,
+            (paper_id, paper_id, limit),
+        )
+        results = []
+        for r in await cursor.fetchall():
+            paper = _row_to_paper(r)
+            paper["shared_atom_count"] = r["shared_count"]
+            paper["shared_atoms"] = (r["shared_slugs"] or "").split(",") if r["shared_slugs"] else []
+            results.append(paper)
+        return results
     except Exception:
         logger.exception("get_related_papers_scored failed for %s", paper_id)
         return []
@@ -868,33 +899,32 @@ async def get_related_papers_by_axis(
         return []
 
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                """
-                SELECT p.*, COUNT(DISTINCT apr1.atom_slug) as shared_count,
-                       GROUP_CONCAT(DISTINCT apr1.atom_slug) as shared_slugs
-                FROM atom_paper_refs apr1
-                JOIN atom_paper_refs apr2 ON apr1.atom_slug = apr2.atom_slug
-                JOIN atoms a ON a.slug = apr1.atom_slug
-                JOIN papers p ON p.paper_id = apr2.paper_id
-                WHERE apr1.paper_id = ? AND apr2.paper_id != ?
-                AND a.type = ?
-                GROUP BY apr2.paper_id
-                ORDER BY shared_count DESC
-                LIMIT ?
-                """,
-                (paper_id, paper_id, axis, limit),
+        db = await _get_db()
+        cursor = await db.execute(
+            """
+            SELECT p.*, COUNT(DISTINCT apr1.atom_slug) as shared_count,
+                   GROUP_CONCAT(DISTINCT apr1.atom_slug) as shared_slugs
+            FROM atom_paper_refs apr1
+            JOIN atom_paper_refs apr2 ON apr1.atom_slug = apr2.atom_slug
+            JOIN atoms a ON a.slug = apr1.atom_slug
+            JOIN papers p ON p.paper_id = apr2.paper_id
+            WHERE apr1.paper_id = ? AND apr2.paper_id != ?
+            AND a.type = ?
+            GROUP BY apr2.paper_id
+            ORDER BY shared_count DESC
+            LIMIT ?
+            """,
+            (paper_id, paper_id, axis, limit),
+        )
+        results = []
+        for r in await cursor.fetchall():
+            paper = _row_to_paper(r)
+            paper["shared_atom_count"] = r["shared_count"]
+            paper["shared_atoms"] = (
+                (r["shared_slugs"] or "").split(",") if r["shared_slugs"] else []
             )
-            results = []
-            for r in await cursor.fetchall():
-                paper = _row_to_paper(r)
-                paper["shared_atom_count"] = r["shared_count"]
-                paper["shared_atoms"] = (
-                    (r["shared_slugs"] or "").split(",") if r["shared_slugs"] else []
-                )
-                results.append(paper)
-            return results
+            results.append(paper)
+        return results
     except Exception:
         logger.exception(
             "get_related_papers_by_axis failed for %s axis=%s", paper_id, axis
@@ -928,13 +958,12 @@ async def get_atom(slug: str) -> dict[str, Any] | None:
     if not _db_exists():
         return None
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute("SELECT * FROM atoms WHERE slug = ?", (slug,))
-            row = await cursor.fetchone()
-            if row is None:
-                return None
-            return _row_to_atom(row)
+        db = await _get_db()
+        cursor = await db.execute("SELECT * FROM atoms WHERE slug = ?", (slug,))
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        return _row_to_atom(row)
     except Exception:
         logger.exception("get_atom failed for %s", slug)
         return None
@@ -950,41 +979,40 @@ async def get_atoms(
     if not _db_exists():
         return empty
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            where_parts: list[str] = []
-            binds: list[Any] = []
+        where_parts: list[str] = []
+        binds: list[Any] = []
 
-            if filter_:
-                if filter_.get("search"):
-                    where_parts.append("(title LIKE ? OR description LIKE ?)")
-                    term = f"%{filter_['search']}%"
-                    binds.extend([term, term])
-                if filter_.get("type"):
-                    where_parts.append("type = ?")
-                    binds.append(filter_["type"])
-                if filter_.get("evidence_strength"):
-                    where_parts.append("evidence_strength = ?")
-                    binds.append(filter_["evidence_strength"])
-                if filter_.get("access"):
-                    where_parts.append("access LIKE ?")
-                    binds.append(f"%{filter_['access']}%")
-                if filter_.get("theme"):
-                    where_parts.append("theme = ?")
-                    binds.append(filter_["theme"])
+        if filter_:
+            if filter_.get("search"):
+                where_parts.append("(title LIKE ? OR description LIKE ?)")
+                term = f"%{filter_['search']}%"
+                binds.extend([term, term])
+            if filter_.get("type"):
+                where_parts.append("type = ?")
+                binds.append(filter_["type"])
+            if filter_.get("evidence_strength"):
+                where_parts.append("evidence_strength = ?")
+                binds.append(filter_["evidence_strength"])
+            if filter_.get("access"):
+                where_parts.append("access LIKE ?")
+                binds.append(f"%{filter_['access']}%")
+            if filter_.get("theme"):
+                where_parts.append("theme = ?")
+                binds.append(filter_["theme"])
 
-            where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
+        where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
 
-            count_cursor = await db.execute(f"SELECT COUNT(*) FROM atoms{where_sql}", binds)
-            total = (await count_cursor.fetchone())[0]
+        count_cursor = await db.execute(f"SELECT COUNT(*) FROM atoms{where_sql}", binds)
+        total = (await count_cursor.fetchone())[0]
 
-            cursor = await db.execute(
-                f"SELECT * FROM atoms{where_sql} ORDER BY title LIMIT ? OFFSET ?",
-                binds + [limit, offset],
-            )
-            rows = await cursor.fetchall()
-            return {"items": [_row_to_atom(r) for r in rows], "total": total}
+        cursor = await db.execute(
+            f"SELECT * FROM atoms{where_sql} ORDER BY title LIMIT ? OFFSET ?",
+            binds + [limit, offset],
+        )
+        rows = await cursor.fetchall()
+        return {"items": [_row_to_atom(r) for r in rows], "total": total}
     except Exception:
         logger.exception("get_atoms failed")
         return empty
@@ -994,17 +1022,16 @@ async def get_atom_papers(slug: str) -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                """
-                SELECT p.* FROM papers p
-                JOIN atom_paper_refs apr ON p.paper_id = apr.paper_id
-                WHERE apr.atom_slug = ?
-                """,
-                (slug,),
-            )
-            return [_row_to_paper(r) for r in await cursor.fetchall()]
+        db = await _get_db()
+        cursor = await db.execute(
+            """
+            SELECT p.* FROM papers p
+            JOIN atom_paper_refs apr ON p.paper_id = apr.paper_id
+            WHERE apr.atom_slug = ?
+            """,
+            (slug,),
+        )
+        return [_row_to_paper(r) for r in await cursor.fetchall()]
     except Exception:
         logger.exception("get_atom_papers failed for %s", slug)
         return []
@@ -1014,12 +1041,12 @@ async def get_atom_paper_count(slug: str) -> int:
     if not _db_exists():
         return 0
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            cursor = await db.execute(
-                "SELECT COUNT(*) FROM atom_paper_refs WHERE atom_slug = ?",
-                (slug,),
-            )
-            return (await cursor.fetchone())[0]
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM atom_paper_refs WHERE atom_slug = ?",
+            (slug,),
+        )
+        return (await cursor.fetchone())[0]
     except Exception:
         logger.exception("get_atom_paper_count failed for %s", slug)
         return 0
@@ -1036,63 +1063,62 @@ async def get_atom_themes(atom_type: str | None = None) -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            where_parts: list[str] = ["theme IS NOT NULL"]
-            binds: list[Any] = []
-            if atom_type:
-                where_parts.append("type = ?")
-                binds.append(atom_type)
-            where_sql = " WHERE " + " AND ".join(where_parts)
+        where_parts: list[str] = ["theme IS NOT NULL"]
+        binds: list[Any] = []
+        if atom_type:
+            where_parts.append("type = ?")
+            binds.append(atom_type)
+        where_sql = " WHERE " + " AND ".join(where_parts)
 
-            # Get theme counts
-            cursor = await db.execute(
-                f"SELECT theme, type, COUNT(*) as cnt FROM atoms{where_sql} GROUP BY theme, type ORDER BY cnt DESC",
-                binds,
+        # Get theme counts
+        cursor = await db.execute(
+            f"SELECT theme, type, COUNT(*) as cnt FROM atoms{where_sql} GROUP BY theme, type ORDER BY cnt DESC",
+            binds,
+        )
+        theme_rows = await cursor.fetchall()
+
+        results = []
+        for tr in theme_rows:
+            theme = tr["theme"]
+            atype = tr["type"]
+            count = tr["cnt"]
+
+            # Get top 10 atoms for this theme
+            top_cursor = await db.execute(
+                """SELECT a.slug, a.title, a.type, a.description,
+                          a.evidence_strength, a.access,
+                          COUNT(apr.paper_id) as paper_count
+                   FROM atoms a
+                   LEFT JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+                   WHERE a.theme = ? AND a.type = ?
+                   GROUP BY a.slug
+                   ORDER BY paper_count DESC
+                   LIMIT 10""",
+                (theme, atype),
             )
-            theme_rows = await cursor.fetchall()
-
-            results = []
-            for tr in theme_rows:
-                theme = tr["theme"]
-                atype = tr["type"]
-                count = tr["cnt"]
-
-                # Get top 10 atoms for this theme
-                top_cursor = await db.execute(
-                    """SELECT a.slug, a.title, a.type, a.description,
-                              a.evidence_strength, a.access,
-                              COUNT(apr.paper_id) as paper_count
-                       FROM atoms a
-                       LEFT JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                       WHERE a.theme = ? AND a.type = ?
-                       GROUP BY a.slug
-                       ORDER BY paper_count DESC
-                       LIMIT 10""",
-                    (theme, atype),
-                )
-                top_atoms = []
-                for ar in await top_cursor.fetchall():
-                    top_atoms.append({
-                        "slug": ar["slug"],
-                        "title": ar["title"],
-                        "type": ar["type"],
-                        "description": ar["description"],
-                        "evidence_strength": ar["evidence_strength"],
-                        "access": ar["access"],
-                        "paper_count": ar["paper_count"],
-                        "paper_ids": [],
-                    })
-
-                results.append({
-                    "theme": theme,
-                    "atom_type": atype,
-                    "count": count,
-                    "top_atoms": top_atoms,
+            top_atoms = []
+            for ar in await top_cursor.fetchall():
+                top_atoms.append({
+                    "slug": ar["slug"],
+                    "title": ar["title"],
+                    "type": ar["type"],
+                    "description": ar["description"],
+                    "evidence_strength": ar["evidence_strength"],
+                    "access": ar["access"],
+                    "paper_count": ar["paper_count"],
+                    "paper_ids": [],
                 })
 
-            return results
+            results.append({
+                "theme": theme,
+                "atom_type": atype,
+                "count": count,
+                "top_atoms": top_atoms,
+            })
+
+        return results
     except Exception:
         logger.exception("get_atom_themes failed")
         return []
@@ -1103,18 +1129,18 @@ async def get_available_themes(atom_type: str | None = None) -> list[str]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            if atom_type:
-                cursor = await db.execute(
-                    "SELECT DISTINCT theme FROM atoms WHERE theme IS NOT NULL AND type = ? ORDER BY theme",
-                    (atom_type,),
-                )
-            else:
-                cursor = await db.execute(
-                    "SELECT DISTINCT theme FROM atoms WHERE theme IS NOT NULL ORDER BY theme"
-                )
-            rows = await cursor.fetchall()
-            return [r[0] for r in rows]
+        db = await _get_db()
+        if atom_type:
+            cursor = await db.execute(
+                "SELECT DISTINCT theme FROM atoms WHERE theme IS NOT NULL AND type = ? ORDER BY theme",
+                (atom_type,),
+            )
+        else:
+            cursor = await db.execute(
+                "SELECT DISTINCT theme FROM atoms WHERE theme IS NOT NULL ORDER BY theme"
+            )
+        rows = await cursor.fetchall()
+        return [r[0] for r in rows]
     except Exception:
         logger.exception("get_available_themes failed")
         return []
@@ -1128,13 +1154,12 @@ async def get_field_map(slug: str) -> dict[str, Any] | None:
     if not _db_exists():
         return None
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute("SELECT * FROM field_maps WHERE slug = ?", (slug,))
-            row = await cursor.fetchone()
-            if row is None:
-                return None
-            return {"slug": row["slug"], "title": row["title"], "content": row["content"]}
+        db = await _get_db()
+        cursor = await db.execute("SELECT * FROM field_maps WHERE slug = ?", (slug,))
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        return {"slug": row["slug"], "title": row["title"], "content": row["content"]}
     except Exception:
         logger.exception("get_field_map failed for %s", slug)
         return None
@@ -1144,13 +1169,12 @@ async def get_field_maps() -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute("SELECT * FROM field_maps ORDER BY title")
-            return [
-                {"slug": r["slug"], "title": r["title"], "content": r["content"]}
-                for r in await cursor.fetchall()
-            ]
+        db = await _get_db()
+        cursor = await db.execute("SELECT * FROM field_maps ORDER BY title")
+        return [
+            {"slug": r["slug"], "title": r["title"], "content": r["content"]}
+            for r in await cursor.fetchall()
+        ]
     except Exception:
         logger.exception("get_field_maps failed")
         return []
@@ -1183,58 +1207,58 @@ JEL_FIRST_LEVEL = {
 }
 
 
+@_ttl_cache(300)
 async def get_jel_taxonomy() -> list[dict[str, Any]]:
     """Get JEL codes organized by first level with paper counts."""
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT jel FROM papers WHERE jel IS NOT NULL AND jel != '[]'"
-            )
-            rows = await cursor.fetchall()
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT jel FROM papers WHERE jel IS NOT NULL AND jel != '[]'"
+        )
+        rows = await cursor.fetchall()
 
-            # Count all JEL codes and group by first letter
-            code_counts: dict[str, int] = {}
-            for row in rows:
-                try:
-                    codes = json.loads(row["jel"])
-                    if isinstance(codes, list):
-                        for code in codes:
-                            code = str(code).strip()
-                            if code:
-                                code_counts[code] = code_counts.get(code, 0) + 1
-                except (json.JSONDecodeError, TypeError):
-                    pass
+        # Count all JEL codes and group by first letter
+        code_counts: dict[str, int] = {}
+        for row in rows:
+            try:
+                codes = json.loads(row["jel"])
+                if isinstance(codes, list):
+                    for code in codes:
+                        code = str(code).strip()
+                        if code:
+                            code_counts[code] = code_counts.get(code, 0) + 1
+            except (json.JSONDecodeError, TypeError):
+                pass
 
-            # Build taxonomy: group by first letter
-            first_level: dict[str, dict[str, Any]] = {}
-            for code, count in code_counts.items():
-                fl = code[0].upper() if code else "?"
-                if fl not in first_level:
-                    first_level[fl] = {"code": fl, "label": JEL_FIRST_LEVEL.get(fl, "Unknown"), "count": 0, "subcodes": {}}
-                first_level[fl]["count"] += count
-                if len(code) > 1:  # subcodes like "L11", "C26", etc.
-                    if code not in first_level[fl]["subcodes"]:
-                        first_level[fl]["subcodes"][code] = 0
-                    first_level[fl]["subcodes"][code] += count
+        # Build taxonomy: group by first letter
+        first_level: dict[str, dict[str, Any]] = {}
+        for code, count in code_counts.items():
+            fl = code[0].upper() if code else "?"
+            if fl not in first_level:
+                first_level[fl] = {"code": fl, "label": JEL_FIRST_LEVEL.get(fl, "Unknown"), "count": 0, "subcodes": {}}
+            first_level[fl]["count"] += count
+            if len(code) > 1:  # subcodes like "L11", "C26", etc.
+                if code not in first_level[fl]["subcodes"]:
+                    first_level[fl]["subcodes"][code] = 0
+                first_level[fl]["subcodes"][code] += count
 
-            # Convert to sorted list
-            result = []
-            for fl in sorted(first_level.keys()):
-                entry = first_level[fl]
-                subcodes = [
-                    {"code": sc, "count": c}
-                    for sc, c in sorted(entry["subcodes"].items())
-                ]
-                result.append({
-                    "code": entry["code"],
-                    "label": entry["label"],
-                    "count": entry["count"],
-                    "subcodes": subcodes,
-                })
-            return result
+        # Convert to sorted list
+        result = []
+        for fl in sorted(first_level.keys()):
+            entry = first_level[fl]
+            subcodes = [
+                {"code": sc, "count": c}
+                for sc, c in sorted(entry["subcodes"].items())
+            ]
+            result.append({
+                "code": entry["code"],
+                "label": entry["label"],
+                "count": entry["count"],
+                "subcodes": subcodes,
+            })
+        return result
     except Exception:
         logger.exception("get_jel_taxonomy failed")
         return []
@@ -1249,41 +1273,40 @@ async def get_papers_by_jel(
     if not _db_exists():
         return {"items": [], "total": 0}
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            code = code.strip().upper()
+        db = await _get_db()
+        code = code.strip().upper()
 
-            # Fetch all papers with JEL codes
-            cursor = await db.execute(
-                "SELECT * FROM papers WHERE jel IS NOT NULL AND jel != '[]'"
-            )
-            all_rows = await cursor.fetchall()
+        # Fetch all papers with JEL codes
+        cursor = await db.execute(
+            "SELECT * FROM papers WHERE jel IS NOT NULL AND jel != '[]'"
+        )
+        all_rows = await cursor.fetchall()
 
-            # Filter in Python: match first-level (1 char) or exact code
-            matching = []
-            for row in all_rows:
-                try:
-                    jel_codes = json.loads(row["jel"])
-                    if isinstance(jel_codes, list):
-                        for jel in jel_codes:
-                            jel_str = str(jel).strip().upper()
-                            if len(code) == 1:
-                                if jel_str.startswith(code):
-                                    matching.append(row)
-                                    break
-                            else:
-                                if jel_str == code:
-                                    matching.append(row)
-                                    break
-                except (json.JSONDecodeError, TypeError):
-                    pass
+        # Filter in Python: match first-level (1 char) or exact code
+        matching = []
+        for row in all_rows:
+            try:
+                jel_codes = json.loads(row["jel"])
+                if isinstance(jel_codes, list):
+                    for jel in jel_codes:
+                        jel_str = str(jel).strip().upper()
+                        if len(code) == 1:
+                            if jel_str.startswith(code):
+                                matching.append(row)
+                                break
+                        else:
+                            if jel_str == code:
+                                matching.append(row)
+                                break
+            except (json.JSONDecodeError, TypeError):
+                pass
 
-            total = len(matching)
-            # Sort by year descending, then by paper_id
-            matching.sort(key=lambda r: (-(r["year"] or 0), r["paper_id"]))
-            page = matching[offset : offset + limit]
-            items = [_row_to_paper(r) for r in page]
-            return {"items": items, "total": total}
+        total = len(matching)
+        # Sort by year descending, then by paper_id
+        matching.sort(key=lambda r: (-(r["year"] or 0), r["paper_id"]))
+        page = matching[offset : offset + limit]
+        items = [_row_to_paper(r) for r in page]
+        return {"items": items, "total": total}
     except Exception:
         logger.exception("get_papers_by_jel failed for %s", code)
         return {"items": [], "total": 0}
@@ -1298,40 +1321,39 @@ async def get_frontier_gaps() -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT content FROM field_maps WHERE slug = 'frontier_gaps'"
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT content FROM field_maps WHERE slug = 'frontier_gaps'"
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return []
+        content = row["content"]
+        gaps = _parse_frontier_gaps(content)
+
+        # Enrich with paper titles
+        all_paper_ids: set[str] = set()
+        for gap in gaps:
+            all_paper_ids.update(gap.get("closest_paper_ids", []))
+
+        if all_paper_ids:
+            ph = ", ".join("?" for _ in all_paper_ids)
+            title_cursor = await db.execute(
+                f"SELECT paper_id, title FROM papers WHERE paper_id IN ({ph})",
+                list(all_paper_ids),
             )
-            row = await cursor.fetchone()
-            if row is None:
-                return []
-            content = row["content"]
-            gaps = _parse_frontier_gaps(content)
+            title_map: dict[str, str] = {}
+            for tr in await title_cursor.fetchall():
+                title_map[tr["paper_id"]] = tr["title"] or tr["paper_id"]
 
-            # Enrich with paper titles
-            all_paper_ids: set[str] = set()
             for gap in gaps:
-                all_paper_ids.update(gap.get("closest_paper_ids", []))
-
-            if all_paper_ids:
-                ph = ", ".join("?" for _ in all_paper_ids)
-                title_cursor = await db.execute(
-                    f"SELECT paper_id, title FROM papers WHERE paper_id IN ({ph})",
-                    list(all_paper_ids),
-                )
-                title_map: dict[str, str] = {}
-                for tr in await title_cursor.fetchall():
-                    title_map[tr["paper_id"]] = tr["title"] or tr["paper_id"]
-
-                for gap in gaps:
-                    gap["closest_paper_titles"] = {
-                        pid: title_map.get(pid, pid)
-                        for pid in gap.get("closest_paper_ids", [])
-                    }
-            else:
-                for gap in gaps:
-                    gap["closest_paper_titles"] = {}
+                gap["closest_paper_titles"] = {
+                    pid: title_map.get(pid, pid)
+                    for pid in gap.get("closest_paper_ids", [])
+                }
+        else:
+            for gap in gaps:
+                gap["closest_paper_titles"] = {}
 
         return gaps
     except Exception:
@@ -1447,13 +1469,12 @@ async def get_idea(idea_id: str) -> dict[str, Any] | None:
     if not _db_exists():
         return None
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute("SELECT * FROM ideas WHERE id = ?", (idea_id,))
-            row = await cursor.fetchone()
-            if row is None:
-                return None
-            return _row_to_idea(row)
+        db = await _get_db()
+        cursor = await db.execute("SELECT * FROM ideas WHERE id = ?", (idea_id,))
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        return _row_to_idea(row)
     except Exception:
         logger.exception("get_idea failed for %s", idea_id)
         return None
@@ -1463,16 +1484,15 @@ async def get_ideas(status: str | None = None) -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            if status:
-                cursor = await db.execute(
-                    "SELECT * FROM ideas WHERE status = ? ORDER BY composite DESC",
-                    (status,),
-                )
-            else:
-                cursor = await db.execute("SELECT * FROM ideas ORDER BY composite DESC")
-            return [_row_to_idea(r) for r in await cursor.fetchall()]
+        db = await _get_db()
+        if status:
+            cursor = await db.execute(
+                "SELECT * FROM ideas WHERE status = ? ORDER BY composite DESC",
+                (status,),
+            )
+        else:
+            cursor = await db.execute("SELECT * FROM ideas ORDER BY composite DESC")
+        return [_row_to_idea(r) for r in await cursor.fetchall()]
     except Exception:
         logger.exception("get_ideas failed")
         return []
@@ -1488,13 +1508,13 @@ async def set_idea_status(idea_id: str, status: str) -> bool:
     if status not in VALID_IDEA_STATUSES:
         return False
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            cursor = await db.execute(
-                "UPDATE ideas SET status = ? WHERE id = ?",
-                (status, idea_id),
-            )
-            await db.commit()
-            return cursor.rowcount > 0
+        db = await _get_db()
+        cursor = await db.execute(
+            "UPDATE ideas SET status = ? WHERE id = ?",
+            (status, idea_id),
+        )
+        await db.commit()
+        return cursor.rowcount > 0
     except Exception:
         logger.exception("set_idea_status failed for %s", idea_id)
         return False
@@ -1505,33 +1525,33 @@ async def get_idea_evaluation(idea_id: str) -> dict[str, Any] | None:
     if not _db_exists():
         return None
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT * FROM idea_evaluations WHERE idea_id = ?", (idea_id,)
-            )
-            row = await cursor.fetchone()
-            if row is None:
-                return None
-            return {
-                "idea_id": row["idea_id"],
-                "verdict": row["verdict"],
-                "novelty_score": row["novelty_score"],
-                "identification_score": row["identification_score"],
-                "data_score": row["data_score"],
-                "contribution_score": row["contribution_score"],
-                "feasibility_score": row["feasibility_score"],
-                "overall_score": row["overall_score"],
-                "key_risk": row["key_risk"],
-                "next_steps": row["next_steps"],
-                "death_reason": row["death_reason"],
-                "evaluation_text": row["evaluation_text"],
-            }
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT * FROM idea_evaluations WHERE idea_id = ?", (idea_id,)
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        return {
+            "idea_id": row["idea_id"],
+            "verdict": row["verdict"],
+            "novelty_score": row["novelty_score"],
+            "identification_score": row["identification_score"],
+            "data_score": row["data_score"],
+            "contribution_score": row["contribution_score"],
+            "feasibility_score": row["feasibility_score"],
+            "overall_score": row["overall_score"],
+            "key_risk": row["key_risk"],
+            "next_steps": row["next_steps"],
+            "death_reason": row["death_reason"],
+            "evaluation_text": row["evaluation_text"],
+        }
     except Exception:
         logger.exception("get_idea_evaluation failed for %s", idea_id)
         return None
 
 
+@_ttl_cache(300)
 async def get_method_field_matrix(
     top_methods: int = 15, top_fields: int = 10
 ) -> dict[str, Any]:
@@ -1539,13 +1559,12 @@ async def get_method_field_matrix(
     if not _db_exists():
         return {"methods": [], "fields": [], "matrix": []}
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT methods, fields FROM triage_cards "
-                "WHERE methods IS NOT NULL AND fields IS NOT NULL"
-            )
-            rows = await cursor.fetchall()
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT methods, fields FROM triage_cards "
+            "WHERE methods IS NOT NULL AND fields IS NOT NULL"
+        )
+        rows = await cursor.fetchall()
 
         # Count co-occurrences
         pairs: dict[tuple[str, str], int] = {}
@@ -1604,29 +1623,28 @@ async def search(
         return empty
 
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            sql, binds = search_sql(params)
-            cursor = await db.execute(sql, binds)
-            rows = await cursor.fetchall()
+        sql, binds = search_sql(params)
+        cursor = await db.execute(sql, binds)
+        rows = await cursor.fetchall()
 
-            hits = [
-                {
-                    "entity_type": r["entity_type"],
-                    "entity_id": r["entity_id"],
-                    "title": r["title"],
-                    "snippet": r["snippet"],
-                    "rank": float(r["rank"]),
-                }
-                for r in rows
-            ]
+        hits = [
+            {
+                "entity_type": r["entity_type"],
+                "entity_id": r["entity_id"],
+                "title": r["title"],
+                "snippet": r["snippet"],
+                "rank": float(r["rank"]),
+            }
+            for r in rows
+        ]
 
-            c_sql, c_binds = count_sql(params)
-            count_cursor = await db.execute(c_sql, c_binds)
-            total = (await count_cursor.fetchone())[0]
+        c_sql, c_binds = count_sql(params)
+        count_cursor = await db.execute(c_sql, c_binds)
+        total = (await count_cursor.fetchone())[0]
 
-            return {"hits": hits, "total": total}
+        return {"hits": hits, "total": total}
     except Exception:
         logger.exception("search failed for query=%s", query)
         return empty
@@ -1652,89 +1670,88 @@ async def paper_network(paper_id: str, depth: int = 1) -> dict[str, Any]:
         return empty
 
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            nodes: dict[str, dict[str, Any]] = {}
-            edges: dict[tuple[str, str, str], dict[str, Any]] = {}
+        nodes: dict[str, dict[str, Any]] = {}
+        edges: dict[tuple[str, str, str], dict[str, Any]] = {}
 
-            # Seed paper
-            cursor = await db.execute("SELECT * FROM papers WHERE paper_id = ?", (paper_id,))
-            paper = await cursor.fetchone()
-            if paper is None:
-                return empty
+        # Seed paper
+        cursor = await db.execute("SELECT * FROM papers WHERE paper_id = ?", (paper_id,))
+        paper = await cursor.fetchone()
+        if paper is None:
+            return empty
 
-            nodes[paper_id] = _paper_row_to_graph_node(paper, is_seed=True)
+        nodes[paper_id] = _paper_row_to_graph_node(paper, is_seed=True)
 
-            # BFS by depth
-            frontier = {paper_id}
-            visited_papers: set[str] = {paper_id}
+        # BFS by depth
+        frontier = {paper_id}
+        visited_papers: set[str] = {paper_id}
 
-            for _ in range(depth):
-                if not frontier:
-                    break
-                next_frontier: set[str] = set()
+        for _ in range(depth):
+            if not frontier:
+                break
+            next_frontier: set[str] = set()
 
-                for pid in frontier:
-                    # Get atoms for this paper
-                    atom_cursor = await db.execute(
-                        """
-                        SELECT a.*,
-                               COUNT(apr_all.paper_id) as paper_count
-                        FROM atoms a
-                        JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                        LEFT JOIN atom_paper_refs apr_all ON a.slug = apr_all.atom_slug
-                        WHERE apr.paper_id = ?
-                        GROUP BY a.slug
-                        """,
-                        (pid,),
+            for pid in frontier:
+                # Get atoms for this paper
+                atom_cursor = await db.execute(
+                    """
+                    SELECT a.*,
+                           COUNT(apr_all.paper_id) as paper_count
+                    FROM atoms a
+                    JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+                    LEFT JOIN atom_paper_refs apr_all ON a.slug = apr_all.atom_slug
+                    WHERE apr.paper_id = ?
+                    GROUP BY a.slug
+                    """,
+                    (pid,),
+                )
+                atom_rows = await atom_cursor.fetchall()
+
+                for ar in atom_rows:
+                    atom_id = f"atom:{ar['slug']}"
+                    if atom_id not in nodes:
+                        nodes[atom_id] = _atom_row_to_graph_node(ar)
+                    _add_graph_edge(
+                        edges,
+                        source=pid,
+                        target=atom_id,
+                        relation=_graph_edge_relation(ar["type"]),
                     )
-                    atom_rows = await atom_cursor.fetchall()
 
-                    for ar in atom_rows:
-                        atom_id = f"atom:{ar['slug']}"
-                        if atom_id not in nodes:
-                            nodes[atom_id] = _atom_row_to_graph_node(ar)
+                    # Get papers sharing this atom
+                    shared_cursor = await db.execute(
+                        """
+                        SELECT p.* FROM papers p
+                        JOIN atom_paper_refs apr ON p.paper_id = apr.paper_id
+                        WHERE apr.atom_slug = ? AND p.paper_id != ?
+                        """,
+                        (ar["slug"], pid),
+                    )
+                    shared_rows = await shared_cursor.fetchall()
+                    for sr in shared_rows:
+                        sp_id = sr["paper_id"]
+                        if sp_id not in nodes:
+                            nodes[sp_id] = _paper_row_to_graph_node(sr)
                         _add_graph_edge(
                             edges,
-                            source=pid,
+                            source=sp_id,
                             target=atom_id,
                             relation=_graph_edge_relation(ar["type"]),
                         )
+                        if sp_id not in visited_papers:
+                            next_frontier.add(sp_id)
 
-                        # Get papers sharing this atom
-                        shared_cursor = await db.execute(
-                            """
-                            SELECT p.* FROM papers p
-                            JOIN atom_paper_refs apr ON p.paper_id = apr.paper_id
-                            WHERE apr.atom_slug = ? AND p.paper_id != ?
-                            """,
-                            (ar["slug"], pid),
-                        )
-                        shared_rows = await shared_cursor.fetchall()
-                        for sr in shared_rows:
-                            sp_id = sr["paper_id"]
-                            if sp_id not in nodes:
-                                nodes[sp_id] = _paper_row_to_graph_node(sr)
-                            _add_graph_edge(
-                                edges,
-                                source=sp_id,
-                                target=atom_id,
-                                relation=_graph_edge_relation(ar["type"]),
-                            )
-                            if sp_id not in visited_papers:
-                                next_frontier.add(sp_id)
+            visited_papers.update(next_frontier)
+            frontier = next_frontier
 
-                visited_papers.update(next_frontier)
-                frontier = next_frontier
-
-            return _finalize_network_graph(
-                nodes=nodes,
-                edges=edges,
-                mode="paper",
-                source_paper_count=1,
-                seed_count=1,
-            )
+        return _finalize_network_graph(
+            nodes=nodes,
+            edges=edges,
+            mode="paper",
+            source_paper_count=1,
+            seed_count=1,
+        )
     except Exception:
         logger.exception("paper_network failed for %s", paper_id)
         return empty
@@ -1746,112 +1763,111 @@ async def atom_neighborhood(slug: str, depth: int = 1) -> dict[str, Any]:
         return empty
 
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            nodes: dict[str, dict[str, Any]] = {}
-            edges: dict[tuple[str, str, str], dict[str, Any]] = {}
+        nodes: dict[str, dict[str, Any]] = {}
+        edges: dict[tuple[str, str, str], dict[str, Any]] = {}
 
-            # Seed atom
-            cursor = await db.execute(
-                """
-                SELECT a.*,
-                       COUNT(apr.paper_id) as paper_count
-                FROM atoms a
-                LEFT JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                WHERE a.slug = ?
-                GROUP BY a.slug
-                """,
-                (slug,),
-            )
-            atom = await cursor.fetchone()
-            if atom is None:
-                return empty
+        # Seed atom
+        cursor = await db.execute(
+            """
+            SELECT a.*,
+                   COUNT(apr.paper_id) as paper_count
+            FROM atoms a
+            LEFT JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+            WHERE a.slug = ?
+            GROUP BY a.slug
+            """,
+            (slug,),
+        )
+        atom = await cursor.fetchone()
+        if atom is None:
+            return empty
 
-            atom_id = f"atom:{slug}"
-            nodes[atom_id] = _atom_row_to_graph_node(atom, is_seed=True)
+        atom_id = f"atom:{slug}"
+        nodes[atom_id] = _atom_row_to_graph_node(atom, is_seed=True)
 
-            frontier_atoms: set[str] = {slug}
-            frontier_papers: set[str] = set()
-            visited_atoms: set[str] = {slug}
-            visited_papers: set[str] = set()
+        frontier_atoms: set[str] = {slug}
+        frontier_papers: set[str] = set()
+        visited_atoms: set[str] = {slug}
+        visited_papers: set[str] = set()
 
-            for ring in range(depth):
-                if ring % 2 == 0:
-                    next_papers: set[str] = set()
-                    for current_slug in frontier_atoms:
-                        paper_cursor = await db.execute(
-                            """
-                            SELECT p.* FROM papers p
-                            JOIN atom_paper_refs apr ON p.paper_id = apr.paper_id
-                            WHERE apr.atom_slug = ?
-                            """,
-                            (current_slug,),
-                        )
-                        paper_rows = await paper_cursor.fetchall()
-                        current_atom = nodes.get(f"atom:{current_slug}")
-                        relation = _graph_edge_relation(
-                            (current_atom or {}).get("type", "atom")
-                        )
-
-                        for pr in paper_rows:
-                            pid = pr["paper_id"]
-                            if pid not in nodes:
-                                nodes[pid] = _paper_row_to_graph_node(pr)
-                            _add_graph_edge(
-                                edges,
-                                source=pid,
-                                target=f"atom:{current_slug}",
-                                relation=relation,
-                            )
-                            if pid not in visited_papers:
-                                next_papers.add(pid)
-
-                    visited_papers.update(next_papers)
-                    frontier_papers = next_papers
-                    frontier_atoms = set()
-                    continue
-
-                next_atoms: set[str] = set()
-                for pid in frontier_papers:
-                    other_cursor = await db.execute(
+        for ring in range(depth):
+            if ring % 2 == 0:
+                next_papers: set[str] = set()
+                for current_slug in frontier_atoms:
+                    paper_cursor = await db.execute(
                         """
-                        SELECT a.*,
-                               COUNT(apr_all.paper_id) as paper_count
-                        FROM atoms a
-                        JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                        LEFT JOIN atom_paper_refs apr_all ON a.slug = apr_all.atom_slug
-                        WHERE apr.paper_id = ?
-                        GROUP BY a.slug
+                        SELECT p.* FROM papers p
+                        JOIN atom_paper_refs apr ON p.paper_id = apr.paper_id
+                        WHERE apr.atom_slug = ?
                         """,
-                        (pid,),
+                        (current_slug,),
                     )
-                    other_rows = await other_cursor.fetchall()
+                    paper_rows = await paper_cursor.fetchall()
+                    current_atom = nodes.get(f"atom:{current_slug}")
+                    relation = _graph_edge_relation(
+                        (current_atom or {}).get("type", "atom")
+                    )
 
-                    for oar in other_rows:
-                        oa_slug = oar["slug"]
-                        oa_id = f"atom:{oa_slug}"
-                        if oa_id not in nodes:
-                            nodes[oa_id] = _atom_row_to_graph_node(oar)
+                    for pr in paper_rows:
+                        pid = pr["paper_id"]
+                        if pid not in nodes:
+                            nodes[pid] = _paper_row_to_graph_node(pr)
                         _add_graph_edge(
                             edges,
                             source=pid,
-                            target=oa_id,
-                            relation=_graph_edge_relation(oar["type"]),
+                            target=f"atom:{current_slug}",
+                            relation=relation,
                         )
-                        if oa_slug not in visited_atoms:
-                            next_atoms.add(oa_slug)
+                        if pid not in visited_papers:
+                            next_papers.add(pid)
 
-                visited_atoms.update(next_atoms)
-                frontier_atoms = next_atoms
-                frontier_papers = set()
+                visited_papers.update(next_papers)
+                frontier_papers = next_papers
+                frontier_atoms = set()
+                continue
 
-            return _finalize_network_graph(
-                nodes=nodes,
-                edges=edges,
-                mode="atom",
-                seed_count=1,
-            )
+            next_atoms: set[str] = set()
+            for pid in frontier_papers:
+                other_cursor = await db.execute(
+                    """
+                    SELECT a.*,
+                           COUNT(apr_all.paper_id) as paper_count
+                    FROM atoms a
+                    JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+                    LEFT JOIN atom_paper_refs apr_all ON a.slug = apr_all.atom_slug
+                    WHERE apr.paper_id = ?
+                    GROUP BY a.slug
+                    """,
+                    (pid,),
+                )
+                other_rows = await other_cursor.fetchall()
+
+                for oar in other_rows:
+                    oa_slug = oar["slug"]
+                    oa_id = f"atom:{oa_slug}"
+                    if oa_id not in nodes:
+                        nodes[oa_id] = _atom_row_to_graph_node(oar)
+                    _add_graph_edge(
+                        edges,
+                        source=pid,
+                        target=oa_id,
+                        relation=_graph_edge_relation(oar["type"]),
+                    )
+                    if oa_slug not in visited_atoms:
+                        next_atoms.add(oa_slug)
+
+            visited_atoms.update(next_atoms)
+            frontier_atoms = next_atoms
+            frontier_papers = set()
+
+        return _finalize_network_graph(
+            nodes=nodes,
+            edges=edges,
+            mode="atom",
+            seed_count=1,
+        )
     except Exception:
         logger.exception("atom_neighborhood failed for %s", slug)
         return empty
@@ -1885,153 +1901,152 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
     truncated = source_paper_count > len(seed_ids)
 
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            nodes: dict[str, dict[str, Any]] = {}
-            edges: dict[tuple[str, str, str], dict[str, Any]] = {}
-            seed_set = set(seed_ids)
+        nodes: dict[str, dict[str, Any]] = {}
+        edges: dict[tuple[str, str, str], dict[str, Any]] = {}
+        seed_set = set(seed_ids)
 
-            placeholders = ", ".join("?" for _ in seed_ids)
-            paper_cursor = await db.execute(
-                f"SELECT * FROM papers WHERE paper_id IN ({placeholders})",
-                seed_ids,
+        placeholders = ", ".join("?" for _ in seed_ids)
+        paper_cursor = await db.execute(
+            f"SELECT * FROM papers WHERE paper_id IN ({placeholders})",
+            seed_ids,
+        )
+        paper_rows = await paper_cursor.fetchall()
+        for row in paper_rows:
+            nodes[row["paper_id"]] = _paper_row_to_graph_node(row, is_seed=True)
+
+        if not nodes:
+            return empty
+
+        atom_link_cursor = await db.execute(
+            f"""
+            SELECT a.slug, a.type, a.title, a.theme, apr.paper_id
+            FROM atoms a
+            JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+            WHERE apr.paper_id IN ({placeholders})
+            """,
+            seed_ids,
+        )
+        atom_link_rows = await atom_link_cursor.fetchall()
+
+        atom_info: dict[str, dict[str, Any]] = {}
+        atom_seed_papers: dict[str, set[str]] = {}
+        for row in atom_link_rows:
+            atom_info.setdefault(
+                row["slug"],
+                {
+                    "slug": row["slug"],
+                    "type": row["type"],
+                    "title": row["title"],
+                    "theme": row["theme"],
+                },
             )
-            paper_rows = await paper_cursor.fetchall()
-            for row in paper_rows:
-                nodes[row["paper_id"]] = _paper_row_to_graph_node(row, is_seed=True)
+            atom_seed_papers.setdefault(row["slug"], set()).add(row["paper_id"])
 
-            if not nodes:
-                return empty
-
-            atom_link_cursor = await db.execute(
-                f"""
-                SELECT a.slug, a.type, a.title, a.theme, apr.paper_id
-                FROM atoms a
-                JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                WHERE apr.paper_id IN ({placeholders})
-                """,
-                seed_ids,
-            )
-            atom_link_rows = await atom_link_cursor.fetchall()
-
-            atom_info: dict[str, dict[str, Any]] = {}
-            atom_seed_papers: dict[str, set[str]] = {}
-            for row in atom_link_rows:
-                atom_info.setdefault(
-                    row["slug"],
-                    {
-                        "slug": row["slug"],
-                        "type": row["type"],
-                        "title": row["title"],
-                        "theme": row["theme"],
-                    },
-                )
-                atom_seed_papers.setdefault(row["slug"], set()).add(row["paper_id"])
-
-            if not atom_info:
-                return _finalize_network_graph(
-                    nodes=nodes,
-                    edges=edges,
-                    mode="paper_set",
-                    source_paper_count=source_paper_count,
-                    seed_count=len(nodes),
-                    truncated=truncated,
-                )
-
-            atom_slugs = list(atom_info.keys())
-            atom_placeholders = ", ".join("?" for _ in atom_slugs)
-            count_cursor = await db.execute(
-                f"""
-                SELECT atom_slug, COUNT(*) as cnt
-                FROM atom_paper_refs
-                WHERE atom_slug IN ({atom_placeholders})
-                GROUP BY atom_slug
-                """,
-                atom_slugs,
-            )
-            atom_counts = {
-                row["atom_slug"]: row["cnt"] for row in await count_cursor.fetchall()
-            }
-
-            if depth <= 1:
-                visible_atom_slugs = [
-                    slug for slug, linked_papers in atom_seed_papers.items() if len(linked_papers) >= 2
-                ]
-            else:
-                visible_atom_slugs = atom_slugs
-
-            for atom_slug in visible_atom_slugs:
-                info = atom_info[atom_slug]
-                atom_id = f"atom:{atom_slug}"
-                nodes[atom_id] = _atom_row_to_graph_node(
-                    info,
-                    paper_count=atom_counts.get(atom_slug, len(atom_seed_papers[atom_slug])),
-                )
-                relation = _graph_edge_relation(info["type"])
-                for pid in sorted(atom_seed_papers[atom_slug]):
-                    if pid in seed_set and pid in nodes:
-                        _add_graph_edge(
-                            edges,
-                            source=pid,
-                            target=atom_id,
-                            relation=relation,
-                        )
-
-            if depth >= 3 and visible_atom_slugs:
-                visible_placeholders = ", ".join("?" for _ in visible_atom_slugs)
-                external_cursor = await db.execute(
-                    f"""
-                    SELECT p.*, COUNT(DISTINCT apr.atom_slug) as shared_atom_count
-                    FROM atom_paper_refs apr
-                    JOIN papers p ON p.paper_id = apr.paper_id
-                    WHERE apr.atom_slug IN ({visible_placeholders})
-                      AND p.paper_id NOT IN ({placeholders})
-                    GROUP BY p.paper_id
-                    ORDER BY shared_atom_count DESC, p.average_score DESC, p.year DESC
-                    LIMIT {MAX_GRAPH_CONTEXT_PAPERS}
-                    """,
-                    [*visible_atom_slugs, *seed_ids],
-                )
-                external_rows = await external_cursor.fetchall()
-                external_ids: list[str] = []
-                for row in external_rows:
-                    ext_id = row["paper_id"]
-                    external_ids.append(ext_id)
-                    nodes[ext_id] = _paper_row_to_graph_node(row)
-
-                if external_ids:
-                    external_placeholders = ", ".join("?" for _ in external_ids)
-                    external_link_cursor = await db.execute(
-                        f"""
-                        SELECT atom_slug, paper_id
-                        FROM atom_paper_refs
-                        WHERE atom_slug IN ({visible_placeholders})
-                          AND paper_id IN ({external_placeholders})
-                        """,
-                        [*visible_atom_slugs, *external_ids],
-                    )
-                    external_links = await external_link_cursor.fetchall()
-                    for row in external_links:
-                        atom_slug = row["atom_slug"]
-                        info = atom_info.get(atom_slug)
-                        if info is None:
-                            continue
-                        _add_graph_edge(
-                            edges,
-                            source=row["paper_id"],
-                            target=f"atom:{atom_slug}",
-                            relation=_graph_edge_relation(info["type"]),
-                        )
-
+        if not atom_info:
             return _finalize_network_graph(
                 nodes=nodes,
                 edges=edges,
                 mode="paper_set",
                 source_paper_count=source_paper_count,
-                seed_count=len(seed_ids),
+                seed_count=len(nodes),
                 truncated=truncated,
             )
+
+        atom_slugs = list(atom_info.keys())
+        atom_placeholders = ", ".join("?" for _ in atom_slugs)
+        count_cursor = await db.execute(
+            f"""
+            SELECT atom_slug, COUNT(*) as cnt
+            FROM atom_paper_refs
+            WHERE atom_slug IN ({atom_placeholders})
+            GROUP BY atom_slug
+            """,
+            atom_slugs,
+        )
+        atom_counts = {
+            row["atom_slug"]: row["cnt"] for row in await count_cursor.fetchall()
+        }
+
+        if depth <= 1:
+            visible_atom_slugs = [
+                slug for slug, linked_papers in atom_seed_papers.items() if len(linked_papers) >= 2
+            ]
+        else:
+            visible_atom_slugs = atom_slugs
+
+        for atom_slug in visible_atom_slugs:
+            info = atom_info[atom_slug]
+            atom_id = f"atom:{atom_slug}"
+            nodes[atom_id] = _atom_row_to_graph_node(
+                info,
+                paper_count=atom_counts.get(atom_slug, len(atom_seed_papers[atom_slug])),
+            )
+            relation = _graph_edge_relation(info["type"])
+            for pid in sorted(atom_seed_papers[atom_slug]):
+                if pid in seed_set and pid in nodes:
+                    _add_graph_edge(
+                        edges,
+                        source=pid,
+                        target=atom_id,
+                        relation=relation,
+                    )
+
+        if depth >= 3 and visible_atom_slugs:
+            visible_placeholders = ", ".join("?" for _ in visible_atom_slugs)
+            external_cursor = await db.execute(
+                f"""
+                SELECT p.*, COUNT(DISTINCT apr.atom_slug) as shared_atom_count
+                FROM atom_paper_refs apr
+                JOIN papers p ON p.paper_id = apr.paper_id
+                WHERE apr.atom_slug IN ({visible_placeholders})
+                  AND p.paper_id NOT IN ({placeholders})
+                GROUP BY p.paper_id
+                ORDER BY shared_atom_count DESC, p.average_score DESC, p.year DESC
+                LIMIT {MAX_GRAPH_CONTEXT_PAPERS}
+                """,
+                [*visible_atom_slugs, *seed_ids],
+            )
+            external_rows = await external_cursor.fetchall()
+            external_ids: list[str] = []
+            for row in external_rows:
+                ext_id = row["paper_id"]
+                external_ids.append(ext_id)
+                nodes[ext_id] = _paper_row_to_graph_node(row)
+
+            if external_ids:
+                external_placeholders = ", ".join("?" for _ in external_ids)
+                external_link_cursor = await db.execute(
+                    f"""
+                    SELECT atom_slug, paper_id
+                    FROM atom_paper_refs
+                    WHERE atom_slug IN ({visible_placeholders})
+                      AND paper_id IN ({external_placeholders})
+                    """,
+                    [*visible_atom_slugs, *external_ids],
+                )
+                external_links = await external_link_cursor.fetchall()
+                for row in external_links:
+                    atom_slug = row["atom_slug"]
+                    info = atom_info.get(atom_slug)
+                    if info is None:
+                        continue
+                    _add_graph_edge(
+                        edges,
+                        source=row["paper_id"],
+                        target=f"atom:{atom_slug}",
+                        relation=_graph_edge_relation(info["type"]),
+                    )
+
+        return _finalize_network_graph(
+            nodes=nodes,
+            edges=edges,
+            mode="paper_set",
+            source_paper_count=source_paper_count,
+            seed_count=len(seed_ids),
+            truncated=truncated,
+        )
     except Exception:
         logger.exception("paper_set_network failed")
         return empty
@@ -2041,6 +2056,7 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
 # Dashboard / aggregation resolvers
 # ---------------------------------------------------------------------------
 
+@_ttl_cache(300)
 async def field_overview() -> list[dict[str, Any]]:
     """Per-field summary: paper count, atom count, average score.
 
@@ -2050,44 +2066,43 @@ async def field_overview() -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            # Gather per-field paper stats
-            cursor = await db.execute("SELECT fields, average_score FROM papers")
-            rows = await cursor.fetchall()
+        # Gather per-field paper stats
+        cursor = await db.execute("SELECT fields, average_score FROM papers")
+        rows = await cursor.fetchall()
 
-            field_papers: dict[str, list[float | None]] = {}
-            for r in rows:
-                for f in _parse_json_list(r["fields"]):
-                    field_papers.setdefault(f, []).append(r["average_score"])
+        field_papers: dict[str, list[float | None]] = {}
+        for r in rows:
+            for f in _parse_json_list(r["fields"]):
+                field_papers.setdefault(f, []).append(r["average_score"])
 
-            # Gather per-field atom count via papers -> atom_paper_refs -> atoms
-            # Simpler: count atoms whose linked papers belong to the field.
-            atom_cursor = await db.execute(
-                """
-                SELECT apr.atom_slug, p.fields FROM atom_paper_refs apr
-                JOIN papers p ON p.paper_id = apr.paper_id
-                """
-            )
-            atom_rows = await atom_cursor.fetchall()
+        # Gather per-field atom count via papers -> atom_paper_refs -> atoms
+        # Simpler: count atoms whose linked papers belong to the field.
+        atom_cursor = await db.execute(
+            """
+            SELECT apr.atom_slug, p.fields FROM atom_paper_refs apr
+            JOIN papers p ON p.paper_id = apr.paper_id
+            """
+        )
+        atom_rows = await atom_cursor.fetchall()
 
-            field_atoms: dict[str, set[str]] = {}
-            for ar in atom_rows:
-                for f in _parse_json_list(ar["fields"]):
-                    field_atoms.setdefault(f, set()).add(ar["atom_slug"])
+        field_atoms: dict[str, set[str]] = {}
+        for ar in atom_rows:
+            for f in _parse_json_list(ar["fields"]):
+                field_atoms.setdefault(f, set()).add(ar["atom_slug"])
 
-            results = []
-            for field in sorted(field_papers):
-                scores = [s for s in field_papers[field] if s is not None]
-                avg = sum(scores) / len(scores) if scores else None
-                results.append({
-                    "field": field,
-                    "paper_count": len(field_papers[field]),
-                    "atom_count": len(field_atoms.get(field, set())),
-                    "avg_score": round(avg, 2) if avg is not None else None,
-                })
-            return results
+        results = []
+        for field in sorted(field_papers):
+            scores = [s for s in field_papers[field] if s is not None]
+            avg = sum(scores) / len(scores) if scores else None
+            results.append({
+                "field": field,
+                "paper_count": len(field_papers[field]),
+                "atom_count": len(field_atoms.get(field, set())),
+                "avg_score": round(avg, 2) if avg is not None else None,
+            })
+        return results
     except Exception:
         logger.exception("field_overview failed")
         return []
@@ -2097,112 +2112,113 @@ async def year_distribution() -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            cursor = await db.execute(
-                "SELECT year, COUNT(*) as cnt FROM papers WHERE year IS NOT NULL GROUP BY year ORDER BY year"
-            )
-            return [{"year": r[0], "count": r[1]} for r in await cursor.fetchall()]
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT year, COUNT(*) as cnt FROM papers WHERE year IS NOT NULL GROUP BY year ORDER BY year"
+        )
+        return [{"year": r[0], "count": r[1]} for r in await cursor.fetchall()]
     except Exception:
         logger.exception("year_distribution failed")
         return []
 
 
+@_ttl_cache(300)
 async def detect_gaps(limit: int = 20) -> dict[str, Any]:
     """Find atoms that bridge different fields (high betweenness centrality proxy)."""
     empty: dict[str, Any] = {"bridge_atoms": [], "weak_connections": [], "total_orphan_atoms": 0}
     if not _db_exists():
         return empty
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            # --- Bridge atoms: atoms connected to papers from 3+ fields ---
-            # We need to unpack the JSON fields array in Python since SQLite
-            # may not have json_each().  Fetch all atom -> paper -> fields rows.
-            cursor = await db.execute(
-                """
-                SELECT a.slug, a.title, a.type, apr.paper_id, p.fields
-                FROM atoms a
-                JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                JOIN papers p ON p.paper_id = apr.paper_id
-                """
+        # --- Bridge atoms: atoms connected to papers from 3+ fields ---
+        # We need to unpack the JSON fields array in Python since SQLite
+        # may not have json_each().  Fetch all atom -> paper -> fields rows.
+        cursor = await db.execute(
+            """
+            SELECT a.slug, a.title, a.type, apr.paper_id, p.fields
+            FROM atoms a
+            JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+            JOIN papers p ON p.paper_id = apr.paper_id
+            """
+        )
+        rows = await cursor.fetchall()
+
+        # Build: atom_slug -> {fields: set, paper_ids: set, title, type}
+        atom_info: dict[str, dict[str, Any]] = {}
+        for r in rows:
+            slug = r["slug"]
+            if slug not in atom_info:
+                atom_info[slug] = {
+                    "slug": slug,
+                    "title": r["title"],
+                    "type": r["type"],
+                    "fields": set(),
+                    "paper_ids": set(),
+                }
+            atom_info[slug]["paper_ids"].add(r["paper_id"])
+            for f in _parse_json_list(r["fields"]):
+                atom_info[slug]["fields"].add(f)
+
+        # Bridge atoms: connected to 3+ different fields
+        bridge_atoms = []
+        for info in atom_info.values():
+            if len(info["fields"]) >= 3:
+                bridge_atoms.append({
+                    "slug": info["slug"],
+                    "title": info["title"],
+                    "type": info["type"],
+                    "connected_fields": sorted(info["fields"]),
+                    "field_count": len(info["fields"]),
+                    "paper_count": len(info["paper_ids"]),
+                })
+        bridge_atoms.sort(key=lambda x: (-x["field_count"], -x["paper_count"]))
+        bridge_atoms = bridge_atoms[:limit]
+
+        # --- Orphan atoms: connected to only 1 paper ---
+        orphan_count_cursor = await db.execute(
+            """
+            SELECT COUNT(*) FROM (
+                SELECT atom_slug FROM atom_paper_refs
+                GROUP BY atom_slug HAVING COUNT(DISTINCT paper_id) = 1
             )
-            rows = await cursor.fetchall()
+            """
+        )
+        total_orphan_atoms = (await orphan_count_cursor.fetchone())[0]
 
-            # Build: atom_slug -> {fields: set, paper_ids: set, title, type}
-            atom_info: dict[str, dict[str, Any]] = {}
-            for r in rows:
-                slug = r["slug"]
-                if slug not in atom_info:
-                    atom_info[slug] = {
-                        "slug": slug,
-                        "title": r["title"],
-                        "type": r["type"],
-                        "fields": set(),
-                        "paper_ids": set(),
-                    }
-                atom_info[slug]["paper_ids"].add(r["paper_id"])
-                for f in _parse_json_list(r["fields"]):
-                    atom_info[slug]["fields"].add(f)
+        # --- Weak connections: field pairs that share few atoms ---
+        # Build: field -> set of atom slugs
+        field_atoms: dict[str, set[str]] = {}
+        for info in atom_info.values():
+            for f in info["fields"]:
+                field_atoms.setdefault(f, set()).add(info["slug"])
 
-            # Bridge atoms: connected to 3+ different fields
-            bridge_atoms = []
-            for info in atom_info.values():
-                if len(info["fields"]) >= 3:
-                    bridge_atoms.append({
-                        "slug": info["slug"],
-                        "title": info["title"],
-                        "type": info["type"],
-                        "connected_fields": sorted(info["fields"]),
-                        "field_count": len(info["fields"]),
-                        "paper_count": len(info["paper_ids"]),
-                    })
-            bridge_atoms.sort(key=lambda x: (-x["field_count"], -x["paper_count"]))
-            bridge_atoms = bridge_atoms[:limit]
+        fields_list = sorted(field_atoms.keys())
+        weak_connections = []
+        for i, fa in enumerate(fields_list):
+            for fb in fields_list[i + 1:]:
+                shared = field_atoms[fa] & field_atoms[fb]
+                weak_connections.append({
+                    "field_a": fa,
+                    "field_b": fb,
+                    "shared_atom_count": len(shared),
+                })
 
-            # --- Orphan atoms: connected to only 1 paper ---
-            orphan_count_cursor = await db.execute(
-                """
-                SELECT COUNT(*) FROM (
-                    SELECT atom_slug FROM atom_paper_refs
-                    GROUP BY atom_slug HAVING COUNT(DISTINCT paper_id) = 1
-                )
-                """
-            )
-            total_orphan_atoms = (await orphan_count_cursor.fetchone())[0]
+        # Sort by fewest shared atoms (weakest links first)
+        weak_connections.sort(key=lambda x: x["shared_atom_count"])
+        weak_connections = weak_connections[:limit]
 
-            # --- Weak connections: field pairs that share few atoms ---
-            # Build: field -> set of atom slugs
-            field_atoms: dict[str, set[str]] = {}
-            for info in atom_info.values():
-                for f in info["fields"]:
-                    field_atoms.setdefault(f, set()).add(info["slug"])
-
-            fields_list = sorted(field_atoms.keys())
-            weak_connections = []
-            for i, fa in enumerate(fields_list):
-                for fb in fields_list[i + 1:]:
-                    shared = field_atoms[fa] & field_atoms[fb]
-                    weak_connections.append({
-                        "field_a": fa,
-                        "field_b": fb,
-                        "shared_atom_count": len(shared),
-                    })
-
-            # Sort by fewest shared atoms (weakest links first)
-            weak_connections.sort(key=lambda x: x["shared_atom_count"])
-            weak_connections = weak_connections[:limit]
-
-            return {
-                "bridge_atoms": bridge_atoms,
-                "weak_connections": weak_connections,
-                "total_orphan_atoms": total_orphan_atoms,
-            }
+        return {
+            "bridge_atoms": bridge_atoms,
+            "weak_connections": weak_connections,
+            "total_orphan_atoms": total_orphan_atoms,
+        }
     except Exception:
         logger.exception("detect_gaps failed")
         return empty
 
 
+@_ttl_cache(300)
 async def get_trending_topics(window: int = 1, limit: int = 20) -> list[dict[str, Any]]:
     """Compute trending topics by comparing most recent year to prior years.
 
@@ -2217,185 +2233,185 @@ async def get_trending_topics(window: int = 1, limit: int = 20) -> list[dict[str
         return []
 
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            results: list[dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
 
-            # --- Field trends (only papers that HAVE fields data) ---
-            cursor = await db.execute(
-                """SELECT year, fields FROM papers
-                   WHERE year IS NOT NULL
-                     AND fields IS NOT NULL AND fields != '' AND fields != '[]'"""
-            )
-            rows = await cursor.fetchall()
+        # --- Field trends (only papers that HAVE fields data) ---
+        cursor = await db.execute(
+            """SELECT year, fields FROM papers
+               WHERE year IS NOT NULL
+                 AND fields IS NOT NULL AND fields != '' AND fields != '[]'"""
+        )
+        rows = await cursor.fetchall()
 
-            if rows:
-                all_years = [r["year"] for r in rows]
-                latest_year = max(all_years)
-                prior_year = latest_year - window
+        if rows:
+            all_years = [r["year"] for r in rows]
+            latest_year = max(all_years)
+            prior_year = latest_year - window
 
-                field_year_counts: dict[str, dict[int, int]] = {}
-                for r in rows:
-                    year = r["year"]
-                    for f in _parse_json_list(r["fields"]):
-                        field_year_counts.setdefault(f, {})
-                        field_year_counts[f][year] = field_year_counts[f].get(year, 0) + 1
+            field_year_counts: dict[str, dict[int, int]] = {}
+            for r in rows:
+                year = r["year"]
+                for f in _parse_json_list(r["fields"]):
+                    field_year_counts.setdefault(f, {})
+                    field_year_counts[f][year] = field_year_counts[f].get(year, 0) + 1
 
-                for field, year_counts in field_year_counts.items():
-                    latest_count = year_counts.get(latest_year, 0)
-                    # Average over the `window` prior years
-                    prior_counts = [year_counts.get(prior_year - i, 0) for i in range(window)]
-                    prior_avg = sum(prior_counts) / len(prior_counts) if prior_counts else 0
+            for field, year_counts in field_year_counts.items():
+                latest_count = year_counts.get(latest_year, 0)
+                # Average over the `window` prior years
+                prior_counts = [year_counts.get(prior_year - i, 0) for i in range(window)]
+                prior_avg = sum(prior_counts) / len(prior_counts) if prior_counts else 0
 
-                    # Only include fields with at least 3 papers in the latest year
-                    if latest_count < 3:
-                        continue
+                # Only include fields with at least 3 papers in the latest year
+                if latest_count < 3:
+                    continue
 
-                    if prior_avg > 0:
-                        growth_rate = (latest_count - prior_avg) / prior_avg
-                    elif latest_count > 0:
-                        growth_rate = 1.0
-                    else:
-                        growth_rate = 0.0
+                if prior_avg > 0:
+                    growth_rate = (latest_count - prior_avg) / prior_avg
+                elif latest_count > 0:
+                    growth_rate = 1.0
+                else:
+                    growth_rate = 0.0
 
-                    if growth_rate > 0.3:
-                        trend = "rising"
-                    elif growth_rate < -0.3:
-                        trend = "declining"
-                    else:
-                        trend = "stable"
+                if growth_rate > 0.3:
+                    trend = "rising"
+                elif growth_rate < -0.3:
+                    trend = "declining"
+                else:
+                    trend = "stable"
 
-                    results.append({
-                        "name": field,
-                        "category": "field",
-                        "recent_count": latest_count,
-                        "historical_avg": round(prior_avg, 2),
-                        "growth_rate": round(growth_rate, 4),
-                        "trend": trend,
-                    })
+                results.append({
+                    "name": field,
+                    "category": "field",
+                    "recent_count": latest_count,
+                    "historical_avg": round(prior_avg, 2),
+                    "growth_rate": round(growth_rate, 4),
+                    "trend": trend,
+                })
 
-            # --- Method trends (from triage_cards which have method tags) ---
-            method_cursor = await db.execute(
-                """SELECT tc.methods, tc.year
-                   FROM triage_cards tc
-                   WHERE tc.year IS NOT NULL
-                     AND tc.methods IS NOT NULL AND tc.methods != '' AND tc.methods != '[]'"""
-            )
-            method_rows = await method_cursor.fetchall()
+        # --- Method trends (from triage_cards which have method tags) ---
+        method_cursor = await db.execute(
+            """SELECT tc.methods, tc.year
+               FROM triage_cards tc
+               WHERE tc.year IS NOT NULL
+                 AND tc.methods IS NOT NULL AND tc.methods != '' AND tc.methods != '[]'"""
+        )
+        method_rows = await method_cursor.fetchall()
 
-            if method_rows:
-                all_method_years = [r["year"] for r in method_rows]
-                latest_method_year = max(all_method_years)
-                prior_method_year = latest_method_year - window
+        if method_rows:
+            all_method_years = [r["year"] for r in method_rows]
+            latest_method_year = max(all_method_years)
+            prior_method_year = latest_method_year - window
 
-                method_year_counts: dict[str, dict[int, int]] = {}
-                for r in method_rows:
-                    year = r["year"]
-                    for m in _parse_json_list(r["methods"]):
-                        method_year_counts.setdefault(m, {})
-                        method_year_counts[m][year] = method_year_counts[m].get(year, 0) + 1
+            method_year_counts: dict[str, dict[int, int]] = {}
+            for r in method_rows:
+                year = r["year"]
+                for m in _parse_json_list(r["methods"]):
+                    method_year_counts.setdefault(m, {})
+                    method_year_counts[m][year] = method_year_counts[m].get(year, 0) + 1
 
-                for method_name, year_counts in method_year_counts.items():
-                    latest_count = year_counts.get(latest_method_year, 0)
-                    prior_counts = [year_counts.get(prior_method_year - i, 0) for i in range(window)]
-                    prior_avg = sum(prior_counts) / len(prior_counts) if prior_counts else 0
+            for method_name, year_counts in method_year_counts.items():
+                latest_count = year_counts.get(latest_method_year, 0)
+                prior_counts = [year_counts.get(prior_method_year - i, 0) for i in range(window)]
+                prior_avg = sum(prior_counts) / len(prior_counts) if prior_counts else 0
 
-                    # Only include methods with at least 3 papers in the latest year
-                    if latest_count < 3:
-                        continue
+                # Only include methods with at least 3 papers in the latest year
+                if latest_count < 3:
+                    continue
 
-                    if prior_avg > 0:
-                        growth_rate = (latest_count - prior_avg) / prior_avg
-                    elif latest_count > 0:
-                        growth_rate = 1.0
-                    else:
-                        growth_rate = 0.0
+                if prior_avg > 0:
+                    growth_rate = (latest_count - prior_avg) / prior_avg
+                elif latest_count > 0:
+                    growth_rate = 1.0
+                else:
+                    growth_rate = 0.0
 
-                    if growth_rate > 0.3:
-                        trend = "rising"
-                    elif growth_rate < -0.3:
-                        trend = "declining"
-                    else:
-                        trend = "stable"
+                if growth_rate > 0.3:
+                    trend = "rising"
+                elif growth_rate < -0.3:
+                    trend = "declining"
+                else:
+                    trend = "stable"
 
-                    results.append({
-                        "name": method_name,
-                        "category": "method",
-                        "recent_count": latest_count,
-                        "historical_avg": round(prior_avg, 2),
-                        "growth_rate": round(growth_rate, 4),
-                        "trend": trend,
-                    })
+                results.append({
+                    "name": method_name,
+                    "category": "method",
+                    "recent_count": latest_count,
+                    "historical_avg": round(prior_avg, 2),
+                    "growth_rate": round(growth_rate, 4),
+                    "trend": trend,
+                })
 
-            # Also pull method trends from atoms as a supplement
-            atom_cursor = await db.execute(
-                """SELECT a.title, p.year
-                   FROM atoms a
-                   JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                   JOIN papers p ON p.paper_id = apr.paper_id
-                   WHERE a.type = 'method' AND p.year IS NOT NULL"""
-            )
-            atom_rows = await atom_cursor.fetchall()
+        # Also pull method trends from atoms as a supplement
+        atom_cursor = await db.execute(
+            """SELECT a.title, p.year
+               FROM atoms a
+               JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+               JOIN papers p ON p.paper_id = apr.paper_id
+               WHERE a.type = 'method' AND p.year IS NOT NULL"""
+        )
+        atom_rows = await atom_cursor.fetchall()
 
-            if atom_rows:
-                all_atom_years = [r["year"] for r in atom_rows]
-                latest_atom_year = max(all_atom_years)
-                prior_atom_year = latest_atom_year - window
+        if atom_rows:
+            all_atom_years = [r["year"] for r in atom_rows]
+            latest_atom_year = max(all_atom_years)
+            prior_atom_year = latest_atom_year - window
 
-                # Track which methods we already have from triage_cards
-                existing_methods = {r["name"] for r in results if r["category"] == "method"}
+            # Track which methods we already have from triage_cards
+            existing_methods = {r["name"] for r in results if r["category"] == "method"}
 
-                atom_year_counts: dict[str, dict[int, int]] = {}
-                for r in atom_rows:
-                    name = r["title"]
-                    year = r["year"]
-                    atom_year_counts.setdefault(name, {})
-                    atom_year_counts[name][year] = atom_year_counts[name].get(year, 0) + 1
+            atom_year_counts: dict[str, dict[int, int]] = {}
+            for r in atom_rows:
+                name = r["title"]
+                year = r["year"]
+                atom_year_counts.setdefault(name, {})
+                atom_year_counts[name][year] = atom_year_counts[name].get(year, 0) + 1
 
-                for method_name, year_counts in atom_year_counts.items():
-                    if method_name in existing_methods:
-                        continue
+            for method_name, year_counts in atom_year_counts.items():
+                if method_name in existing_methods:
+                    continue
 
-                    latest_count = year_counts.get(latest_atom_year, 0)
-                    prior_counts = [year_counts.get(prior_atom_year - i, 0) for i in range(window)]
-                    prior_avg = sum(prior_counts) / len(prior_counts) if prior_counts else 0
+                latest_count = year_counts.get(latest_atom_year, 0)
+                prior_counts = [year_counts.get(prior_atom_year - i, 0) for i in range(window)]
+                prior_avg = sum(prior_counts) / len(prior_counts) if prior_counts else 0
 
-                    if latest_count < 3:
-                        continue
+                if latest_count < 3:
+                    continue
 
-                    if prior_avg > 0:
-                        growth_rate = (latest_count - prior_avg) / prior_avg
-                    elif latest_count > 0:
-                        growth_rate = 1.0
-                    else:
-                        growth_rate = 0.0
+                if prior_avg > 0:
+                    growth_rate = (latest_count - prior_avg) / prior_avg
+                elif latest_count > 0:
+                    growth_rate = 1.0
+                else:
+                    growth_rate = 0.0
 
-                    if growth_rate > 0.3:
-                        trend = "rising"
-                    elif growth_rate < -0.3:
-                        trend = "declining"
-                    else:
-                        trend = "stable"
+                if growth_rate > 0.3:
+                    trend = "rising"
+                elif growth_rate < -0.3:
+                    trend = "declining"
+                else:
+                    trend = "stable"
 
-                    results.append({
-                        "name": method_name,
-                        "category": "method",
-                        "recent_count": latest_count,
-                        "historical_avg": round(prior_avg, 2),
-                        "growth_rate": round(growth_rate, 4),
-                        "trend": trend,
-                    })
+                results.append({
+                    "name": method_name,
+                    "category": "method",
+                    "recent_count": latest_count,
+                    "historical_avg": round(prior_avg, 2),
+                    "growth_rate": round(growth_rate, 4),
+                    "trend": trend,
+                })
 
-            # Sort by absolute growth_rate descending and limit
-            results.sort(key=lambda x: -abs(x["growth_rate"]))
-            return results[:limit]
+        # Sort by absolute growth_rate descending and limit
+        results.sort(key=lambda x: -abs(x["growth_rate"]))
+        return results[:limit]
 
     except Exception:
         logger.exception("get_trending_topics failed")
         return []
 
 
+@_ttl_cache(300)
 async def get_stats() -> dict[str, int]:
     zeros = {
         "total_papers": 0, "total_cards": 0, "total_atoms": 0,
@@ -2405,21 +2421,21 @@ async def get_stats() -> dict[str, int]:
     if not _db_exists():
         return zeros
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            result: dict[str, int] = {}
-            for key, sql in [
-                ("total_papers", "SELECT COUNT(*) FROM papers"),
-                ("total_cards", "SELECT COUNT(*) FROM papers WHERE has_card = 1"),
-                ("total_atoms", "SELECT COUNT(*) FROM atoms"),
-                ("total_mechanisms", "SELECT COUNT(*) FROM atoms WHERE type = 'mechanism'"),
-                ("total_methods", "SELECT COUNT(*) FROM atoms WHERE type = 'method'"),
-                ("total_datasets", "SELECT COUNT(*) FROM atoms WHERE type = 'dataset'"),
-                ("total_puzzles", "SELECT COUNT(*) FROM atoms WHERE type = 'puzzle'"),
-                ("total_ideas", "SELECT COUNT(*) FROM ideas"),
-            ]:
-                cursor = await db.execute(sql)
-                result[key] = (await cursor.fetchone())[0]
-            return result
+        db = await _get_db()
+        result: dict[str, int] = {}
+        for key, sql in [
+            ("total_papers", "SELECT COUNT(*) FROM papers"),
+            ("total_cards", "SELECT COUNT(*) FROM papers WHERE has_card = 1"),
+            ("total_atoms", "SELECT COUNT(*) FROM atoms"),
+            ("total_mechanisms", "SELECT COUNT(*) FROM atoms WHERE type = 'mechanism'"),
+            ("total_methods", "SELECT COUNT(*) FROM atoms WHERE type = 'method'"),
+            ("total_datasets", "SELECT COUNT(*) FROM atoms WHERE type = 'dataset'"),
+            ("total_puzzles", "SELECT COUNT(*) FROM atoms WHERE type = 'puzzle'"),
+            ("total_ideas", "SELECT COUNT(*) FROM ideas"),
+        ]:
+            cursor = await db.execute(sql)
+            result[key] = (await cursor.fetchone())[0]
+        return result
     except Exception:
         logger.exception("get_stats failed")
         return zeros
@@ -2441,38 +2457,37 @@ async def get_whats_new(limit: int = 10) -> dict[str, Any]:
     if not _db_exists():
         return empty
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            # Total papers
-            cursor = await db.execute("SELECT COUNT(*) FROM papers")
-            total_papers = (await cursor.fetchone())[0]
+        # Total papers
+        cursor = await db.execute("SELECT COUNT(*) FROM papers")
+        total_papers = (await cursor.fetchone())[0]
 
-            # Latest papers by ID (descending)
+        # Latest papers by ID (descending)
+        cursor = await db.execute(
+            "SELECT * FROM papers ORDER BY paper_id DESC LIMIT ?",
+            (max(1, min(limit, 50)),),
+        )
+        rows = await cursor.fetchall()
+        latest_papers = [_row_to_paper(r) for r in rows]
+
+        # Recent ideas count (ideas generated in the last 30 days)
+        recent_ideas_count = 0
+        try:
             cursor = await db.execute(
-                "SELECT * FROM papers ORDER BY paper_id DESC LIMIT ?",
-                (max(1, min(limit, 50)),),
+                "SELECT COUNT(*) FROM ideas WHERE generated_date >= date('now', '-30 days')"
             )
-            rows = await cursor.fetchall()
-            latest_papers = [_row_to_paper(r) for r in rows]
+            recent_ideas_count = (await cursor.fetchone())[0]
+        except Exception:
+            # ideas table may not have generated_date or may not exist
+            pass
 
-            # Recent ideas count (ideas generated in the last 30 days)
-            recent_ideas_count = 0
-            try:
-                cursor = await db.execute(
-                    "SELECT COUNT(*) FROM ideas WHERE generated_date >= date('now', '-30 days')"
-                )
-                recent_ideas_count = (await cursor.fetchone())[0]
-            except Exception:
-                # ideas table may not have generated_date or may not exist
-                pass
-
-            return {
-                "latest_papers": latest_papers,
-                "latest_papers_count": len(latest_papers),
-                "recent_ideas_count": recent_ideas_count,
-                "total_papers": total_papers,
-            }
+        return {
+            "latest_papers": latest_papers,
+            "latest_papers_count": len(latest_papers),
+            "recent_ideas_count": recent_ideas_count,
+            "total_papers": total_papers,
+        }
     except Exception:
         logger.exception("get_whats_new failed")
         return empty
@@ -2488,23 +2503,22 @@ async def get_bookmarks(limit: int = 50, offset: int = 0) -> dict[str, Any]:
     if not _db_exists():
         return empty
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            count_cursor = await db.execute("SELECT COUNT(*) FROM user_bookmarks")
-            total = (await count_cursor.fetchone())[0]
+        count_cursor = await db.execute("SELECT COUNT(*) FROM user_bookmarks")
+        total = (await count_cursor.fetchone())[0]
 
-            cursor = await db.execute(
-                """
-                SELECT p.* FROM papers p
-                JOIN user_bookmarks ub ON p.paper_id = ub.paper_id
-                ORDER BY ub.created_at DESC
-                LIMIT ? OFFSET ?
-                """,
-                (limit, offset),
-            )
-            rows = await cursor.fetchall()
-            return {"items": [_row_to_paper(r) for r in rows], "total": total}
+        cursor = await db.execute(
+            """
+            SELECT p.* FROM papers p
+            JOIN user_bookmarks ub ON p.paper_id = ub.paper_id
+            ORDER BY ub.created_at DESC
+            LIMIT ? OFFSET ?
+            """,
+            (limit, offset),
+        )
+        rows = await cursor.fetchall()
+        return {"items": [_row_to_paper(r) for r in rows], "total": total}
     except Exception:
         logger.exception("get_bookmarks failed")
         return empty
@@ -2514,11 +2528,11 @@ async def is_bookmarked(paper_id: str) -> bool:
     if not _db_exists():
         return False
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            cursor = await db.execute(
-                "SELECT 1 FROM user_bookmarks WHERE paper_id = ?", (paper_id,)
-            )
-            return (await cursor.fetchone()) is not None
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT 1 FROM user_bookmarks WHERE paper_id = ?", (paper_id,)
+        )
+        return (await cursor.fetchone()) is not None
     except Exception:
         logger.exception("is_bookmarked failed for %s", paper_id)
         return False
@@ -2528,13 +2542,13 @@ async def add_bookmark(paper_id: str) -> bool:
     if not _db_exists():
         return False
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                "INSERT OR IGNORE INTO user_bookmarks (paper_id) VALUES (?)",
-                (paper_id,),
-            )
-            await db.commit()
-            return True
+        db = await _get_db()
+        await db.execute(
+            "INSERT OR IGNORE INTO user_bookmarks (paper_id) VALUES (?)",
+            (paper_id,),
+        )
+        await db.commit()
+        return True
     except Exception:
         logger.exception("add_bookmark failed for %s", paper_id)
         return False
@@ -2544,12 +2558,12 @@ async def remove_bookmark(paper_id: str) -> bool:
     if not _db_exists():
         return False
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                "DELETE FROM user_bookmarks WHERE paper_id = ?", (paper_id,)
-            )
-            await db.commit()
-            return True
+        db = await _get_db()
+        await db.execute(
+            "DELETE FROM user_bookmarks WHERE paper_id = ?", (paper_id,)
+        )
+        await db.commit()
+        return True
     except Exception:
         logger.exception("remove_bookmark failed for %s", paper_id)
         return False
@@ -2563,14 +2577,13 @@ async def get_reading_status(paper_id: str) -> str | None:
     if not _db_exists():
         return None
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT status FROM user_reading_status WHERE paper_id = ?",
-                (paper_id,),
-            )
-            row = await cursor.fetchone()
-            return row["status"] if row else None
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT status FROM user_reading_status WHERE paper_id = ?",
+            (paper_id,),
+        )
+        row = await cursor.fetchone()
+        return row["status"] if row else None
     except Exception:
         logger.exception("get_reading_status failed for %s", paper_id)
         return None
@@ -2580,19 +2593,19 @@ async def set_reading_status(paper_id: str, status: str) -> bool:
     if not _db_exists():
         return False
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                """
-                INSERT INTO user_reading_status (paper_id, status, updated_at)
-                VALUES (?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(paper_id) DO UPDATE SET
-                    status = excluded.status,
-                    updated_at = CURRENT_TIMESTAMP
-                """,
-                (paper_id, status),
-            )
-            await db.commit()
-            return True
+        db = await _get_db()
+        await db.execute(
+            """
+            INSERT INTO user_reading_status (paper_id, status, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(paper_id) DO UPDATE SET
+                status = excluded.status,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (paper_id, status),
+        )
+        await db.commit()
+        return True
     except Exception:
         logger.exception("set_reading_status failed for %s", paper_id)
         return False
@@ -2608,32 +2621,31 @@ async def get_papers_by_reading_status(
     if not _db_exists():
         return empty
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            where = ""
-            binds: list[Any] = []
-            if status:
-                where = " WHERE urs.status = ?"
-                binds.append(status)
+        where = ""
+        binds: list[Any] = []
+        if status:
+            where = " WHERE urs.status = ?"
+            binds.append(status)
 
-            count_cursor = await db.execute(
-                f"SELECT COUNT(*) FROM user_reading_status urs{where}", binds
-            )
-            total = (await count_cursor.fetchone())[0]
+        count_cursor = await db.execute(
+            f"SELECT COUNT(*) FROM user_reading_status urs{where}", binds
+        )
+        total = (await count_cursor.fetchone())[0]
 
-            cursor = await db.execute(
-                f"""
-                SELECT p.* FROM papers p
-                JOIN user_reading_status urs ON p.paper_id = urs.paper_id
-                {where}
-                ORDER BY urs.updated_at DESC
-                LIMIT ? OFFSET ?
-                """,
-                binds + [limit, offset],
-            )
-            rows = await cursor.fetchall()
-            return {"items": [_row_to_paper(r) for r in rows], "total": total}
+        cursor = await db.execute(
+            f"""
+            SELECT p.* FROM papers p
+            JOIN user_reading_status urs ON p.paper_id = urs.paper_id
+            {where}
+            ORDER BY urs.updated_at DESC
+            LIMIT ? OFFSET ?
+            """,
+            binds + [limit, offset],
+        )
+        rows = await cursor.fetchall()
+        return {"items": [_row_to_paper(r) for r in rows], "total": total}
     except Exception:
         logger.exception("get_papers_by_reading_status failed")
         return empty
@@ -2647,23 +2659,22 @@ async def get_note(entity_type: str, entity_id: str) -> dict[str, Any] | None:
     if not _db_exists():
         return None
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT * FROM user_notes WHERE entity_type = ? AND entity_id = ?",
-                (entity_type, entity_id),
-            )
-            row = await cursor.fetchone()
-            if row is None:
-                return None
-            return {
-                "id": row["id"],
-                "entity_type": row["entity_type"],
-                "entity_id": row["entity_id"],
-                "note": row["note"],
-                "created_at": row["created_at"],
-                "updated_at": row["updated_at"],
-            }
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT * FROM user_notes WHERE entity_type = ? AND entity_id = ?",
+            (entity_type, entity_id),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        return {
+            "id": row["id"],
+            "entity_type": row["entity_type"],
+            "entity_id": row["entity_id"],
+            "note": row["note"],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+        }
     except Exception:
         logger.exception("get_note failed for %s/%s", entity_type, entity_id)
         return None
@@ -2675,19 +2686,19 @@ async def set_note(entity_type: str, entity_id: str, note: str) -> dict[str, Any
     if not _db_exists():
         return empty
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                """
-                INSERT INTO user_notes (entity_type, entity_id, note, updated_at)
-                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(entity_type, entity_id) DO UPDATE SET
-                    note = excluded.note,
-                    updated_at = CURRENT_TIMESTAMP
-                """,
-                (entity_type, entity_id, note),
-            )
-            await db.commit()
-            return empty
+        db = await _get_db()
+        await db.execute(
+            """
+            INSERT INTO user_notes (entity_type, entity_id, note, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(entity_type, entity_id) DO UPDATE SET
+                note = excluded.note,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (entity_type, entity_id, note),
+        )
+        await db.commit()
+        return empty
     except Exception:
         logger.exception("set_note failed for %s/%s", entity_type, entity_id)
         return empty
@@ -2697,13 +2708,13 @@ async def delete_note(entity_type: str, entity_id: str) -> bool:
     if not _db_exists():
         return False
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                "DELETE FROM user_notes WHERE entity_type = ? AND entity_id = ?",
-                (entity_type, entity_id),
-            )
-            await db.commit()
-            return True
+        db = await _get_db()
+        await db.execute(
+            "DELETE FROM user_notes WHERE entity_type = ? AND entity_id = ?",
+            (entity_type, entity_id),
+        )
+        await db.commit()
+        return True
     except Exception:
         logger.exception("delete_note failed for %s/%s", entity_type, entity_id)
         return False
@@ -2715,29 +2726,28 @@ async def get_all_notes(limit: int = 50, offset: int = 0) -> dict[str, Any]:
     if not _db_exists():
         return empty
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            count_cursor = await db.execute("SELECT COUNT(*) FROM user_notes")
-            total = (await count_cursor.fetchone())[0]
+        count_cursor = await db.execute("SELECT COUNT(*) FROM user_notes")
+        total = (await count_cursor.fetchone())[0]
 
-            cursor = await db.execute(
-                "SELECT * FROM user_notes ORDER BY updated_at DESC LIMIT ? OFFSET ?",
-                (limit, offset),
-            )
-            rows = await cursor.fetchall()
-            items = [
-                {
-                    "id": r["id"],
-                    "entity_type": r["entity_type"],
-                    "entity_id": r["entity_id"],
-                    "note": r["note"],
-                    "created_at": r["created_at"],
-                    "updated_at": r["updated_at"],
-                }
-                for r in rows
-            ]
-            return {"items": items, "total": total}
+        cursor = await db.execute(
+            "SELECT * FROM user_notes ORDER BY updated_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        )
+        rows = await cursor.fetchall()
+        items = [
+            {
+                "id": r["id"],
+                "entity_type": r["entity_type"],
+                "entity_id": r["entity_id"],
+                "note": r["note"],
+                "created_at": r["created_at"],
+                "updated_at": r["updated_at"],
+            }
+            for r in rows
+        ]
+        return {"items": items, "total": total}
     except Exception:
         logger.exception("get_all_notes failed")
         return empty
@@ -2757,28 +2767,27 @@ async def get_note_backlinks(entity_type: str, entity_id: str) -> list[dict[str,
         return []
     try:
         pattern = f"%[[{entity_id}]]%"
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT entity_type, entity_id, note, updated_at FROM user_notes WHERE note LIKE ?",
-                (pattern,),
-            )
-            rows = await cursor.fetchall()
-            results = []
-            for r in rows:
-                # Don't include the entity's own note as a backlink
-                if r["entity_type"] == entity_type and r["entity_id"] == entity_id:
-                    continue
-                note_text = r["note"] or ""
-                preview = note_text[:100].strip()
-                if len(note_text) > 100:
-                    preview += "..."
-                results.append({
-                    "entity_type": r["entity_type"],
-                    "entity_id": r["entity_id"],
-                    "note_preview": preview,
-                })
-            return results
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT entity_type, entity_id, note, updated_at FROM user_notes WHERE note LIKE ?",
+            (pattern,),
+        )
+        rows = await cursor.fetchall()
+        results = []
+        for r in rows:
+            # Don't include the entity's own note as a backlink
+            if r["entity_type"] == entity_type and r["entity_id"] == entity_id:
+                continue
+            note_text = r["note"] or ""
+            preview = note_text[:100].strip()
+            if len(note_text) > 100:
+                preview += "..."
+            results.append({
+                "entity_type": r["entity_type"],
+                "entity_id": r["entity_id"],
+                "note_preview": preview,
+            })
+        return results
     except Exception:
         logger.exception("get_note_backlinks failed for %s/%s", entity_type, entity_id)
         return []
@@ -2793,13 +2802,12 @@ async def get_digests(limit: int = 30) -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT date, content FROM digests ORDER BY date DESC LIMIT ?",
-                (limit,),
-            )
-            return [{"date": r["date"], "content": r["content"]} for r in await cursor.fetchall()]
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT date, content FROM digests ORDER BY date DESC LIMIT ?",
+            (limit,),
+        )
+        return [{"date": r["date"], "content": r["content"]} for r in await cursor.fetchall()]
     except Exception:
         logger.exception("get_digests failed")
         return []
@@ -2810,16 +2818,15 @@ async def get_digest(date: str) -> dict[str, Any] | None:
     if not _db_exists():
         return None
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT date, content FROM digests WHERE date = ?",
-                (date,),
-            )
-            row = await cursor.fetchone()
-            if row is None:
-                return None
-            return {"date": row["date"], "content": row["content"]}
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT date, content FROM digests WHERE date = ?",
+            (date,),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        return {"date": row["date"], "content": row["content"]}
     except Exception:
         logger.exception("get_digest failed for %s", date)
         return None
@@ -2840,19 +2847,19 @@ async def save_rag_turn(
     if not _db_exists():
         return
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                """INSERT INTO rag_sessions (session_id, role, content, context_items, citations)
-                   VALUES (?, ?, ?, ?, ?)""",
-                (
-                    session_id,
-                    role,
-                    content,
-                    json.dumps(context_items) if context_items else None,
-                    json.dumps(citations) if citations else None,
-                ),
-            )
-            await db.commit()
+        db = await _get_db()
+        await db.execute(
+            """INSERT INTO rag_sessions (session_id, role, content, context_items, citations)
+               VALUES (?, ?, ?, ?, ?)""",
+            (
+                session_id,
+                role,
+                content,
+                json.dumps(context_items) if context_items else None,
+                json.dumps(citations) if citations else None,
+            ),
+        )
+        await db.commit()
     except Exception:
         logger.exception("save_rag_turn failed for session %s", session_id)
 
@@ -2862,16 +2869,15 @@ async def get_session_history(session_id: str, max_turns: int = 10) -> list[dict
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                """SELECT role, content FROM rag_sessions
-                   WHERE session_id = ?
-                   ORDER BY created_at ASC
-                   LIMIT ?""",
-                (session_id, max_turns * 2),  # *2 because each turn has user + assistant
-            )
-            return [{"role": r["role"], "content": r["content"]} for r in await cursor.fetchall()]
+        db = await _get_db()
+        cursor = await db.execute(
+            """SELECT role, content FROM rag_sessions
+               WHERE session_id = ?
+               ORDER BY created_at ASC
+               LIMIT ?""",
+            (session_id, max_turns * 2),  # *2 because each turn has user + assistant
+        )
+        return [{"role": r["role"], "content": r["content"]} for r in await cursor.fetchall()]
     except Exception:
         logger.exception("get_session_history failed for session %s", session_id)
         return []
@@ -2881,17 +2887,21 @@ async def get_session_history(session_id: str, max_turns: int = 10) -> list[dict
 # Similarity resolvers (embedding-based)
 # ---------------------------------------------------------------------------
 
-async def get_similar_papers(paper_id: str, limit: int = 10) -> list[dict[str, Any]]:
-    """Get semantically similar papers via embeddings."""
+async def get_similar_papers(paper_id: str, limit: int = 10) -> list[dict]:
+    """Get semantically similar papers via embeddings (batch-fetched)."""
     try:
-        from embeddings import find_similar_papers, is_loaded
+        from embeddings import find_similar_papers as _find_similar, is_loaded
         if not is_loaded():
             return []
-        similar = await find_similar_papers(paper_id, limit=limit)
-        # Enrich with paper metadata
+        similar = await _find_similar(paper_id, limit=limit)
+        if not similar:
+            return []
+        paper_ids = [s["paper_id"] for s in similar]
+        papers_list = await get_papers_by_ids(paper_ids)
+        papers_by_id = {p["paper_id"]: p for p in papers_list}
         results = []
         for s in similar:
-            paper = await get_paper(s["paper_id"])
+            paper = papers_by_id.get(s["paper_id"])
             if paper:
                 paper["similarity_score"] = s["score"]
                 results.append(paper)
@@ -2901,16 +2911,30 @@ async def get_similar_papers(paper_id: str, limit: int = 10) -> list[dict[str, A
         return []
 
 
-async def get_similar_atoms(atom_slug: str, limit: int = 10) -> list[dict[str, Any]]:
-    """Get semantically similar atoms via embeddings."""
+async def get_similar_atoms(atom_slug: str, limit: int = 10) -> list[dict]:
+    """Get semantically similar atoms via embeddings (batch-fetched)."""
     try:
-        from embeddings import find_similar_atoms, is_loaded
+        from embeddings import find_similar_atoms as _find_similar, is_loaded
         if not is_loaded():
             return []
-        similar = await find_similar_atoms(atom_slug, limit=limit)
+        similar = await _find_similar(atom_slug, limit=limit)
+        if not similar:
+            return []
+        slugs = [s["slug"] for s in similar]
+        if _db_exists():
+            db = await _get_db()
+            placeholders = ", ".join("?" for _ in slugs)
+            cursor = await db.execute(
+                f"SELECT * FROM atoms WHERE slug IN ({placeholders})", slugs,
+            )
+            rows = await cursor.fetchall()
+            atoms = [_row_to_atom(r) for r in rows]
+            atoms_by_slug = {a["slug"]: a for a in atoms}
+        else:
+            atoms_by_slug = {}
         results = []
         for s in similar:
-            atom = await get_atom(s["slug"])
+            atom = atoms_by_slug.get(s["slug"])
             if atom:
                 atom["similarity_score"] = s["score"]
                 results.append(atom)
@@ -2925,35 +2949,34 @@ async def get_cooccurring_atoms(slug: str, limit: int = 10) -> list[dict[str, An
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute("""
-                SELECT a2.slug, a2.title, a2.type, a2.description,
-                       a2.evidence_strength, a2.when_to_use, a2.access, a2.url,
-                       COUNT(DISTINCT apr2.paper_id) as co_count
-                FROM atom_paper_refs apr1
-                JOIN atom_paper_refs apr2 ON apr1.paper_id = apr2.paper_id
-                JOIN atoms a2 ON a2.slug = apr2.atom_slug
-                WHERE apr1.atom_slug = ? AND apr2.atom_slug != ?
-                GROUP BY a2.slug
-                ORDER BY co_count DESC
-                LIMIT ?
-            """, (slug, slug, limit))
-            rows = await cursor.fetchall()
-            return [
-                {
-                    "slug": r["slug"],
-                    "title": r["title"],
-                    "type": r["type"],
-                    "description": r["description"],
-                    "evidence_strength": r["evidence_strength"],
-                    "when_to_use": r["when_to_use"],
-                    "access": r["access"],
-                    "url": r["url"],
-                    "co_count": r["co_count"],
-                }
-                for r in rows
-            ]
+        db = await _get_db()
+        cursor = await db.execute("""
+            SELECT a2.slug, a2.title, a2.type, a2.description,
+                   a2.evidence_strength, a2.when_to_use, a2.access, a2.url,
+                   COUNT(DISTINCT apr2.paper_id) as co_count
+            FROM atom_paper_refs apr1
+            JOIN atom_paper_refs apr2 ON apr1.paper_id = apr2.paper_id
+            JOIN atoms a2 ON a2.slug = apr2.atom_slug
+            WHERE apr1.atom_slug = ? AND apr2.atom_slug != ?
+            GROUP BY a2.slug
+            ORDER BY co_count DESC
+            LIMIT ?
+        """, (slug, slug, limit))
+        rows = await cursor.fetchall()
+        return [
+            {
+                "slug": r["slug"],
+                "title": r["title"],
+                "type": r["type"],
+                "description": r["description"],
+                "evidence_strength": r["evidence_strength"],
+                "when_to_use": r["when_to_use"],
+                "access": r["access"],
+                "url": r["url"],
+                "co_count": r["co_count"],
+            }
+            for r in rows
+        ]
     except Exception:
         logger.exception("get_cooccurring_atoms failed for %s", slug)
         return []
@@ -3003,90 +3026,89 @@ async def research_search_papers(
             return empty
 
         # 3. Fetch full paper metadata for all matched papers
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            placeholders = ", ".join("?" for _ in search_paper_ids)
-            cursor = await db.execute(
-                f"SELECT * FROM papers WHERE paper_id IN ({placeholders})",
-                search_paper_ids,
-            )
-            rows = await cursor.fetchall()
+        placeholders = ", ".join("?" for _ in search_paper_ids)
+        cursor = await db.execute(
+            f"SELECT * FROM papers WHERE paper_id IN ({placeholders})",
+            search_paper_ids,
+        )
+        rows = await cursor.fetchall()
 
-            papers_by_id = {}
-            for r in rows:
-                papers_by_id[r["paper_id"]] = _row_to_paper(r)
+        papers_by_id = {}
+        for r in rows:
+            papers_by_id[r["paper_id"]] = _row_to_paper(r)
 
-            # 4. Apply filters
-            filtered_papers = []
-            for pid in search_paper_ids:
-                paper = papers_by_id.get(pid)
-                if not paper:
-                    continue
+        # 4. Apply filters
+        filtered_papers = []
+        for pid in search_paper_ids:
+            paper = papers_by_id.get(pid)
+            if not paper:
+                continue
 
-                if filters:
-                    # fields filter
-                    if filters.get("fields"):
-                        paper_fields = paper.get("fields", [])
-                        if not any(f in paper_fields for f in filters["fields"]):
-                            continue
+            if filters:
+                # fields filter
+                if filters.get("fields"):
+                    paper_fields = paper.get("fields", [])
+                    if not any(f in paper_fields for f in filters["fields"]):
+                        continue
 
-                    # year filters
-                    if filters.get("year_min") is not None:
-                        if (paper.get("year") or 0) < filters["year_min"]:
-                            continue
-                    if filters.get("year_max") is not None:
-                        if (paper.get("year") or 9999) > filters["year_max"]:
-                            continue
+                # year filters
+                if filters.get("year_min") is not None:
+                    if (paper.get("year") or 0) < filters["year_min"]:
+                        continue
+                if filters.get("year_max") is not None:
+                    if (paper.get("year") or 9999) > filters["year_max"]:
+                        continue
 
-                    # score filters
-                    if filters.get("score_min") is not None:
-                        if (paper.get("average_score") or 0) < filters["score_min"]:
-                            continue
-                    if filters.get("score_max") is not None:
-                        if (paper.get("average_score") or 0) > filters["score_max"]:
-                            continue
+                # score filters
+                if filters.get("score_min") is not None:
+                    if (paper.get("average_score") or 0) < filters["score_min"]:
+                        continue
+                if filters.get("score_max") is not None:
+                    if (paper.get("average_score") or 0) > filters["score_max"]:
+                        continue
 
-                    # has_card filter
-                    if filters.get("has_card") is not None:
-                        if paper.get("has_card") != filters["has_card"]:
-                            continue
+                # has_card filter
+                if filters.get("has_card") is not None:
+                    if paper.get("has_card") != filters["has_card"]:
+                        continue
 
-                    # atom_slugs filter: paper must have at least one of the atoms
-                    if filters.get("atom_slugs"):
-                        atom_placeholders = ", ".join("?" for _ in filters["atom_slugs"])
-                        atom_cursor = await db.execute(
-                            f"""SELECT 1 FROM atom_paper_refs
-                                WHERE paper_id = ?
-                                AND atom_slug IN ({atom_placeholders})
-                                LIMIT 1""",
-                            [pid] + filters["atom_slugs"],
-                        )
-                        if not await atom_cursor.fetchone():
-                            continue
+                # atom_slugs filter: paper must have at least one of the atoms
+                if filters.get("atom_slugs"):
+                    atom_placeholders = ", ".join("?" for _ in filters["atom_slugs"])
+                    atom_cursor = await db.execute(
+                        f"""SELECT 1 FROM atom_paper_refs
+                            WHERE paper_id = ?
+                            AND atom_slug IN ({atom_placeholders})
+                            LIMIT 1""",
+                        [pid] + filters["atom_slugs"],
+                    )
+                    if not await atom_cursor.fetchone():
+                        continue
 
-                filtered_papers.append(paper)
+            filtered_papers.append(paper)
 
-            # 5. Sort
-            if sort == "year_desc":
-                filtered_papers.sort(key=lambda p: -(p.get("year") or 0))
-            elif sort == "year_asc":
-                filtered_papers.sort(key=lambda p: (p.get("year") or 0))
-            elif sort == "score_desc":
-                filtered_papers.sort(key=lambda p: -(p.get("average_score") or 0))
-            elif sort == "score_asc":
-                filtered_papers.sort(key=lambda p: (p.get("average_score") or 0))
-            # else: keep relevance order from search
+        # 5. Sort
+        if sort == "year_desc":
+            filtered_papers.sort(key=lambda p: -(p.get("year") or 0))
+        elif sort == "year_asc":
+            filtered_papers.sort(key=lambda p: (p.get("year") or 0))
+        elif sort == "score_desc":
+            filtered_papers.sort(key=lambda p: -(p.get("average_score") or 0))
+        elif sort == "score_asc":
+            filtered_papers.sort(key=lambda p: (p.get("average_score") or 0))
+        # else: keep relevance order from search
 
-            # 6. Collect all paper IDs, then paginate
-            all_paper_ids = [p["paper_id"] for p in filtered_papers]
-            total = len(filtered_papers)
-            page = filtered_papers[offset : offset + limit]
+        # 6. Collect all paper IDs, then paginate
+        all_paper_ids = [p["paper_id"] for p in filtered_papers]
+        total = len(filtered_papers)
+        page = filtered_papers[offset : offset + limit]
 
-            return {
-                "papers": {"items": page, "total": total},
-                "all_paper_ids": all_paper_ids,
-            }
+        return {
+            "papers": {"items": page, "total": total},
+            "all_paper_ids": all_paper_ids,
+        }
 
     except Exception:
         logger.exception("research_search_papers failed for query=%s", query)
@@ -3124,301 +3146,300 @@ async def research_landscape(paper_ids: list[str]) -> dict[str, Any]:
         return empty
 
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            placeholders = ", ".join("?" for _ in paper_ids)
+        db = await _get_db()
+        placeholders = ", ".join("?" for _ in paper_ids)
 
-            # --- a. Atom coverage by type ---
-            atom_cursor = await db.execute(
-                f"""SELECT a.slug, a.title, a.type, a.description,
-                           a.evidence_strength, a.access, a.theme,
-                           GROUP_CONCAT(DISTINCT apr.paper_id) as paper_ids_csv
-                    FROM atoms a
-                    JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                    WHERE apr.paper_id IN ({placeholders})
-                    GROUP BY a.slug
-                    ORDER BY COUNT(DISTINCT apr.paper_id) DESC""",
-                paper_ids,
+        # --- a. Atom coverage by type ---
+        atom_cursor = await db.execute(
+            f"""SELECT a.slug, a.title, a.type, a.description,
+                       a.evidence_strength, a.access, a.theme,
+                       GROUP_CONCAT(DISTINCT apr.paper_id) as paper_ids_csv
+                FROM atoms a
+                JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+                WHERE apr.paper_id IN ({placeholders})
+                GROUP BY a.slug
+                ORDER BY COUNT(DISTINCT apr.paper_id) DESC""",
+            paper_ids,
+        )
+        atom_rows = await atom_cursor.fetchall()
+
+        methods = []
+        datasets = []
+        mechanisms = []
+        puzzles = []
+
+        search_set_atom_slugs: set[str] = set()
+
+        for ar in atom_rows:
+            search_set_atom_slugs.add(ar["slug"])
+            atom_entry = {
+                "slug": ar["slug"],
+                "title": ar["title"],
+                "type": ar["type"],
+                "description": ar["description"],
+                    "evidence_strength": ar["evidence_strength"],
+                    "access": ar["access"],
+                    "theme": ar["theme"],
+                    "paper_count": len(ar["paper_ids_csv"].split(",")) if ar["paper_ids_csv"] else 0,
+                    "paper_ids": ar["paper_ids_csv"].split(",") if ar["paper_ids_csv"] else [],
+                }
+            atype = ar["type"]
+            if atype == "method":
+                methods.append(atom_entry)
+            elif atype == "dataset":
+                datasets.append(atom_entry)
+            elif atype == "mechanism":
+                mechanisms.append(atom_entry)
+            elif atype == "puzzle":
+                puzzles.append(atom_entry)
+
+        # --- b. Field distribution ---
+        field_cursor = await db.execute(
+            f"SELECT fields FROM papers WHERE paper_id IN ({placeholders})",
+            paper_ids,
+        )
+        field_rows = await field_cursor.fetchall()
+
+        field_counts: dict[str, int] = {}
+        all_fields: set[str] = set()
+        for fr in field_rows:
+            for f in _parse_json_list(fr["fields"]):
+                field_counts[f] = field_counts.get(f, 0) + 1
+                all_fields.add(f)
+
+        field_distribution = [
+            {"field": f, "count": c}
+            for f, c in sorted(field_counts.items(), key=lambda x: -x[1])
+        ]
+
+        # --- c. Year distribution ---
+        year_cursor = await db.execute(
+            f"""SELECT year, COUNT(*) as cnt
+                FROM papers
+                WHERE paper_id IN ({placeholders}) AND year IS NOT NULL
+                GROUP BY year ORDER BY year""",
+            paper_ids,
+        )
+        year_rows = await year_cursor.fetchall()
+        year_distribution = [{"year": yr["year"], "count": yr["cnt"]} for yr in year_rows]
+
+        # --- d. China applicability ---
+        china_cursor = await db.execute(
+            f"""SELECT cs.paper_id, p.title, cs.content
+                FROM card_sections cs
+                JOIN papers p ON cs.paper_id = p.paper_id
+                WHERE cs.section = 'China Applicability'
+                AND cs.paper_id IN ({placeholders})""",
+            paper_ids,
+        )
+        china_rows = await china_cursor.fetchall()
+
+        high_count = 0
+        moderate_count = 0
+        low_count = 0
+        china_highlights = []
+
+        for cr in china_rows:
+            content = cr["content"] or ""
+            first_100 = content[:100].lower()
+
+            if "highly applicable" in first_100 or "directly applicable" in first_100:
+                level = "high"
+                high_count += 1
+            elif "limited" in first_100 or "not directly" in first_100:
+                level = "low"
+                low_count += 1
+            elif "moderately" in first_100 or "partially" in first_100:
+                level = "moderate"
+                moderate_count += 1
+            else:
+                level = "moderate"
+                moderate_count += 1
+
+            china_highlights.append({
+                "paper_id": cr["paper_id"],
+                "paper_title": cr["title"] or cr["paper_id"],
+                "applicability_level": level,
+                "summary": content[:300],
+            })
+
+        china_applicability = {
+            "high_count": high_count,
+            "moderate_count": moderate_count,
+            "low_count": low_count,
+            "highlights": china_highlights,
+        }
+
+        # --- e. Gap detection (sibling-field set difference) ---
+        unused_methods: list[dict[str, Any]] = []
+        unused_datasets: list[dict[str, Any]] = []
+
+        if all_fields:
+            # Build field LIKE conditions
+            field_like_parts = []
+            field_like_binds: list[str] = []
+            for f in all_fields:
+                field_like_parts.append("p.fields LIKE ?")
+                field_like_binds.append(f"%{f}%")
+            field_like_sql = " OR ".join(field_like_parts)
+
+            # Search set atom slug placeholders
+            if search_set_atom_slugs:
+                slug_placeholders = ", ".join("?" for _ in search_set_atom_slugs)
+                slug_binds = list(search_set_atom_slugs)
+            else:
+                slug_placeholders = "'__none__'"
+                slug_binds = []
+
+            # Unused methods
+            unused_method_sql = f"""
+                SELECT a.slug, a.title, a.description, a.when_to_use,
+                       a.evidence_strength, a.access, a.type, a.theme,
+                       COUNT(DISTINCT apr.paper_id) as sibling_usage,
+                       GROUP_CONCAT(DISTINCT apr.paper_id) as paper_ids_csv
+                FROM atoms a
+                JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+                JOIN papers p ON p.paper_id = apr.paper_id
+                WHERE a.type = 'method'
+                  AND a.slug NOT IN ({slug_placeholders})
+                  AND ({field_like_sql})
+                GROUP BY a.slug
+                ORDER BY sibling_usage DESC
+                LIMIT 10
+            """
+            um_cursor = await db.execute(
+                unused_method_sql,
+                slug_binds + field_like_binds,
             )
-            atom_rows = await atom_cursor.fetchall()
-
-            methods = []
-            datasets = []
-            mechanisms = []
-            puzzles = []
-
-            search_set_atom_slugs: set[str] = set()
-
-            for ar in atom_rows:
-                search_set_atom_slugs.add(ar["slug"])
-                atom_entry = {
-                    "slug": ar["slug"],
-                    "title": ar["title"],
-                    "type": ar["type"],
-                    "description": ar["description"],
-                        "evidence_strength": ar["evidence_strength"],
-                        "access": ar["access"],
-                        "theme": ar["theme"],
-                        "paper_count": len(ar["paper_ids_csv"].split(",")) if ar["paper_ids_csv"] else 0,
-                        "paper_ids": ar["paper_ids_csv"].split(",") if ar["paper_ids_csv"] else [],
-                    }
-                atype = ar["type"]
-                if atype == "method":
-                    methods.append(atom_entry)
-                elif atype == "dataset":
-                    datasets.append(atom_entry)
-                elif atype == "mechanism":
-                    mechanisms.append(atom_entry)
-                elif atype == "puzzle":
-                    puzzles.append(atom_entry)
-
-            # --- b. Field distribution ---
-            field_cursor = await db.execute(
-                f"SELECT fields FROM papers WHERE paper_id IN ({placeholders})",
-                paper_ids,
-            )
-            field_rows = await field_cursor.fetchall()
-
-            field_counts: dict[str, int] = {}
-            all_fields: set[str] = set()
-            for fr in field_rows:
-                for f in _parse_json_list(fr["fields"]):
-                    field_counts[f] = field_counts.get(f, 0) + 1
-                    all_fields.add(f)
-
-            field_distribution = [
-                {"field": f, "count": c}
-                for f, c in sorted(field_counts.items(), key=lambda x: -x[1])
-            ]
-
-            # --- c. Year distribution ---
-            year_cursor = await db.execute(
-                f"""SELECT year, COUNT(*) as cnt
-                    FROM papers
-                    WHERE paper_id IN ({placeholders}) AND year IS NOT NULL
-                    GROUP BY year ORDER BY year""",
-                paper_ids,
-            )
-            year_rows = await year_cursor.fetchall()
-            year_distribution = [{"year": yr["year"], "count": yr["cnt"]} for yr in year_rows]
-
-            # --- d. China applicability ---
-            china_cursor = await db.execute(
-                f"""SELECT cs.paper_id, p.title, cs.content
-                    FROM card_sections cs
-                    JOIN papers p ON cs.paper_id = p.paper_id
-                    WHERE cs.section = 'China Applicability'
-                    AND cs.paper_id IN ({placeholders})""",
-                paper_ids,
-            )
-            china_rows = await china_cursor.fetchall()
-
-            high_count = 0
-            moderate_count = 0
-            low_count = 0
-            china_highlights = []
-
-            for cr in china_rows:
-                content = cr["content"] or ""
-                first_100 = content[:100].lower()
-
-                if "highly applicable" in first_100 or "directly applicable" in first_100:
-                    level = "high"
-                    high_count += 1
-                elif "limited" in first_100 or "not directly" in first_100:
-                    level = "low"
-                    low_count += 1
-                elif "moderately" in first_100 or "partially" in first_100:
-                    level = "moderate"
-                    moderate_count += 1
-                else:
-                    level = "moderate"
-                    moderate_count += 1
-
-                china_highlights.append({
-                    "paper_id": cr["paper_id"],
-                    "paper_title": cr["title"] or cr["paper_id"],
-                    "applicability_level": level,
-                    "summary": content[:300],
+            for r in await um_cursor.fetchall():
+                pids_csv = r["paper_ids_csv"] or ""
+                unused_methods.append({
+                    "slug": r["slug"],
+                    "title": r["title"],
+                    "type": r["type"],
+                    "description": r["description"],
+                    "evidence_strength": r["evidence_strength"],
+                    "access": r["access"],
+                    "theme": r["theme"],
+                    "paper_count": r["sibling_usage"],
+                    "paper_ids": pids_csv.split(",") if pids_csv else [],
                 })
 
-            china_applicability = {
-                "high_count": high_count,
-                "moderate_count": moderate_count,
-                "low_count": low_count,
-                "highlights": china_highlights,
-            }
-
-            # --- e. Gap detection (sibling-field set difference) ---
-            unused_methods: list[dict[str, Any]] = []
-            unused_datasets: list[dict[str, Any]] = []
-
-            if all_fields:
-                # Build field LIKE conditions
-                field_like_parts = []
-                field_like_binds: list[str] = []
-                for f in all_fields:
-                    field_like_parts.append("p.fields LIKE ?")
-                    field_like_binds.append(f"%{f}%")
-                field_like_sql = " OR ".join(field_like_parts)
-
-                # Search set atom slug placeholders
-                if search_set_atom_slugs:
-                    slug_placeholders = ", ".join("?" for _ in search_set_atom_slugs)
-                    slug_binds = list(search_set_atom_slugs)
-                else:
-                    slug_placeholders = "'__none__'"
-                    slug_binds = []
-
-                # Unused methods
-                unused_method_sql = f"""
-                    SELECT a.slug, a.title, a.description, a.when_to_use,
-                           a.evidence_strength, a.access, a.type, a.theme,
-                           COUNT(DISTINCT apr.paper_id) as sibling_usage,
-                           GROUP_CONCAT(DISTINCT apr.paper_id) as paper_ids_csv
-                    FROM atoms a
-                    JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                    JOIN papers p ON p.paper_id = apr.paper_id
-                    WHERE a.type = 'method'
-                      AND a.slug NOT IN ({slug_placeholders})
-                      AND ({field_like_sql})
-                    GROUP BY a.slug
-                    ORDER BY sibling_usage DESC
-                    LIMIT 10
-                """
-                um_cursor = await db.execute(
-                    unused_method_sql,
-                    slug_binds + field_like_binds,
-                )
-                for r in await um_cursor.fetchall():
-                    pids_csv = r["paper_ids_csv"] or ""
-                    unused_methods.append({
-                        "slug": r["slug"],
-                        "title": r["title"],
-                        "type": r["type"],
-                        "description": r["description"],
-                        "evidence_strength": r["evidence_strength"],
-                        "access": r["access"],
-                        "theme": r["theme"],
-                        "paper_count": r["sibling_usage"],
-                        "paper_ids": pids_csv.split(",") if pids_csv else [],
-                    })
-
-                # Unused datasets (prioritize public access)
-                unused_dataset_sql = f"""
-                    SELECT a.slug, a.title, a.description, a.when_to_use,
-                           a.evidence_strength, a.access, a.type, a.theme,
-                           COUNT(DISTINCT apr.paper_id) as sibling_usage,
-                           GROUP_CONCAT(DISTINCT apr.paper_id) as paper_ids_csv
-                    FROM atoms a
-                    JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                    JOIN papers p ON p.paper_id = apr.paper_id
-                    WHERE a.type = 'dataset'
-                      AND a.slug NOT IN ({slug_placeholders})
-                      AND ({field_like_sql})
-                    GROUP BY a.slug
-                    ORDER BY CASE WHEN a.access = 'public' THEN 0 ELSE 1 END,
-                             sibling_usage DESC
-                    LIMIT 10
-                """
-                ud_cursor = await db.execute(
-                    unused_dataset_sql,
-                    slug_binds + field_like_binds,
-                )
-                for r in await ud_cursor.fetchall():
-                    pids_csv = r["paper_ids_csv"] or ""
-                    unused_datasets.append({
-                        "slug": r["slug"],
-                        "title": r["title"],
-                        "type": r["type"],
-                        "description": r["description"],
-                        "evidence_strength": r["evidence_strength"],
-                        "access": r["access"],
-                        "theme": r["theme"],
-                        "paper_count": r["sibling_usage"],
-                        "paper_ids": pids_csv.split(",") if pids_csv else [],
-                    })
-
-            # --- f. Limitations and open questions ---
-            lim_cursor = await db.execute(
-                f"""SELECT cs.paper_id, p.title, cs.content
-                    FROM card_sections cs
-                    JOIN papers p ON cs.paper_id = p.paper_id
-                    WHERE cs.section = 'Limitations & Open Questions'
-                    AND cs.paper_id IN ({placeholders})""",
-                paper_ids,
+            # Unused datasets (prioritize public access)
+            unused_dataset_sql = f"""
+                SELECT a.slug, a.title, a.description, a.when_to_use,
+                       a.evidence_strength, a.access, a.type, a.theme,
+                       COUNT(DISTINCT apr.paper_id) as sibling_usage,
+                       GROUP_CONCAT(DISTINCT apr.paper_id) as paper_ids_csv
+                FROM atoms a
+                JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+                JOIN papers p ON p.paper_id = apr.paper_id
+                WHERE a.type = 'dataset'
+                  AND a.slug NOT IN ({slug_placeholders})
+                  AND ({field_like_sql})
+                GROUP BY a.slug
+                ORDER BY CASE WHEN a.access = 'public' THEN 0 ELSE 1 END,
+                         sibling_usage DESC
+                LIMIT 10
+            """
+            ud_cursor = await db.execute(
+                unused_dataset_sql,
+                slug_binds + field_like_binds,
             )
-            lim_rows = await lim_cursor.fetchall()
+            for r in await ud_cursor.fetchall():
+                pids_csv = r["paper_ids_csv"] or ""
+                unused_datasets.append({
+                    "slug": r["slug"],
+                    "title": r["title"],
+                    "type": r["type"],
+                    "description": r["description"],
+                    "evidence_strength": r["evidence_strength"],
+                    "access": r["access"],
+                    "theme": r["theme"],
+                    "paper_count": r["sibling_usage"],
+                    "paper_ids": pids_csv.split(",") if pids_csv else [],
+                })
 
-            limitations: list[dict[str, Any]] = []
-            open_questions: list[dict[str, Any]] = []
-            seen_texts: set[str] = set()
+        # --- f. Limitations and open questions ---
+        lim_cursor = await db.execute(
+            f"""SELECT cs.paper_id, p.title, cs.content
+                FROM card_sections cs
+                JOIN papers p ON cs.paper_id = p.paper_id
+                WHERE cs.section = 'Limitations & Open Questions'
+                AND cs.paper_id IN ({placeholders})""",
+            paper_ids,
+        )
+        lim_rows = await lim_cursor.fetchall()
 
-            for lr in lim_rows:
-                content = lr["content"] or ""
-                bullets = [b.strip() for b in content.split("\n- ") if b.strip()]
-                # Also handle bullets starting at the beginning
-                if content.startswith("- "):
-                    first_parts = content.split("\n- ", 1)
-                    if first_parts:
-                        bullets[0:0] = [first_parts[0].lstrip("- ").strip()]
-                        if len(first_parts) > 1 and bullets:
-                            bullets = bullets  # already handled
+        limitations: list[dict[str, Any]] = []
+        open_questions: list[dict[str, Any]] = []
+        seen_texts: set[str] = set()
 
-                for bullet in bullets:
-                    clean = bullet.strip().rstrip(".")
-                    if clean and clean not in seen_texts:
-                        seen_texts.add(clean)
-                        entry = {
-                            "text": bullet.strip(),
-                            "paper_id": lr["paper_id"],
-                            "paper_title": lr["title"] or lr["paper_id"],
-                        }
-                        # Classify: questions go to open_questions, statements to limitations
-                        if "?" in bullet or bullet.lower().startswith(("how", "what", "why", "whether", "can", "could")):
-                            open_questions.append(entry)
-                        else:
-                            limitations.append(entry)
+        for lr in lim_rows:
+            content = lr["content"] or ""
+            bullets = [b.strip() for b in content.split("\n- ") if b.strip()]
+            # Also handle bullets starting at the beginning
+            if content.startswith("- "):
+                first_parts = content.split("\n- ", 1)
+                if first_parts:
+                    bullets[0:0] = [first_parts[0].lstrip("- ").strip()]
+                    if len(first_parts) > 1 and bullets:
+                        bullets = bullets  # already handled
 
-                    if len(limitations) + len(open_questions) >= 15:
-                        break
+            for bullet in bullets:
+                clean = bullet.strip().rstrip(".")
+                if clean and clean not in seen_texts:
+                    seen_texts.add(clean)
+                    entry = {
+                        "text": bullet.strip(),
+                        "paper_id": lr["paper_id"],
+                        "paper_title": lr["title"] or lr["paper_id"],
+                    }
+                    # Classify: questions go to open_questions, statements to limitations
+                    if "?" in bullet or bullet.lower().startswith(("how", "what", "why", "whether", "can", "could")):
+                        open_questions.append(entry)
+                    else:
+                        limitations.append(entry)
+
                 if len(limitations) + len(open_questions) >= 15:
                     break
+            if len(limitations) + len(open_questions) >= 15:
+                break
 
-            # --- g. Replication candidates ---
-            # Atoms in the search set linked to only 1 paper corpus-wide
-            replication_cursor = await db.execute(
-                f"""SELECT a.slug, a.title, a.type, a.evidence_strength,
-                           GROUP_CONCAT(apr.paper_id) as paper_ids_csv
-                    FROM atoms a
-                    JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                    WHERE apr.paper_id IN ({placeholders})
-                    GROUP BY a.slug
-                    HAVING COUNT(DISTINCT apr.paper_id) = 1
-                    AND a.type IN ('mechanism', 'method')
-                    LIMIT 10""",
-                paper_ids,
-            )
-            # replication_candidates stored but not currently returned as separate field
-            # They could be added to gaps or as a separate section if needed
+        # --- g. Replication candidates ---
+        # Atoms in the search set linked to only 1 paper corpus-wide
+        replication_cursor = await db.execute(
+            f"""SELECT a.slug, a.title, a.type, a.evidence_strength,
+                       GROUP_CONCAT(apr.paper_id) as paper_ids_csv
+                FROM atoms a
+                JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+                WHERE apr.paper_id IN ({placeholders})
+                GROUP BY a.slug
+                HAVING COUNT(DISTINCT apr.paper_id) = 1
+                AND a.type IN ('mechanism', 'method')
+                LIMIT 10""",
+            paper_ids,
+        )
+        # replication_candidates stored but not currently returned as separate field
+        # They could be added to gaps or as a separate section if needed
 
-            gaps = {
-                "limitations": limitations,
-                "unused_methods": unused_methods,
-                "unused_datasets": unused_datasets,
-                "open_questions": open_questions,
-            }
+        gaps = {
+            "limitations": limitations,
+            "unused_methods": unused_methods,
+            "unused_datasets": unused_datasets,
+            "open_questions": open_questions,
+        }
 
-            return {
-                "methods": methods,
-                "datasets": datasets,
-                "mechanisms": mechanisms,
-                "puzzles": puzzles,
-                "china_applicability": china_applicability,
-                "field_distribution": field_distribution,
-                "year_distribution": year_distribution,
-                "gaps": gaps,
-            }
+        return {
+            "methods": methods,
+            "datasets": datasets,
+            "mechanisms": mechanisms,
+            "puzzles": puzzles,
+            "china_applicability": china_applicability,
+            "field_distribution": field_distribution,
+            "year_distribution": year_distribution,
+            "gaps": gaps,
+        }
 
     except Exception:
         logger.exception("research_landscape failed")
@@ -3443,17 +3464,17 @@ async def research_suggested_questions(
     has_methods = False
     if paper_ids and _db_exists():
         try:
-            async with aiosqlite.connect(DB_PATH) as db:
-                placeholders = ", ".join("?" for _ in paper_ids)
-                cursor = await db.execute(
-                    f"""SELECT 1 FROM atoms a
-                        JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                        WHERE a.type = 'method'
-                        AND apr.paper_id IN ({placeholders})
-                        LIMIT 1""",
-                    paper_ids,
-                )
-                has_methods = (await cursor.fetchone()) is not None
+            db = await _get_db()
+            placeholders = ", ".join("?" for _ in paper_ids)
+            cursor = await db.execute(
+                f"""SELECT 1 FROM atoms a
+                    JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+                    WHERE a.type = 'method'
+                    AND apr.paper_id IN ({placeholders})
+                    LIMIT 1""",
+                paper_ids,
+            )
+            has_methods = (await cursor.fetchone()) is not None
         except Exception:
             pass
 
@@ -3665,28 +3686,27 @@ async def create_collection(name: str, description: str = "") -> dict[str, Any]:
     if not _db_exists():
         return {}
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                """INSERT INTO user_collections (name, description)
-                   VALUES (?, ?)""",
-                (name, description),
-            )
-            await db.commit()
-            cid = cursor.lastrowid
-            row_cursor = await db.execute(
-                "SELECT * FROM user_collections WHERE id = ?", (cid,)
-            )
-            row = await row_cursor.fetchone()
-            if row:
-                return {
-                    "id": row["id"],
-                    "name": row["name"],
-                    "description": row["description"],
-                    "paper_count": 0,
-                    "created_at": row["created_at"],
-                }
-            return {}
+        db = await _get_db()
+        cursor = await db.execute(
+            """INSERT INTO user_collections (name, description)
+               VALUES (?, ?)""",
+            (name, description),
+        )
+        await db.commit()
+        cid = cursor.lastrowid
+        row_cursor = await db.execute(
+            "SELECT * FROM user_collections WHERE id = ?", (cid,)
+        )
+        row = await row_cursor.fetchone()
+        if row:
+            return {
+                "id": row["id"],
+                "name": row["name"],
+                "description": row["description"],
+                "paper_count": 0,
+                "created_at": row["created_at"],
+            }
+        return {}
     except Exception:
         logger.exception("create_collection failed")
         return {}
@@ -3696,13 +3716,12 @@ async def delete_collection(collection_id: int) -> bool:
     if not _db_exists():
         return False
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute("PRAGMA foreign_keys=ON")
-            await db.execute(
-                "DELETE FROM user_collections WHERE id = ?", (collection_id,)
-            )
-            await db.commit()
-            return True
+        db = await _get_db()
+        await db.execute(
+            "DELETE FROM user_collections WHERE id = ?", (collection_id,)
+        )
+        await db.commit()
+        return True
     except Exception:
         logger.exception("delete_collection failed for %s", collection_id)
         return False
@@ -3712,15 +3731,15 @@ async def rename_collection(collection_id: int, name: str) -> bool:
     if not _db_exists():
         return False
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                """UPDATE user_collections
-                   SET name = ?, updated_at = CURRENT_TIMESTAMP
-                   WHERE id = ?""",
-                (name, collection_id),
-            )
-            await db.commit()
-            return True
+        db = await _get_db()
+        await db.execute(
+            """UPDATE user_collections
+               SET name = ?, updated_at = CURRENT_TIMESTAMP
+               WHERE id = ?""",
+            (name, collection_id),
+        )
+        await db.commit()
+        return True
     except Exception:
         logger.exception("rename_collection failed for %s", collection_id)
         return False
@@ -3731,25 +3750,24 @@ async def get_collections() -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                """SELECT c.*,
-                          (SELECT COUNT(*) FROM collection_papers cp WHERE cp.collection_id = c.id) AS paper_count
-                   FROM user_collections c
-                   ORDER BY c.updated_at DESC"""
-            )
-            rows = await cursor.fetchall()
-            return [
-                {
-                    "id": r["id"],
-                    "name": r["name"],
-                    "description": r["description"],
-                    "paper_count": r["paper_count"],
-                    "created_at": r["created_at"],
-                }
-                for r in rows
-            ]
+        db = await _get_db()
+        cursor = await db.execute(
+            """SELECT c.*,
+                      (SELECT COUNT(*) FROM collection_papers cp WHERE cp.collection_id = c.id) AS paper_count
+               FROM user_collections c
+               ORDER BY c.updated_at DESC"""
+        )
+        rows = await cursor.fetchall()
+        return [
+            {
+                "id": r["id"],
+                "name": r["name"],
+                "description": r["description"],
+                "paper_count": r["paper_count"],
+                "created_at": r["created_at"],
+            }
+            for r in rows
+        ]
     except Exception:
         logger.exception("get_collections failed")
         return []
@@ -3760,25 +3778,24 @@ async def get_collection(collection_id: int) -> dict[str, Any] | None:
     if not _db_exists():
         return None
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                """SELECT c.*,
-                          (SELECT COUNT(*) FROM collection_papers cp WHERE cp.collection_id = c.id) AS paper_count
-                   FROM user_collections c
-                   WHERE c.id = ?""",
-                (collection_id,),
-            )
-            row = await cursor.fetchone()
-            if row is None:
-                return None
-            return {
-                "id": row["id"],
-                "name": row["name"],
-                "description": row["description"],
-                "paper_count": row["paper_count"],
-                "created_at": row["created_at"],
-            }
+        db = await _get_db()
+        cursor = await db.execute(
+            """SELECT c.*,
+                      (SELECT COUNT(*) FROM collection_papers cp WHERE cp.collection_id = c.id) AS paper_count
+               FROM user_collections c
+               WHERE c.id = ?""",
+            (collection_id,),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        return {
+            "id": row["id"],
+            "name": row["name"],
+            "description": row["description"],
+            "paper_count": row["paper_count"],
+            "created_at": row["created_at"],
+        }
     except Exception:
         logger.exception("get_collection failed for %s", collection_id)
         return None
@@ -3788,18 +3805,18 @@ async def add_to_collection(collection_id: int, paper_id: str) -> bool:
     if not _db_exists():
         return False
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                """INSERT OR IGNORE INTO collection_papers (collection_id, paper_id)
-                   VALUES (?, ?)""",
-                (collection_id, paper_id),
-            )
-            await db.execute(
-                "UPDATE user_collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                (collection_id,),
-            )
-            await db.commit()
-            return True
+        db = await _get_db()
+        await db.execute(
+            """INSERT OR IGNORE INTO collection_papers (collection_id, paper_id)
+               VALUES (?, ?)""",
+            (collection_id, paper_id),
+        )
+        await db.execute(
+            "UPDATE user_collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (collection_id,),
+        )
+        await db.commit()
+        return True
     except Exception:
         logger.exception("add_to_collection failed for %s/%s", collection_id, paper_id)
         return False
@@ -3809,13 +3826,13 @@ async def remove_from_collection(collection_id: int, paper_id: str) -> bool:
     if not _db_exists():
         return False
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                "DELETE FROM collection_papers WHERE collection_id = ? AND paper_id = ?",
-                (collection_id, paper_id),
-            )
-            await db.commit()
-            return True
+        db = await _get_db()
+        await db.execute(
+            "DELETE FROM collection_papers WHERE collection_id = ? AND paper_id = ?",
+            (collection_id, paper_id),
+        )
+        await db.commit()
+        return True
     except Exception:
         logger.exception("remove_from_collection failed for %s/%s", collection_id, paper_id)
         return False
@@ -3829,25 +3846,24 @@ async def get_collection_papers(
     if not _db_exists():
         return empty
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            count_cursor = await db.execute(
-                "SELECT COUNT(*) FROM collection_papers WHERE collection_id = ?",
-                (collection_id,),
-            )
-            total = (await count_cursor.fetchone())[0]
+        count_cursor = await db.execute(
+            "SELECT COUNT(*) FROM collection_papers WHERE collection_id = ?",
+            (collection_id,),
+        )
+        total = (await count_cursor.fetchone())[0]
 
-            cursor = await db.execute(
-                """SELECT p.* FROM papers p
-                   JOIN collection_papers cp ON p.paper_id = cp.paper_id
-                   WHERE cp.collection_id = ?
-                   ORDER BY cp.added_at DESC
-                   LIMIT ? OFFSET ?""",
-                (collection_id, limit, offset),
-            )
-            rows = await cursor.fetchall()
-            return {"items": [_row_to_paper(r) for r in rows], "total": total}
+        cursor = await db.execute(
+            """SELECT p.* FROM papers p
+               JOIN collection_papers cp ON p.paper_id = cp.paper_id
+               WHERE cp.collection_id = ?
+               ORDER BY cp.added_at DESC
+               LIMIT ? OFFSET ?""",
+            (collection_id, limit, offset),
+        )
+        rows = await cursor.fetchall()
+        return {"items": [_row_to_paper(r) for r in rows], "total": total}
     except Exception:
         logger.exception("get_collection_papers failed for %s", collection_id)
         return empty
@@ -3858,12 +3874,12 @@ async def get_collection_paper_ids(collection_id: int) -> list[str]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            cursor = await db.execute(
-                "SELECT paper_id FROM collection_papers WHERE collection_id = ? ORDER BY added_at DESC",
-                (collection_id,),
-            )
-            return [r[0] for r in await cursor.fetchall()]
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT paper_id FROM collection_papers WHERE collection_id = ? ORDER BY added_at DESC",
+            (collection_id,),
+        )
+        return [r[0] for r in await cursor.fetchall()]
     except Exception:
         logger.exception("get_collection_paper_ids failed for %s", collection_id)
         return []
@@ -3874,29 +3890,28 @@ async def get_paper_collections(paper_id: str) -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                """SELECT c.id, c.name, c.description,
-                          (SELECT COUNT(*) FROM collection_papers cp2 WHERE cp2.collection_id = c.id) AS paper_count,
-                          c.created_at
-                   FROM user_collections c
-                   JOIN collection_papers cp ON c.id = cp.collection_id
-                   WHERE cp.paper_id = ?
-                   ORDER BY c.name""",
-                (paper_id,),
-            )
-            rows = await cursor.fetchall()
-            return [
-                {
-                    "id": r["id"],
-                    "name": r["name"],
-                    "description": r["description"],
-                    "paper_count": r["paper_count"],
-                    "created_at": r["created_at"],
-                }
-                for r in rows
-            ]
+        db = await _get_db()
+        cursor = await db.execute(
+            """SELECT c.id, c.name, c.description,
+                      (SELECT COUNT(*) FROM collection_papers cp2 WHERE cp2.collection_id = c.id) AS paper_count,
+                      c.created_at
+               FROM user_collections c
+               JOIN collection_papers cp ON c.id = cp.collection_id
+               WHERE cp.paper_id = ?
+               ORDER BY c.name""",
+            (paper_id,),
+        )
+        rows = await cursor.fetchall()
+        return [
+            {
+                "id": r["id"],
+                "name": r["name"],
+                "description": r["description"],
+                "paper_count": r["paper_count"],
+                "created_at": r["created_at"],
+            }
+            for r in rows
+        ]
     except Exception:
         logger.exception("get_paper_collections failed for %s", paper_id)
         return []
@@ -3912,112 +3927,111 @@ async def get_author_profile(name: str) -> dict[str, Any] | None:
         return None
 
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            # Find all papers where this author appears (case-insensitive)
-            cursor = await db.execute(
-                "SELECT * FROM papers WHERE authors IS NOT NULL AND authors != '' AND authors != '[]'"
-            )
-            all_rows = await cursor.fetchall()
+        # Find all papers where this author appears (case-insensitive)
+        cursor = await db.execute(
+            "SELECT * FROM papers WHERE authors IS NOT NULL AND authors != '' AND authors != '[]'"
+        )
+        all_rows = await cursor.fetchall()
 
-            name_lower = name.lower()
-            matching_papers = []
-            for row in all_rows:
-                try:
-                    authors = json.loads(row["authors"])
-                    if isinstance(authors, list):
-                        for a in authors:
-                            if isinstance(a, str) and a.strip().lower() == name_lower:
-                                matching_papers.append(row)
-                                break
-                except (json.JSONDecodeError, TypeError):
-                    pass
-
-            if not matching_papers:
-                return None
-
-            # Determine the canonical name (exact casing from the first match)
-            canonical_name = name
-            for row in matching_papers:
-                try:
-                    authors = json.loads(row["authors"])
+        name_lower = name.lower()
+        matching_papers = []
+        for row in all_rows:
+            try:
+                authors = json.loads(row["authors"])
+                if isinstance(authors, list):
                     for a in authors:
                         if isinstance(a, str) and a.strip().lower() == name_lower:
-                            canonical_name = a.strip()
+                            matching_papers.append(row)
                             break
-                    break
-                except (json.JSONDecodeError, TypeError):
-                    pass
+            except (json.JSONDecodeError, TypeError):
+                pass
 
-            papers = [_row_to_paper(r) for r in matching_papers]
-            paper_ids = {p["paper_id"] for p in papers}
+        if not matching_papers:
+            return None
 
-            # Co-authors
-            from collections import Counter
-            coauthor_counts: Counter[str] = Counter()
-            for row in matching_papers:
+        # Determine the canonical name (exact casing from the first match)
+        canonical_name = name
+        for row in matching_papers:
+            try:
+                authors = json.loads(row["authors"])
+                for a in authors:
+                    if isinstance(a, str) and a.strip().lower() == name_lower:
+                        canonical_name = a.strip()
+                        break
+                break
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        papers = [_row_to_paper(r) for r in matching_papers]
+        paper_ids = {p["paper_id"] for p in papers}
+
+        # Co-authors
+        from collections import Counter
+        coauthor_counts: Counter[str] = Counter()
+        for row in matching_papers:
+            try:
+                authors = json.loads(row["authors"])
+                if isinstance(authors, list):
+                    for a in authors:
+                        if isinstance(a, str) and a.strip().lower() != name_lower:
+                            coauthor_counts[a.strip()] += 1
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        coauthors = [
+            {"name": n, "shared_papers": c}
+            for n, c in sorted(coauthor_counts.items(), key=lambda x: (-x[1], x[0]))
+        ]
+
+        # Fields
+        field_counts: Counter[str] = Counter()
+        for p in papers:
+            for f in p.get("fields", []):
+                field_counts[f] += 1
+        fields = [
+            {"field": f, "count": c}
+            for f, c in sorted(field_counts.items(), key=lambda x: (-x[1], x[0]))
+        ]
+
+        # Methods (from triage_cards)
+        method_counts: Counter[str] = Counter()
+        if paper_ids:
+            placeholders = ",".join("?" for _ in paper_ids)
+            cursor = await db.execute(
+                f"SELECT methods FROM triage_cards WHERE paper_id IN ({placeholders}) AND methods IS NOT NULL",
+                list(paper_ids),
+            )
+            method_rows = await cursor.fetchall()
+            for mrow in method_rows:
                 try:
-                    authors = json.loads(row["authors"])
-                    if isinstance(authors, list):
-                        for a in authors:
-                            if isinstance(a, str) and a.strip().lower() != name_lower:
-                                coauthor_counts[a.strip()] += 1
+                    methods = json.loads(mrow[0])
+                    if isinstance(methods, list):
+                        for m in methods:
+                            if isinstance(m, str) and m.strip():
+                                method_counts[m.strip()] += 1
                 except (json.JSONDecodeError, TypeError):
                     pass
 
-            coauthors = [
-                {"name": n, "shared_papers": c}
-                for n, c in sorted(coauthor_counts.items(), key=lambda x: (-x[1], x[0]))
-            ]
+        methods = [
+            {"field": m, "count": c}
+            for m, c in sorted(method_counts.items(), key=lambda x: (-x[1], x[0]))
+        ]
 
-            # Fields
-            field_counts: Counter[str] = Counter()
-            for p in papers:
-                for f in p.get("fields", []):
-                    field_counts[f] += 1
-            fields = [
-                {"field": f, "count": c}
-                for f, c in sorted(field_counts.items(), key=lambda x: (-x[1], x[0]))
-            ]
+        # Average score
+        scores = [p["average_score"] for p in papers if p.get("average_score") is not None]
+        avg_score = sum(scores) / len(scores) if scores else None
 
-            # Methods (from triage_cards)
-            method_counts: Counter[str] = Counter()
-            if paper_ids:
-                placeholders = ",".join("?" for _ in paper_ids)
-                cursor = await db.execute(
-                    f"SELECT methods FROM triage_cards WHERE paper_id IN ({placeholders}) AND methods IS NOT NULL",
-                    list(paper_ids),
-                )
-                method_rows = await cursor.fetchall()
-                for mrow in method_rows:
-                    try:
-                        methods = json.loads(mrow[0])
-                        if isinstance(methods, list):
-                            for m in methods:
-                                if isinstance(m, str) and m.strip():
-                                    method_counts[m.strip()] += 1
-                    except (json.JSONDecodeError, TypeError):
-                        pass
-
-            methods = [
-                {"field": m, "count": c}
-                for m, c in sorted(method_counts.items(), key=lambda x: (-x[1], x[0]))
-            ]
-
-            # Average score
-            scores = [p["average_score"] for p in papers if p.get("average_score") is not None]
-            avg_score = sum(scores) / len(scores) if scores else None
-
-            return {
-                "name": canonical_name,
-                "paper_count": len(papers),
-                "avg_score": avg_score,
-                "papers": papers,
-                "coauthors": coauthors,
-                "fields": fields,
-                "methods": methods,
-            }
+        return {
+            "name": canonical_name,
+            "paper_count": len(papers),
+            "avg_score": avg_score,
+            "papers": papers,
+            "coauthors": coauthors,
+            "fields": fields,
+            "methods": methods,
+        }
     except Exception:
         logger.exception("get_author_profile failed for %s", name)
         return None
@@ -4052,79 +4066,78 @@ async def get_personalized_feed(limit: int = 10) -> list[dict[str, Any]]:
         return []
 
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            # 1. Get user paper IDs
-            bm_cursor = await db.execute("SELECT paper_id FROM user_bookmarks")
-            bookmarked_ids = [r[0] for r in await bm_cursor.fetchall()]
+        # 1. Get user paper IDs
+        bm_cursor = await db.execute("SELECT paper_id FROM user_bookmarks")
+        bookmarked_ids = [r[0] for r in await bm_cursor.fetchall()]
 
-            rs_cursor = await db.execute("SELECT paper_id FROM user_reading_status")
-            read_ids = [r[0] for r in await rs_cursor.fetchall()]
+        rs_cursor = await db.execute("SELECT paper_id FROM user_reading_status")
+        read_ids = [r[0] for r in await rs_cursor.fetchall()]
 
-            user_paper_ids = set(bookmarked_ids + read_ids)
+        user_paper_ids = set(bookmarked_ids + read_ids)
 
-            # 2. Try embedding-based recommendations
-            from embeddings import _paper_index, is_loaded
-            import numpy as np
+        # 2. Try embedding-based recommendations
+        from embeddings import _paper_index, is_loaded
+        import numpy as np
 
-            if user_paper_ids and is_loaded() and _paper_index is not None:
-                # Find indices of user's papers in the embedding index
-                id_to_idx = {pid: i for i, pid in enumerate(_paper_index["ids"])}
-                user_indices = [id_to_idx[pid] for pid in user_paper_ids if pid in id_to_idx]
+        if user_paper_ids and is_loaded() and _paper_index is not None:
+            # Find indices of user's papers in the embedding index
+            id_to_idx = {pid: i for i, pid in enumerate(_paper_index["ids"])}
+            user_indices = [id_to_idx[pid] for pid in user_paper_ids if pid in id_to_idx]
 
-                if user_indices:
-                    # Compute user interest vector (average of their papers' embeddings)
-                    user_vec = np.mean(_paper_index["vectors"][user_indices], axis=0)
-                    norm = np.linalg.norm(user_vec)
-                    if norm > 0:
-                        user_vec = user_vec / norm
+            if user_indices:
+                # Compute user interest vector (average of their papers' embeddings)
+                user_vec = np.mean(_paper_index["vectors"][user_indices], axis=0)
+                norm = np.linalg.norm(user_vec)
+                if norm > 0:
+                    user_vec = user_vec / norm
 
-                    # Score all papers
-                    scores = _paper_index["vectors"] @ user_vec
+                # Score all papers
+                scores = _paper_index["vectors"] @ user_vec
 
-                    # Exclude papers user has already interacted with
-                    for pid in user_paper_ids:
-                        if pid in id_to_idx:
-                            scores[id_to_idx[pid]] = -1
+                # Exclude papers user has already interacted with
+                for pid in user_paper_ids:
+                    if pid in id_to_idx:
+                        scores[id_to_idx[pid]] = -1
 
-                    # Top N
-                    top_indices = np.argsort(-scores)[:limit]
-                    results = []
-                    for i in top_indices:
-                        if scores[i] <= 0:
-                            continue
-                        paper = await get_paper(_paper_index["ids"][i])
-                        if paper:
-                            paper["relevance_score"] = float(scores[i])
-                            results.append(paper)
-                    if results:
-                        return results
+                # Top N
+                top_indices = np.argsort(-scores)[:limit]
+                results = []
+                for i in top_indices:
+                    if scores[i] <= 0:
+                        continue
+                    paper = await get_paper(_paper_index["ids"][i])
+                    if paper:
+                        paper["relevance_score"] = float(scores[i])
+                        results.append(paper)
+                if results:
+                    return results
 
-            # 3. Fallback: recent high-scoring papers the user hasn't seen
-            exclusion_clause = ""
-            binds: list[Any] = []
-            if user_paper_ids:
-                placeholders = ",".join("?" for _ in user_paper_ids)
-                exclusion_clause = f"AND paper_id NOT IN ({placeholders})"
-                binds = list(user_paper_ids)
-            binds.append(limit)
+        # 3. Fallback: recent high-scoring papers the user hasn't seen
+        exclusion_clause = ""
+        binds: list[Any] = []
+        if user_paper_ids:
+            placeholders = ",".join("?" for _ in user_paper_ids)
+            exclusion_clause = f"AND paper_id NOT IN ({placeholders})"
+            binds = list(user_paper_ids)
+        binds.append(limit)
 
-            cursor = await db.execute(
-                f"""SELECT * FROM papers
-                    WHERE average_score IS NOT NULL
-                    {exclusion_clause}
-                    ORDER BY average_score DESC, year DESC
-                    LIMIT ?""",
-                binds,
-            )
-            rows = await cursor.fetchall()
-            results = []
-            for r in rows:
-                paper = _row_to_paper(r)
-                paper["relevance_score"] = 0.0
-                results.append(paper)
-            return results
+        cursor = await db.execute(
+            f"""SELECT * FROM papers
+                WHERE average_score IS NOT NULL
+                {exclusion_clause}
+                ORDER BY average_score DESC, year DESC
+                LIMIT ?""",
+            binds,
+        )
+        rows = await cursor.fetchall()
+        results = []
+        for r in rows:
+            paper = _row_to_paper(r)
+            paper["relevance_score"] = 0.0
+            results.append(paper)
+        return results
     except Exception:
         logger.exception("get_personalized_feed failed")
         return []
@@ -4162,27 +4175,26 @@ async def advise_methods(description: str, limit: int = 10) -> list[dict[str, An
     else:
         # Fallback: LIKE search over atoms table for method type
         try:
-            async with aiosqlite.connect(DB_PATH) as db:
-                db.row_factory = aiosqlite.Row
+            db = await _get_db()
 
-                pattern = f"%{description}%"
-                cursor = await db.execute(
-                    """SELECT a.*, COUNT(apr.paper_id) as paper_count
-                       FROM atoms a
-                       LEFT JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                       WHERE a.type = 'method'
-                         AND (a.title LIKE ? OR a.description LIKE ? OR a.when_to_use LIKE ?)
-                       GROUP BY a.slug
-                       ORDER BY paper_count DESC
-                       LIMIT ?""",
-                    (pattern, pattern, pattern, limit),
-                )
-                rows = await cursor.fetchall()
-                for row in rows:
-                    atom = _row_to_atom(row)
-                    atom["relevance_score"] = 0.5
-                    atom["paper_count"] = row["paper_count"]
-                    method_results.append(atom)
+            pattern = f"%{description}%"
+            cursor = await db.execute(
+                """SELECT a.*, COUNT(apr.paper_id) as paper_count
+                   FROM atoms a
+                   LEFT JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+                   WHERE a.type = 'method'
+                     AND (a.title LIKE ? OR a.description LIKE ? OR a.when_to_use LIKE ?)
+                   GROUP BY a.slug
+                   ORDER BY paper_count DESC
+                   LIMIT ?""",
+                (pattern, pattern, pattern, limit),
+            )
+            rows = await cursor.fetchall()
+            for row in rows:
+                atom = _row_to_atom(row)
+                atom["relevance_score"] = 0.5
+                atom["paper_count"] = row["paper_count"]
+                method_results.append(atom)
         except Exception:
             logger.exception("advise_methods FTS fallback failed")
 
@@ -4278,78 +4290,13 @@ async def cluster_papers(paper_ids: list[str], n_clusters: int = 0) -> list[dict
 
     results = []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            for cluster_id, cluster_pids in sorted(cluster_map.items()):
-                placeholders = ", ".join("?" for _ in cluster_pids)
-                cursor = await db.execute(
-                    f"SELECT * FROM papers WHERE paper_id IN ({placeholders})",
-                    cluster_pids,
-                )
-                rows = await cursor.fetchall()
-                papers_list = [_row_to_paper(r) for r in rows]
-
-                atom_cursor = await db.execute(
-                    f"""SELECT a.slug, a.title, a.type, COUNT(*) as cnt
-                        FROM atom_paper_refs apr
-                        JOIN atoms a ON a.slug = apr.atom_slug
-                        WHERE apr.paper_id IN ({placeholders})
-                        GROUP BY a.slug
-                        ORDER BY cnt DESC
-                        LIMIT 5""",
-                    cluster_pids,
-                )
-                atom_rows = await atom_cursor.fetchall()
-                top_atoms = [
-                    {
-                        "slug": ar["slug"],
-                        "title": ar["title"],
-                        "type": ar["type"],
-                        "paper_count": ar["cnt"],
-                    }
-                    for ar in atom_rows
-                ]
-
-                if top_atoms:
-                    label = ", ".join(a["title"] for a in top_atoms[:3])
-                else:
-                    all_fields: list[str] = []
-                    for p in papers_list:
-                        all_fields.extend(p.get("fields", []))
-                    if all_fields:
-                        from collections import Counter
-                        label = ", ".join(
-                            f for f, _ in Counter(all_fields).most_common(3)
-                        )
-                    else:
-                        label = f"Cluster {cluster_id + 1}"
-
-                results.append({
-                    "cluster_id": cluster_id,
-                    "label": label,
-                    "paper_count": len(papers_list),
-                    "papers": papers_list,
-                    "top_atoms": top_atoms,
-                })
-    except Exception:
-        logger.exception("cluster_papers failed")
-        return []
-
-    return results
-
-
-async def _single_cluster(paper_ids: list[str]) -> list[dict[str, Any]]:
-    """Return all papers in a single cluster (fallback for too-few papers)."""
-    if not _db_exists():
-        return []
-    try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            placeholders = ", ".join("?" for _ in paper_ids)
+        for cluster_id, cluster_pids in sorted(cluster_map.items()):
+            placeholders = ", ".join("?" for _ in cluster_pids)
             cursor = await db.execute(
                 f"SELECT * FROM papers WHERE paper_id IN ({placeholders})",
-                paper_ids,
+                cluster_pids,
             )
             rows = await cursor.fetchall()
             papers_list = [_row_to_paper(r) for r in rows]
@@ -4362,7 +4309,7 @@ async def _single_cluster(paper_ids: list[str]) -> list[dict[str, Any]]:
                     GROUP BY a.slug
                     ORDER BY cnt DESC
                     LIMIT 5""",
-                paper_ids,
+                cluster_pids,
             )
             atom_rows = await atom_cursor.fetchall()
             top_atoms = [
@@ -4375,17 +4322,80 @@ async def _single_cluster(paper_ids: list[str]) -> list[dict[str, Any]]:
                 for ar in atom_rows
             ]
 
-            label = "All results"
             if top_atoms:
                 label = ", ".join(a["title"] for a in top_atoms[:3])
+            else:
+                all_fields: list[str] = []
+                for p in papers_list:
+                    all_fields.extend(p.get("fields", []))
+                if all_fields:
+                    from collections import Counter
+                    label = ", ".join(
+                        f for f, _ in Counter(all_fields).most_common(3)
+                    )
+                else:
+                    label = f"Cluster {cluster_id + 1}"
 
-            return [{
-                "cluster_id": 0,
+            results.append({
+                "cluster_id": cluster_id,
                 "label": label,
                 "paper_count": len(papers_list),
                 "papers": papers_list,
                 "top_atoms": top_atoms,
-            }]
+            })
+    except Exception:
+        logger.exception("cluster_papers failed")
+        return []
+
+    return results
+
+
+async def _single_cluster(paper_ids: list[str]) -> list[dict[str, Any]]:
+    """Return all papers in a single cluster (fallback for too-few papers)."""
+    if not _db_exists():
+        return []
+    try:
+        db = await _get_db()
+        placeholders = ", ".join("?" for _ in paper_ids)
+        cursor = await db.execute(
+            f"SELECT * FROM papers WHERE paper_id IN ({placeholders})",
+            paper_ids,
+        )
+        rows = await cursor.fetchall()
+        papers_list = [_row_to_paper(r) for r in rows]
+
+        atom_cursor = await db.execute(
+            f"""SELECT a.slug, a.title, a.type, COUNT(*) as cnt
+                FROM atom_paper_refs apr
+                JOIN atoms a ON a.slug = apr.atom_slug
+                WHERE apr.paper_id IN ({placeholders})
+                GROUP BY a.slug
+                ORDER BY cnt DESC
+                LIMIT 5""",
+            paper_ids,
+        )
+        atom_rows = await atom_cursor.fetchall()
+        top_atoms = [
+            {
+                "slug": ar["slug"],
+                "title": ar["title"],
+                "type": ar["type"],
+                "paper_count": ar["cnt"],
+            }
+            for ar in atom_rows
+        ]
+
+        label = "All results"
+        if top_atoms:
+            label = ", ".join(a["title"] for a in top_atoms[:3])
+
+        return [{
+            "cluster_id": 0,
+            "label": label,
+            "paper_count": len(papers_list),
+            "papers": papers_list,
+            "top_atoms": top_atoms,
+        }]
     except Exception:
         logger.exception("_single_cluster failed")
         return []
@@ -4427,121 +4437,120 @@ async def get_china_dashboard() -> dict[str, Any]:
         return empty
 
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            # Fetch all China Applicability sections with paper metadata
-            cursor = await db.execute(
-                """SELECT cs.paper_id, cs.content, p.title, p.year, p.fields, p.average_score
-                   FROM card_sections cs
-                   JOIN papers p ON cs.paper_id = p.paper_id
-                   WHERE cs.section = 'China Applicability'"""
-            )
-            rows = await cursor.fetchall()
+        # Fetch all China Applicability sections with paper metadata
+        cursor = await db.execute(
+            """SELECT cs.paper_id, cs.content, p.title, p.year, p.fields, p.average_score
+               FROM card_sections cs
+               JOIN papers p ON cs.paper_id = p.paper_id
+               WHERE cs.section = 'China Applicability'"""
+        )
+        rows = await cursor.fetchall()
 
-            high_papers = []
-            moderate_papers = []
-            low_papers = []
-            total_high = 0
-            total_moderate = 0
-            total_low = 0
+        high_papers = []
+        moderate_papers = []
+        low_papers = []
+        total_high = 0
+        total_moderate = 0
+        total_low = 0
 
-            # field -> {high: count, moderate: count}
-            field_stats: dict[str, dict[str, int]] = {}
-            # dataset -> {count, paper_ids}
-            dataset_mentions: dict[str, dict] = {}
+        # field -> {high: count, moderate: count}
+        field_stats: dict[str, dict[str, int]] = {}
+        # dataset -> {count, paper_ids}
+        dataset_mentions: dict[str, dict] = {}
 
-            for row in rows:
-                content = row["content"] or ""
-                first_150 = content[:150].lower()
+        for row in rows:
+            content = row["content"] or ""
+            first_150 = content[:150].lower()
 
-                # Classify
-                if "highly applicable" in first_150 or "directly applicable" in first_150:
-                    level = "high"
-                    total_high += 1
-                elif "limited" in first_150 or "not directly" in first_150 or "low applicab" in first_150:
-                    level = "low"
-                    total_low += 1
-                else:
-                    level = "moderate"
-                    total_moderate += 1
+            # Classify
+            if "highly applicable" in first_150 or "directly applicable" in first_150:
+                level = "high"
+                total_high += 1
+            elif "limited" in first_150 or "not directly" in first_150 or "low applicab" in first_150:
+                level = "low"
+                total_low += 1
+            else:
+                level = "moderate"
+                total_moderate += 1
 
-                fields = _parse_json_list(row["fields"])
-                paper_entry = {
-                    "paper_id": row["paper_id"],
-                    "title": row["title"],
-                    "year": row["year"],
-                    "fields": fields,
-                    "average_score": row["average_score"],
-                    "applicability_level": level,
-                    "applicability_summary": content[:200],
-                }
-
-                if level == "high":
-                    high_papers.append(paper_entry)
-                elif level == "moderate":
-                    moderate_papers.append(paper_entry)
-                else:
-                    low_papers.append(paper_entry)
-
-                # Field distribution
-                for f in fields:
-                    if f not in field_stats:
-                        field_stats[f] = {"high": 0, "moderate": 0}
-                    if level == "high":
-                        field_stats[f]["high"] += 1
-                    elif level == "moderate":
-                        field_stats[f]["moderate"] += 1
-
-                # Dataset mentions
-                content_lower = content.lower()
-                for kw in _CHINA_DATASET_KEYWORDS:
-                    if kw.lower() in content_lower:
-                        if kw not in dataset_mentions:
-                            dataset_mentions[kw] = {"count": 0, "paper_ids": set()}
-                        dataset_mentions[kw]["count"] += 1
-                        dataset_mentions[kw]["paper_ids"].add(row["paper_id"])
-
-            # Sort papers by score descending
-            high_papers.sort(key=lambda p: p.get("average_score") or 0, reverse=True)
-            moderate_papers.sort(key=lambda p: p.get("average_score") or 0, reverse=True)
-            low_papers.sort(key=lambda p: p.get("average_score") or 0, reverse=True)
-
-            # Build paper_id -> title lookup for data mentions
-            paper_title_map: dict[str, str] = {}
-            for row in rows:
-                paper_title_map[row["paper_id"]] = row["title"] or row["paper_id"]
-
-            # Build field distribution
-            field_distribution = [
-                {"field": f, "high_count": counts["high"], "moderate_count": counts["moderate"]}
-                for f, counts in sorted(field_stats.items(), key=lambda x: -(x[1]["high"] + x[1]["moderate"]))
-            ]
-
-            # Build data mentions with paper titles
-            data_mentions = [
-                {
-                    "field": ds,
-                    "count": info["count"],
-                    "paper_ids": sorted(info["paper_ids"]),
-                    "paper_titles": [
-                        {"paper_id": pid, "title": paper_title_map.get(pid, pid)}
-                        for pid in sorted(info["paper_ids"])
-                    ],
-                }
-                for ds, info in sorted(dataset_mentions.items(), key=lambda x: -x[1]["count"])
-            ]
-
-            return {
-                "total_high": total_high,
-                "total_moderate": total_moderate,
-                "total_low": total_low,
-                "high_papers": high_papers,
-                "moderate_papers": moderate_papers,
-                "low_papers": low_papers,
-                "field_distribution": field_distribution,
-                "data_mentions": data_mentions,
+            fields = _parse_json_list(row["fields"])
+            paper_entry = {
+                "paper_id": row["paper_id"],
+                "title": row["title"],
+                "year": row["year"],
+                "fields": fields,
+                "average_score": row["average_score"],
+                "applicability_level": level,
+                "applicability_summary": content[:200],
             }
+
+            if level == "high":
+                high_papers.append(paper_entry)
+            elif level == "moderate":
+                moderate_papers.append(paper_entry)
+            else:
+                low_papers.append(paper_entry)
+
+            # Field distribution
+            for f in fields:
+                if f not in field_stats:
+                    field_stats[f] = {"high": 0, "moderate": 0}
+                if level == "high":
+                    field_stats[f]["high"] += 1
+                elif level == "moderate":
+                    field_stats[f]["moderate"] += 1
+
+            # Dataset mentions
+            content_lower = content.lower()
+            for kw in _CHINA_DATASET_KEYWORDS:
+                if kw.lower() in content_lower:
+                    if kw not in dataset_mentions:
+                        dataset_mentions[kw] = {"count": 0, "paper_ids": set()}
+                    dataset_mentions[kw]["count"] += 1
+                    dataset_mentions[kw]["paper_ids"].add(row["paper_id"])
+
+        # Sort papers by score descending
+        high_papers.sort(key=lambda p: p.get("average_score") or 0, reverse=True)
+        moderate_papers.sort(key=lambda p: p.get("average_score") or 0, reverse=True)
+        low_papers.sort(key=lambda p: p.get("average_score") or 0, reverse=True)
+
+        # Build paper_id -> title lookup for data mentions
+        paper_title_map: dict[str, str] = {}
+        for row in rows:
+            paper_title_map[row["paper_id"]] = row["title"] or row["paper_id"]
+
+        # Build field distribution
+        field_distribution = [
+            {"field": f, "high_count": counts["high"], "moderate_count": counts["moderate"]}
+            for f, counts in sorted(field_stats.items(), key=lambda x: -(x[1]["high"] + x[1]["moderate"]))
+        ]
+
+        # Build data mentions with paper titles
+        data_mentions = [
+            {
+                "field": ds,
+                "count": info["count"],
+                "paper_ids": sorted(info["paper_ids"]),
+                "paper_titles": [
+                    {"paper_id": pid, "title": paper_title_map.get(pid, pid)}
+                    for pid in sorted(info["paper_ids"])
+                ],
+            }
+            for ds, info in sorted(dataset_mentions.items(), key=lambda x: -x[1]["count"])
+        ]
+
+        return {
+            "total_high": total_high,
+            "total_moderate": total_moderate,
+            "total_low": total_low,
+            "high_papers": high_papers,
+            "moderate_papers": moderate_papers,
+            "low_papers": low_papers,
+            "field_distribution": field_distribution,
+            "data_mentions": data_mentions,
+        }
 
     except Exception:
         logger.exception("get_china_dashboard failed")
@@ -4598,17 +4607,16 @@ async def create_user_idea(title: str, description: str = "") -> dict[str, Any] 
         return None
     _ensure_user_ideas_table()
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "INSERT INTO user_ideas (title, description) VALUES (?, ?)",
-                (title, description),
-            )
-            await db.commit()
-            new_id = cursor.lastrowid
-            cursor2 = await db.execute("SELECT * FROM user_ideas WHERE id = ?", (new_id,))
-            row = await cursor2.fetchone()
-            return _row_to_user_idea(row) if row else None
+        db = await _get_db()
+        cursor = await db.execute(
+            "INSERT INTO user_ideas (title, description) VALUES (?, ?)",
+            (title, description),
+        )
+        await db.commit()
+        new_id = cursor.lastrowid
+        cursor2 = await db.execute("SELECT * FROM user_ideas WHERE id = ?", (new_id,))
+        row = await cursor2.fetchone()
+        return _row_to_user_idea(row) if row else None
     except Exception:
         logger.exception("create_user_idea failed")
         return None
@@ -4635,13 +4643,13 @@ async def update_user_idea(idea_id: int, fields: dict[str, Any]) -> bool:
     values.append(idea_id)
 
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                f"UPDATE user_ideas SET {', '.join(set_parts)} WHERE id = ?",
-                values,
-            )
-            await db.commit()
-            return True
+        db = await _get_db()
+        await db.execute(
+            f"UPDATE user_ideas SET {', '.join(set_parts)} WHERE id = ?",
+            values,
+        )
+        await db.commit()
+        return True
     except Exception:
         logger.exception("update_user_idea failed for id=%s", idea_id)
         return False
@@ -4652,10 +4660,10 @@ async def delete_user_idea(idea_id: int) -> bool:
         return False
     _ensure_user_ideas_table()
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            cursor = await db.execute("DELETE FROM user_ideas WHERE id = ?", (idea_id,))
-            await db.commit()
-            return cursor.rowcount > 0
+        db = await _get_db()
+        cursor = await db.execute("DELETE FROM user_ideas WHERE id = ?", (idea_id,))
+        await db.commit()
+        return cursor.rowcount > 0
     except Exception:
         logger.exception("delete_user_idea failed for id=%s", idea_id)
         return False
@@ -4666,16 +4674,15 @@ async def get_user_ideas(status: str | None = None) -> list[dict[str, Any]]:
         return []
     _ensure_user_ideas_table()
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            if status:
-                cursor = await db.execute(
-                    "SELECT * FROM user_ideas WHERE status = ? ORDER BY updated_at DESC",
-                    (status,),
-                )
-            else:
-                cursor = await db.execute("SELECT * FROM user_ideas ORDER BY updated_at DESC")
-            return [_row_to_user_idea(r) for r in await cursor.fetchall()]
+        db = await _get_db()
+        if status:
+            cursor = await db.execute(
+                "SELECT * FROM user_ideas WHERE status = ? ORDER BY updated_at DESC",
+                (status,),
+            )
+        else:
+            cursor = await db.execute("SELECT * FROM user_ideas ORDER BY updated_at DESC")
+        return [_row_to_user_idea(r) for r in await cursor.fetchall()]
     except Exception:
         logger.exception("get_user_ideas failed")
         return []
@@ -4686,11 +4693,10 @@ async def get_user_idea(idea_id: int) -> dict[str, Any] | None:
         return None
     _ensure_user_ideas_table()
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute("SELECT * FROM user_ideas WHERE id = ?", (idea_id,))
-            row = await cursor.fetchone()
-            return _row_to_user_idea(row) if row else None
+        db = await _get_db()
+        cursor = await db.execute("SELECT * FROM user_ideas WHERE id = ?", (idea_id,))
+        row = await cursor.fetchone()
+        return _row_to_user_idea(row) if row else None
     except Exception:
         logger.exception("get_user_idea failed for id=%s", idea_id)
         return None
@@ -4701,21 +4707,20 @@ async def add_paper_to_user_idea(idea_id: int, paper_id: str) -> bool:
         return False
     _ensure_user_ideas_table()
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute("SELECT related_paper_ids FROM user_ideas WHERE id = ?", (idea_id,))
-            row = await cursor.fetchone()
-            if not row:
-                return False
-            current = _parse_json_list(row["related_paper_ids"])
-            if paper_id not in current:
-                current.append(paper_id)
-            await db.execute(
-                "UPDATE user_ideas SET related_paper_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                (json.dumps(current), idea_id),
-            )
-            await db.commit()
-            return True
+        db = await _get_db()
+        cursor = await db.execute("SELECT related_paper_ids FROM user_ideas WHERE id = ?", (idea_id,))
+        row = await cursor.fetchone()
+        if not row:
+            return False
+        current = _parse_json_list(row["related_paper_ids"])
+        if paper_id not in current:
+            current.append(paper_id)
+        await db.execute(
+            "UPDATE user_ideas SET related_paper_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (json.dumps(current), idea_id),
+        )
+        await db.commit()
+        return True
     except Exception:
         logger.exception("add_paper_to_user_idea failed")
         return False
@@ -4726,21 +4731,20 @@ async def remove_paper_from_user_idea(idea_id: int, paper_id: str) -> bool:
         return False
     _ensure_user_ideas_table()
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute("SELECT related_paper_ids FROM user_ideas WHERE id = ?", (idea_id,))
-            row = await cursor.fetchone()
-            if not row:
-                return False
-            current = _parse_json_list(row["related_paper_ids"])
-            if paper_id in current:
-                current.remove(paper_id)
-            await db.execute(
-                "UPDATE user_ideas SET related_paper_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                (json.dumps(current), idea_id),
-            )
-            await db.commit()
-            return True
+        db = await _get_db()
+        cursor = await db.execute("SELECT related_paper_ids FROM user_ideas WHERE id = ?", (idea_id,))
+        row = await cursor.fetchone()
+        if not row:
+            return False
+        current = _parse_json_list(row["related_paper_ids"])
+        if paper_id in current:
+            current.remove(paper_id)
+        await db.execute(
+            "UPDATE user_ideas SET related_paper_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (json.dumps(current), idea_id),
+        )
+        await db.commit()
+        return True
     except Exception:
         logger.exception("remove_paper_from_user_idea failed")
         return False
@@ -4752,35 +4756,34 @@ async def link_ideas(idea_id: int, linked_idea_id: int) -> bool:
         return False
     _ensure_user_ideas_table()
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            # Add linked_idea_id to idea_id's list
-            cursor = await db.execute("SELECT related_idea_ids FROM user_ideas WHERE id = ?", (idea_id,))
-            row = await cursor.fetchone()
-            if not row:
-                return False
-            current = _parse_json_list(row["related_idea_ids"])
-            lid_str = str(linked_idea_id)
-            if lid_str not in current:
-                current.append(lid_str)
+        db = await _get_db()
+        # Add linked_idea_id to idea_id's list
+        cursor = await db.execute("SELECT related_idea_ids FROM user_ideas WHERE id = ?", (idea_id,))
+        row = await cursor.fetchone()
+        if not row:
+            return False
+        current = _parse_json_list(row["related_idea_ids"])
+        lid_str = str(linked_idea_id)
+        if lid_str not in current:
+            current.append(lid_str)
+        await db.execute(
+            "UPDATE user_ideas SET related_idea_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (json.dumps(current), idea_id),
+        )
+        # Add idea_id to linked_idea_id's list (bidirectional)
+        cursor2 = await db.execute("SELECT related_idea_ids FROM user_ideas WHERE id = ?", (linked_idea_id,))
+        row2 = await cursor2.fetchone()
+        if row2:
+            current2 = _parse_json_list(row2["related_idea_ids"])
+            iid_str = str(idea_id)
+            if iid_str not in current2:
+                current2.append(iid_str)
             await db.execute(
                 "UPDATE user_ideas SET related_idea_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                (json.dumps(current), idea_id),
+                (json.dumps(current2), linked_idea_id),
             )
-            # Add idea_id to linked_idea_id's list (bidirectional)
-            cursor2 = await db.execute("SELECT related_idea_ids FROM user_ideas WHERE id = ?", (linked_idea_id,))
-            row2 = await cursor2.fetchone()
-            if row2:
-                current2 = _parse_json_list(row2["related_idea_ids"])
-                iid_str = str(idea_id)
-                if iid_str not in current2:
-                    current2.append(iid_str)
-                await db.execute(
-                    "UPDATE user_ideas SET related_idea_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                    (json.dumps(current2), linked_idea_id),
-                )
-            await db.commit()
-            return True
+        await db.commit()
+        return True
     except Exception:
         logger.exception("link_ideas failed for %s -> %s", idea_id, linked_idea_id)
         return False
@@ -4792,35 +4795,34 @@ async def unlink_ideas(idea_id: int, linked_idea_id: int) -> bool:
         return False
     _ensure_user_ideas_table()
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            # Remove from idea_id's list
-            cursor = await db.execute("SELECT related_idea_ids FROM user_ideas WHERE id = ?", (idea_id,))
-            row = await cursor.fetchone()
-            if not row:
-                return False
-            current = _parse_json_list(row["related_idea_ids"])
-            lid_str = str(linked_idea_id)
-            if lid_str in current:
-                current.remove(lid_str)
+        db = await _get_db()
+        # Remove from idea_id's list
+        cursor = await db.execute("SELECT related_idea_ids FROM user_ideas WHERE id = ?", (idea_id,))
+        row = await cursor.fetchone()
+        if not row:
+            return False
+        current = _parse_json_list(row["related_idea_ids"])
+        lid_str = str(linked_idea_id)
+        if lid_str in current:
+            current.remove(lid_str)
+        await db.execute(
+            "UPDATE user_ideas SET related_idea_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (json.dumps(current), idea_id),
+        )
+        # Remove from linked_idea_id's list (bidirectional)
+        cursor2 = await db.execute("SELECT related_idea_ids FROM user_ideas WHERE id = ?", (linked_idea_id,))
+        row2 = await cursor2.fetchone()
+        if row2:
+            current2 = _parse_json_list(row2["related_idea_ids"])
+            iid_str = str(idea_id)
+            if iid_str in current2:
+                current2.remove(iid_str)
             await db.execute(
                 "UPDATE user_ideas SET related_idea_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                (json.dumps(current), idea_id),
+                (json.dumps(current2), linked_idea_id),
             )
-            # Remove from linked_idea_id's list (bidirectional)
-            cursor2 = await db.execute("SELECT related_idea_ids FROM user_ideas WHERE id = ?", (linked_idea_id,))
-            row2 = await cursor2.fetchone()
-            if row2:
-                current2 = _parse_json_list(row2["related_idea_ids"])
-                iid_str = str(idea_id)
-                if iid_str in current2:
-                    current2.remove(iid_str)
-                await db.execute(
-                    "UPDATE user_ideas SET related_idea_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                    (json.dumps(current2), linked_idea_id),
-                )
-            await db.commit()
-            return True
+        await db.commit()
+        return True
     except Exception:
         logger.exception("unlink_ideas failed for %s -> %s", idea_id, linked_idea_id)
         return False
@@ -4954,190 +4956,189 @@ async def analyze_topic_saturation(
         if not ids:
             return empty
 
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            placeholders = ", ".join("?" for _ in ids)
+        db = await _get_db()
+        placeholders = ", ".join("?" for _ in ids)
 
-            # 2. Fetch years for these papers
-            cursor = await db.execute(
-                f"SELECT paper_id, year FROM papers WHERE paper_id IN ({placeholders}) AND year IS NOT NULL",
-                ids,
+        # 2. Fetch years for these papers
+        cursor = await db.execute(
+            f"SELECT paper_id, year FROM papers WHERE paper_id IN ({placeholders}) AND year IS NOT NULL",
+            ids,
+        )
+        rows = await cursor.fetchall()
+
+        if not rows:
+            return {**empty, "total_papers": len(ids)}
+
+        # Compute year distribution
+        year_counts: dict[int, int] = {}
+        for r in rows:
+            y = r["year"]
+            year_counts[y] = year_counts.get(y, 0) + 1
+
+        year_trend = sorted(
+            [{"year": y, "count": c} for y, c in year_counts.items()],
+            key=lambda x: x["year"],
+        )
+        total_papers = sum(c for c in year_counts.values())
+
+        # 3. Compute growth rate: compare last 3 years vs prior 3 years
+        all_years = sorted(year_counts.keys())
+        max_year = all_years[-1]
+        recent_years = {y: c for y, c in year_counts.items() if y >= max_year - 2}
+        prior_years = {
+            y: c
+            for y, c in year_counts.items()
+            if max_year - 5 <= y < max_year - 2
+        }
+
+        recent_avg = (
+            sum(recent_years.values()) / len(recent_years)
+            if recent_years
+            else 0
+        )
+        prior_avg = (
+            sum(prior_years.values()) / len(prior_years)
+            if prior_years
+            else 0
+        )
+
+        if prior_avg > 0:
+            annual_growth_rate = round(
+                (recent_avg - prior_avg) / prior_avg, 4
             )
-            rows = await cursor.fetchall()
+        elif recent_avg > 0:
+            annual_growth_rate = 1.0
+        else:
+            annual_growth_rate = 0.0
 
-            if not rows:
-                return {**empty, "total_papers": len(ids)}
+        # 4. Method diversity: unique method atoms / total papers
+        method_cursor = await db.execute(
+            f"""SELECT COUNT(DISTINCT a.slug) as method_count
+                FROM atoms a
+                JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+                WHERE apr.paper_id IN ({placeholders}) AND a.type = 'method'""",
+            ids,
+        )
+        method_row = await method_cursor.fetchone()
+        unique_methods = method_row["method_count"] if method_row else 0
+        method_diversity = round(
+            min(unique_methods / max(total_papers, 1), 1.0), 3
+        )
 
-            # Compute year distribution
-            year_counts: dict[int, int] = {}
-            for r in rows:
-                y = r["year"]
-                year_counts[y] = year_counts.get(y, 0) + 1
+        # 5. Classify phase
+        year_span = max_year - all_years[0] + 1 if len(all_years) > 1 else 1
+        recent_concentrated = all(y >= max_year - 3 for y in all_years)
 
-            year_trend = sorted(
-                [{"year": y, "count": c} for y, c in year_counts.items()],
-                key=lambda x: x["year"],
+        if total_papers < 10 and recent_concentrated:
+            growth_phase = "emerging"
+        elif annual_growth_rate > 0.20:
+            growth_phase = "growing"
+        elif annual_growth_rate < -0.20 or (
+            method_diversity > 0.7 and annual_growth_rate <= 0
+        ):
+            growth_phase = "saturated"
+        else:
+            growth_phase = "mature"
+
+        # 6. Key indicators
+        key_indicators = []
+
+        key_indicators.append({
+            "indicator": "Paper volume",
+            "value": str(total_papers),
+            "interpretation": (
+                "Large body of work"
+                if total_papers >= 30
+                else "Moderate literature"
+                if total_papers >= 10
+                else "Small/emerging area"
+            ),
+        })
+
+        key_indicators.append({
+            "indicator": "Annual growth",
+            "value": f"{annual_growth_rate * 100:+.1f}%",
+            "interpretation": (
+                "Accelerating interest"
+                if annual_growth_rate > 0.2
+                else "Decelerating"
+                if annual_growth_rate < -0.2
+                else "Stable output"
+            ),
+        })
+
+        key_indicators.append({
+            "indicator": "Method diversity",
+            "value": f"{method_diversity * 100:.0f}%",
+            "interpretation": (
+                "Many methods tried (high diversity)"
+                if method_diversity > 0.5
+                else "Moderate method coverage"
+                if method_diversity > 0.2
+                else "Few methods explored"
+            ),
+        })
+
+        key_indicators.append({
+            "indicator": "Time span",
+            "value": f"{year_span} years",
+            "interpretation": (
+                "Long-established topic"
+                if year_span > 10
+                else "Developing area"
+                if year_span > 3
+                else "Very recent topic"
+            ),
+        })
+
+        key_indicators.append({
+            "indicator": "Unique methods",
+            "value": str(unique_methods),
+            "interpretation": (
+                "Rich methodological toolkit"
+                if unique_methods >= 5
+                else "Growing toolkit"
+                if unique_methods >= 2
+                else "Limited methods so far"
+            ),
+        })
+
+        # 7. Recommendation
+        if growth_phase == "emerging":
+            recommendation = (
+                "This topic is in its early stages with few papers. "
+                "There is significant opportunity for foundational contributions "
+                "and establishing key empirical facts."
             )
-            total_papers = sum(c for c in year_counts.values())
-
-            # 3. Compute growth rate: compare last 3 years vs prior 3 years
-            all_years = sorted(year_counts.keys())
-            max_year = all_years[-1]
-            recent_years = {y: c for y, c in year_counts.items() if y >= max_year - 2}
-            prior_years = {
-                y: c
-                for y, c in year_counts.items()
-                if max_year - 5 <= y < max_year - 2
-            }
-
-            recent_avg = (
-                sum(recent_years.values()) / len(recent_years)
-                if recent_years
-                else 0
+        elif growth_phase == "growing":
+            recommendation = (
+                "This topic is actively growing with increasing publication volume. "
+                "Good time to contribute, but differentiation through novel methods "
+                "or data will be important."
             )
-            prior_avg = (
-                sum(prior_years.values()) / len(prior_years)
-                if prior_years
-                else 0
+        elif growth_phase == "mature":
+            recommendation = (
+                "This topic has a stable publication volume. Look for underexplored "
+                "sub-questions, new data sources, or cross-disciplinary applications "
+                "to add value."
+            )
+        else:  # saturated
+            recommendation = (
+                "This topic shows signs of saturation with declining output or "
+                "exhaustive method coverage. Consider focusing on synthesis, "
+                "meta-analysis, or pivoting to related emerging sub-topics."
             )
 
-            if prior_avg > 0:
-                annual_growth_rate = round(
-                    (recent_avg - prior_avg) / prior_avg, 4
-                )
-            elif recent_avg > 0:
-                annual_growth_rate = 1.0
-            else:
-                annual_growth_rate = 0.0
-
-            # 4. Method diversity: unique method atoms / total papers
-            method_cursor = await db.execute(
-                f"""SELECT COUNT(DISTINCT a.slug) as method_count
-                    FROM atoms a
-                    JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                    WHERE apr.paper_id IN ({placeholders}) AND a.type = 'method'""",
-                ids,
-            )
-            method_row = await method_cursor.fetchone()
-            unique_methods = method_row["method_count"] if method_row else 0
-            method_diversity = round(
-                min(unique_methods / max(total_papers, 1), 1.0), 3
-            )
-
-            # 5. Classify phase
-            year_span = max_year - all_years[0] + 1 if len(all_years) > 1 else 1
-            recent_concentrated = all(y >= max_year - 3 for y in all_years)
-
-            if total_papers < 10 and recent_concentrated:
-                growth_phase = "emerging"
-            elif annual_growth_rate > 0.20:
-                growth_phase = "growing"
-            elif annual_growth_rate < -0.20 or (
-                method_diversity > 0.7 and annual_growth_rate <= 0
-            ):
-                growth_phase = "saturated"
-            else:
-                growth_phase = "mature"
-
-            # 6. Key indicators
-            key_indicators = []
-
-            key_indicators.append({
-                "indicator": "Paper volume",
-                "value": str(total_papers),
-                "interpretation": (
-                    "Large body of work"
-                    if total_papers >= 30
-                    else "Moderate literature"
-                    if total_papers >= 10
-                    else "Small/emerging area"
-                ),
-            })
-
-            key_indicators.append({
-                "indicator": "Annual growth",
-                "value": f"{annual_growth_rate * 100:+.1f}%",
-                "interpretation": (
-                    "Accelerating interest"
-                    if annual_growth_rate > 0.2
-                    else "Decelerating"
-                    if annual_growth_rate < -0.2
-                    else "Stable output"
-                ),
-            })
-
-            key_indicators.append({
-                "indicator": "Method diversity",
-                "value": f"{method_diversity * 100:.0f}%",
-                "interpretation": (
-                    "Many methods tried (high diversity)"
-                    if method_diversity > 0.5
-                    else "Moderate method coverage"
-                    if method_diversity > 0.2
-                    else "Few methods explored"
-                ),
-            })
-
-            key_indicators.append({
-                "indicator": "Time span",
-                "value": f"{year_span} years",
-                "interpretation": (
-                    "Long-established topic"
-                    if year_span > 10
-                    else "Developing area"
-                    if year_span > 3
-                    else "Very recent topic"
-                ),
-            })
-
-            key_indicators.append({
-                "indicator": "Unique methods",
-                "value": str(unique_methods),
-                "interpretation": (
-                    "Rich methodological toolkit"
-                    if unique_methods >= 5
-                    else "Growing toolkit"
-                    if unique_methods >= 2
-                    else "Limited methods so far"
-                ),
-            })
-
-            # 7. Recommendation
-            if growth_phase == "emerging":
-                recommendation = (
-                    "This topic is in its early stages with few papers. "
-                    "There is significant opportunity for foundational contributions "
-                    "and establishing key empirical facts."
-                )
-            elif growth_phase == "growing":
-                recommendation = (
-                    "This topic is actively growing with increasing publication volume. "
-                    "Good time to contribute, but differentiation through novel methods "
-                    "or data will be important."
-                )
-            elif growth_phase == "mature":
-                recommendation = (
-                    "This topic has a stable publication volume. Look for underexplored "
-                    "sub-questions, new data sources, or cross-disciplinary applications "
-                    "to add value."
-                )
-            else:  # saturated
-                recommendation = (
-                    "This topic shows signs of saturation with declining output or "
-                    "exhaustive method coverage. Consider focusing on synthesis, "
-                    "meta-analysis, or pivoting to related emerging sub-topics."
-                )
-
-            return {
-                "topic": query,
-                "total_papers": total_papers,
-                "year_trend": year_trend,
-                "growth_phase": growth_phase,
-                "annual_growth_rate": annual_growth_rate,
-                "method_diversity": method_diversity,
-                "key_indicators": key_indicators,
-                "recommendation": recommendation,
-            }
+        return {
+            "topic": query,
+            "total_papers": total_papers,
+            "year_trend": year_trend,
+            "growth_phase": growth_phase,
+            "annual_growth_rate": annual_growth_rate,
+            "method_diversity": method_diversity,
+            "key_indicators": key_indicators,
+            "recommendation": recommendation,
+        }
 
     except Exception:
         logger.exception("analyze_topic_saturation failed for query=%s", query)
@@ -5163,22 +5164,21 @@ async def get_paper_debates(paper_id: str) -> list[dict[str, Any]]:
         debates: list[dict[str, Any]] = []
         seen_titles: set[str] = set()
 
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            # Load debate_map content
-            dm_cursor = await db.execute(
-                "SELECT content FROM field_maps WHERE slug = 'debate_map'"
-            )
-            dm_row = await dm_cursor.fetchone()
-            debate_map_text = dm_row["content"] if dm_row else ""
+        # Load debate_map content
+        dm_cursor = await db.execute(
+            "SELECT content FROM field_maps WHERE slug = 'debate_map'"
+        )
+        dm_row = await dm_cursor.fetchone()
+        debate_map_text = dm_row["content"] if dm_row else ""
 
-            # Load research_landscape content
-            rl_cursor = await db.execute(
-                "SELECT content FROM field_maps WHERE slug = 'research_landscape'"
-            )
-            rl_row = await rl_cursor.fetchone()
-            landscape_text = rl_row["content"] if rl_row else ""
+        # Load research_landscape content
+        rl_cursor = await db.execute(
+            "SELECT content FROM field_maps WHERE slug = 'research_landscape'"
+        )
+        rl_row = await rl_cursor.fetchone()
+        landscape_text = rl_row["content"] if rl_row else ""
 
         # --- Parse debate_map ---
         if paper_id in debate_map_text:
@@ -5364,23 +5364,22 @@ async def save_research_session(
 ) -> dict[str, Any] | None:
     """Save a research session and return its data."""
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            paper_ids_json = json.dumps(paper_ids or [])
-            cursor = await db.execute(
-                """INSERT INTO research_sessions (title, query, filters, sort, paper_ids, notes)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (title, query, filters, sort, paper_ids_json, notes),
-            )
-            await db.commit()
-            row_id = cursor.lastrowid
-            row_cursor = await db.execute(
-                "SELECT * FROM research_sessions WHERE id = ?", (row_id,)
-            )
-            row = await row_cursor.fetchone()
-            if not row:
-                return None
-            return _row_to_research_session(row)
+        db = await _get_db()
+        paper_ids_json = json.dumps(paper_ids or [])
+        cursor = await db.execute(
+            """INSERT INTO research_sessions (title, query, filters, sort, paper_ids, notes)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (title, query, filters, sort, paper_ids_json, notes),
+        )
+        await db.commit()
+        row_id = cursor.lastrowid
+        row_cursor = await db.execute(
+            "SELECT * FROM research_sessions WHERE id = ?", (row_id,)
+        )
+        row = await row_cursor.fetchone()
+        if not row:
+            return None
+        return _row_to_research_session(row)
     except Exception:
         logger.exception("save_research_session failed")
         return None
@@ -5391,13 +5390,12 @@ async def get_research_sessions() -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT * FROM research_sessions ORDER BY updated_at DESC"
-            )
-            rows = await cursor.fetchall()
-            return [_row_to_research_session(r) for r in rows]
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT * FROM research_sessions ORDER BY updated_at DESC"
+        )
+        rows = await cursor.fetchall()
+        return [_row_to_research_session(r) for r in rows]
     except Exception:
         logger.exception("get_research_sessions failed")
         return []
@@ -5408,15 +5406,14 @@ async def get_research_session(session_id: int) -> dict[str, Any] | None:
     if not _db_exists():
         return None
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT * FROM research_sessions WHERE id = ?", (session_id,)
-            )
-            row = await cursor.fetchone()
-            if not row:
-                return None
-            return _row_to_research_session(row)
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT * FROM research_sessions WHERE id = ?", (session_id,)
+        )
+        row = await cursor.fetchone()
+        if not row:
+            return None
+        return _row_to_research_session(row)
     except Exception:
         logger.exception("get_research_session failed for %s", session_id)
         return None
@@ -5425,12 +5422,12 @@ async def get_research_session(session_id: int) -> dict[str, Any] | None:
 async def delete_research_session(session_id: int) -> bool:
     """Delete a research session by ID."""
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            cursor = await db.execute(
-                "DELETE FROM research_sessions WHERE id = ?", (session_id,)
-            )
-            await db.commit()
-            return cursor.rowcount > 0
+        db = await _get_db()
+        cursor = await db.execute(
+            "DELETE FROM research_sessions WHERE id = ?", (session_id,)
+        )
+        await db.commit()
+        return cursor.rowcount > 0
     except Exception:
         logger.exception("delete_research_session failed for %s", session_id)
         return False
@@ -5439,13 +5436,13 @@ async def delete_research_session(session_id: int) -> bool:
 async def update_research_session_notes(session_id: int, notes: str) -> bool:
     """Update the notes field of a research session."""
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            cursor = await db.execute(
-                "UPDATE research_sessions SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                (notes, session_id),
-            )
-            await db.commit()
-            return cursor.rowcount > 0
+        db = await _get_db()
+        cursor = await db.execute(
+            "UPDATE research_sessions SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (notes, session_id),
+        )
+        await db.commit()
+        return cursor.rowcount > 0
     except Exception:
         logger.exception("update_research_session_notes failed for %s", session_id)
         return False
@@ -5502,49 +5499,48 @@ async def topic_timeline(
             if h.get("entity_type") == "paper":
                 score_map[h["entity_id"]] = h.get("rrf_score", h.get("rank", 0.0))
 
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            placeholders = ", ".join("?" for _ in paper_ids)
-            cursor = await db.execute(
-                f"SELECT * FROM papers WHERE paper_id IN ({placeholders})",
-                paper_ids,
-            )
-            rows = await cursor.fetchall()
+        db = await _get_db()
+        placeholders = ", ".join("?" for _ in paper_ids)
+        cursor = await db.execute(
+            f"SELECT * FROM papers WHERE paper_id IN ({placeholders})",
+            paper_ids,
+        )
+        rows = await cursor.fetchall()
 
-            # 2. Group by year
-            year_groups: dict[int, list[dict]] = {}
-            for r in rows:
-                year = r["year"]
-                if year is None:
-                    continue
-                paper = _row_to_paper(r)
-                paper["search_score"] = score_map.get(paper["paper_id"], 0.0)
-                if year not in year_groups:
-                    year_groups[year] = []
-                year_groups[year].append(paper)
+        # 2. Group by year
+        year_groups: dict[int, list[dict]] = {}
+        for r in rows:
+            year = r["year"]
+            if year is None:
+                continue
+            paper = _row_to_paper(r)
+            paper["search_score"] = score_map.get(paper["paper_id"], 0.0)
+            if year not in year_groups:
+                year_groups[year] = []
+            year_groups[year].append(paper)
 
-            # 3. For each year, sort by search_score desc and limit
-            years = []
-            for year in sorted(year_groups.keys()):
-                papers = year_groups[year]
-                papers.sort(key=lambda p: p.get("search_score", 0), reverse=True)
-                top_papers = papers[:limit_per_year]
-                years.append({
-                    "year": year,
-                    "count": len(papers),
-                    "papers": [
-                        {
-                            "paper_id": p["paper_id"],
-                            "title": p.get("title"),
-                            "has_card": p.get("has_card", False),
-                            "average_score": p.get("average_score"),
-                            "fields": p.get("fields", []),
-                        }
-                        for p in top_papers
-                    ],
-                })
+        # 3. For each year, sort by search_score desc and limit
+        years = []
+        for year in sorted(year_groups.keys()):
+            papers = year_groups[year]
+            papers.sort(key=lambda p: p.get("search_score", 0), reverse=True)
+            top_papers = papers[:limit_per_year]
+            years.append({
+                "year": year,
+                "count": len(papers),
+                "papers": [
+                    {
+                        "paper_id": p["paper_id"],
+                        "title": p.get("title"),
+                        "has_card": p.get("has_card", False),
+                        "average_score": p.get("average_score"),
+                        "fields": p.get("fields", []),
+                    }
+                    for p in top_papers
+                ],
+            })
 
-            return {"years": years}
+        return {"years": years}
     except Exception:
         logger.exception("topic_timeline failed for query=%s", query)
         return empty
@@ -5563,85 +5559,84 @@ async def get_field_taxonomy() -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            # 1. Build field -> paper_ids mapping
-            cursor = await db.execute(
-                "SELECT paper_id, fields FROM papers WHERE fields IS NOT NULL AND fields != '' AND fields != '[]'"
-            )
-            rows = await cursor.fetchall()
+        # 1. Build field -> paper_ids mapping
+        cursor = await db.execute(
+            "SELECT paper_id, fields FROM papers WHERE fields IS NOT NULL AND fields != '' AND fields != '[]'"
+        )
+        rows = await cursor.fetchall()
 
-            field_paper_ids: dict[str, set[str]] = {}
-            for r in rows:
-                for f in _parse_json_list(r["fields"]):
-                    field_paper_ids.setdefault(f, set()).add(r["paper_id"])
+        field_paper_ids: dict[str, set[str]] = {}
+        for r in rows:
+            for f in _parse_json_list(r["fields"]):
+                field_paper_ids.setdefault(f, set()).add(r["paper_id"])
 
-            # 2. Build paper_id -> atom_slugs mapping
-            apr_cursor = await db.execute("SELECT atom_slug, paper_id FROM atom_paper_refs")
-            apr_rows = await apr_cursor.fetchall()
-            paper_atoms: dict[str, set[str]] = {}
-            for ar in apr_rows:
-                paper_atoms.setdefault(ar["paper_id"], set()).add(ar["atom_slug"])
+        # 2. Build paper_id -> atom_slugs mapping
+        apr_cursor = await db.execute("SELECT atom_slug, paper_id FROM atom_paper_refs")
+        apr_rows = await apr_cursor.fetchall()
+        paper_atoms: dict[str, set[str]] = {}
+        for ar in apr_rows:
+            paper_atoms.setdefault(ar["paper_id"], set()).add(ar["atom_slug"])
 
-            # 3. Load atom metadata (slug -> type, title, theme)
-            atom_cursor = await db.execute("SELECT slug, type, title, description, evidence_strength, access, theme FROM atoms")
-            atom_rows = await atom_cursor.fetchall()
-            atom_info: dict[str, dict] = {}
-            for a in atom_rows:
-                atom_info[a["slug"]] = {
-                    "slug": a["slug"],
-                    "type": a["type"],
-                    "title": a["title"],
-                    "description": a["description"],
-                    "evidence_strength": a["evidence_strength"],
-                    "access": a["access"],
-                    "theme": a["theme"],
-                }
+        # 3. Load atom metadata (slug -> type, title, theme)
+        atom_cursor = await db.execute("SELECT slug, type, title, description, evidence_strength, access, theme FROM atoms")
+        atom_rows = await atom_cursor.fetchall()
+        atom_info: dict[str, dict] = {}
+        for a in atom_rows:
+            atom_info[a["slug"]] = {
+                "slug": a["slug"],
+                "type": a["type"],
+                "title": a["title"],
+                "description": a["description"],
+                "evidence_strength": a["evidence_strength"],
+                "access": a["access"],
+                "theme": a["theme"],
+            }
 
-            # 4. For each field, count top atoms by type
-            from collections import Counter
-            results = []
-            for field in sorted(field_paper_ids, key=lambda f: -len(field_paper_ids[f])):
-                pids = field_paper_ids[field]
-                # Gather all atom slugs for this field
-                type_counts: dict[str, Counter] = {
-                    "method": Counter(),
-                    "mechanism": Counter(),
-                    "dataset": Counter(),
-                }
-                for pid in pids:
-                    for slug in paper_atoms.get(pid, set()):
-                        info = atom_info.get(slug)
-                        if info and info["type"] in type_counts:
-                            type_counts[info["type"]][slug] += 1
+        # 4. For each field, count top atoms by type
+        from collections import Counter
+        results = []
+        for field in sorted(field_paper_ids, key=lambda f: -len(field_paper_ids[f])):
+            pids = field_paper_ids[field]
+            # Gather all atom slugs for this field
+            type_counts: dict[str, Counter] = {
+                "method": Counter(),
+                "mechanism": Counter(),
+                "dataset": Counter(),
+            }
+            for pid in pids:
+                for slug in paper_atoms.get(pid, set()):
+                    info = atom_info.get(slug)
+                    if info and info["type"] in type_counts:
+                        type_counts[info["type"]][slug] += 1
 
-                def _top_atoms(counter: Counter, limit: int = 8) -> list[dict]:
-                    out = []
-                    for slug, count in counter.most_common(limit):
-                        info = atom_info[slug]
-                        out.append({
-                            "slug": info["slug"],
-                            "title": info["title"],
-                            "type": info["type"],
-                            "description": info.get("description"),
-                            "evidence_strength": info.get("evidence_strength"),
-                            "access": info.get("access"),
-                            "theme": info.get("theme"),
-                            "paper_count": count,
-                            "paper_ids": [],
-                        })
-                    return out
+            def _top_atoms(counter: Counter, limit: int = 8) -> list[dict]:
+                out = []
+                for slug, count in counter.most_common(limit):
+                    info = atom_info[slug]
+                    out.append({
+                        "slug": info["slug"],
+                        "title": info["title"],
+                        "type": info["type"],
+                        "description": info.get("description"),
+                        "evidence_strength": info.get("evidence_strength"),
+                        "access": info.get("access"),
+                        "theme": info.get("theme"),
+                        "paper_count": count,
+                        "paper_ids": [],
+                    })
+                return out
 
-                results.append({
-                    "field": field,
-                    "paper_count": len(pids),
-                    "top_methods": _top_atoms(type_counts["method"]),
-                    "top_mechanisms": _top_atoms(type_counts["mechanism"]),
-                    "top_datasets": _top_atoms(type_counts["dataset"]),
-                })
+            results.append({
+                "field": field,
+                "paper_count": len(pids),
+                "top_methods": _top_atoms(type_counts["method"]),
+                "top_mechanisms": _top_atoms(type_counts["mechanism"]),
+                "top_datasets": _top_atoms(type_counts["dataset"]),
+            })
 
-            return results
+        return results
     except Exception:
         logger.exception("get_field_taxonomy failed")
         return []
@@ -5675,154 +5670,153 @@ async def get_field_detail(
     if not _db_exists():
         return empty
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            # 1. Find all paper_ids in this field (include jel for JEL extraction)
-            cursor = await db.execute(
-                "SELECT paper_id, fields, year, jel FROM papers WHERE fields LIKE ?",
-                (f'%"{field}"%',),
-            )
-            candidate_rows = await cursor.fetchall()
+        # 1. Find all paper_ids in this field (include jel for JEL extraction)
+        cursor = await db.execute(
+            "SELECT paper_id, fields, year, jel FROM papers WHERE fields LIKE ?",
+            (f'%"{field}"%',),
+        )
+        candidate_rows = await cursor.fetchall()
 
-            # Filter to exact field match (not substring)
-            matching_pids: list[str] = []
-            year_counts: dict[int, int] = {}
-            jel_counter: dict[str, int] = {}  # JEL code -> count
-            paper_jel_map: dict[str, list[str]] = {}  # paper_id -> jel codes
+        # Filter to exact field match (not substring)
+        matching_pids: list[str] = []
+        year_counts: dict[int, int] = {}
+        jel_counter: dict[str, int] = {}  # JEL code -> count
+        paper_jel_map: dict[str, list[str]] = {}  # paper_id -> jel codes
 
-            for r in candidate_rows:
-                if field in _parse_json_list(r["fields"]):
-                    pid = r["paper_id"]
-                    paper_jels = _parse_json_list(r["jel"])
-                    paper_jel_map[pid] = paper_jels
+        for r in candidate_rows:
+            if field in _parse_json_list(r["fields"]):
+                pid = r["paper_id"]
+                paper_jels = _parse_json_list(r["jel"])
+                paper_jel_map[pid] = paper_jels
 
-                    # Count JEL codes
-                    for jel in paper_jels:
-                        jel_counter[jel] = jel_counter.get(jel, 0) + 1
+                # Count JEL codes
+                for jel in paper_jels:
+                    jel_counter[jel] = jel_counter.get(jel, 0) + 1
 
-                    # Apply JEL filter if specified
-                    if jel_filter:
-                        if not any(j.startswith(jel_filter) for j in paper_jels):
-                            continue
+                # Apply JEL filter if specified
+                if jel_filter:
+                    if not any(j.startswith(jel_filter) for j in paper_jels):
+                        continue
 
-                    matching_pids.append(pid)
-                    yr = r["year"]
-                    if yr is not None:
-                        year_counts[yr] = year_counts.get(yr, 0) + 1
+                matching_pids.append(pid)
+                yr = r["year"]
+                if yr is not None:
+                    year_counts[yr] = year_counts.get(yr, 0) + 1
 
-            total = len(matching_pids)
-            if total == 0:
-                # Still return JEL codes even if filtered result is empty
-                jel_codes = [
-                    {"code": code, "count": cnt}
-                    for code, cnt in sorted(jel_counter.items(), key=lambda x: -x[1])
-                ]
-                empty["jel_codes"] = jel_codes
-                return empty
-
-            # 2. Get paginated papers
-            order_map = {
-                "year_desc": "p.year DESC",
-                "year_asc": "p.year ASC",
-                "score_desc": "p.average_score DESC",
-                "score_asc": "p.average_score ASC",
-                "id_desc": "p.paper_id DESC",
-            }
-            order_sql = order_map.get(sort or "", "p.year DESC")
-
-            placeholders = ", ".join("?" for _ in matching_pids)
-            paper_cursor = await db.execute(
-                f"SELECT * FROM papers p WHERE p.paper_id IN ({placeholders}) ORDER BY {order_sql} LIMIT ? OFFSET ?",
-                matching_pids + [limit, offset],
-            )
-            paper_rows = await paper_cursor.fetchall()
-            papers = [_row_to_paper(r) for r in paper_rows]
-
-            # 3. Get all atoms for papers in this field
-            from collections import Counter
-            type_counts: dict[str, Counter] = {
-                "method": Counter(),
-                "mechanism": Counter(),
-                "dataset": Counter(),
-                "puzzle": Counter(),
-            }
-
-            # Get atom links for these papers
-            apr_cursor = await db.execute(
-                f"SELECT atom_slug, paper_id FROM atom_paper_refs WHERE paper_id IN ({placeholders})",
-                matching_pids,
-            )
-            apr_rows = await apr_cursor.fetchall()
-
-            atom_slugs_needed: set[str] = set()
-            for ar in apr_rows:
-                atom_slugs_needed.add(ar["atom_slug"])
-
-            # Load atom metadata
-            atom_info: dict[str, dict] = {}
-            if atom_slugs_needed:
-                slug_ph = ", ".join("?" for _ in atom_slugs_needed)
-                atom_cursor = await db.execute(
-                    f"SELECT slug, type, title, description, evidence_strength, access, theme FROM atoms WHERE slug IN ({slug_ph})",
-                    list(atom_slugs_needed),
-                )
-                for a in await atom_cursor.fetchall():
-                    atom_info[a["slug"]] = {
-                        "slug": a["slug"],
-                        "type": a["type"],
-                        "title": a["title"],
-                        "description": a["description"],
-                        "evidence_strength": a["evidence_strength"],
-                        "access": a["access"],
-                        "theme": a["theme"],
-                    }
-
-            # Count occurrences
-            for ar in apr_rows:
-                info = atom_info.get(ar["atom_slug"])
-                if info and info["type"] in type_counts:
-                    type_counts[info["type"]][ar["atom_slug"]] += 1
-
-            def _build_atoms(counter: Counter, limit_n: int = 20) -> list[dict]:
-                out = []
-                for slug, count in counter.most_common(limit_n):
-                    info = atom_info[slug]
-                    out.append({
-                        "slug": info["slug"],
-                        "title": info["title"],
-                        "type": info["type"],
-                        "description": info.get("description"),
-                        "evidence_strength": info.get("evidence_strength"),
-                        "access": info.get("access"),
-                        "theme": info.get("theme"),
-                        "paper_count": count,
-                        "paper_ids": [],
-                    })
-                return out
-
-            year_dist = [
-                {"year": yr, "count": cnt}
-                for yr, cnt in sorted(year_counts.items())
-            ]
-
-            # Build JEL code list sorted by count
+        total = len(matching_pids)
+        if total == 0:
+            # Still return JEL codes even if filtered result is empty
             jel_codes = [
                 {"code": code, "count": cnt}
                 for code, cnt in sorted(jel_counter.items(), key=lambda x: -x[1])
             ]
+            empty["jel_codes"] = jel_codes
+            return empty
 
-            return {
-                "field": field,
-                "paper_count": total,
-                "papers": {"items": papers, "total": total},
-                "methods": _build_atoms(type_counts["method"]),
-                "mechanisms": _build_atoms(type_counts["mechanism"]),
-                "datasets": _build_atoms(type_counts["dataset"]),
-                "puzzles": _build_atoms(type_counts["puzzle"]),
-                "year_distribution": year_dist,
-                "jel_codes": jel_codes,
-            }
+        # 2. Get paginated papers
+        order_map = {
+            "year_desc": "p.year DESC",
+            "year_asc": "p.year ASC",
+            "score_desc": "p.average_score DESC",
+            "score_asc": "p.average_score ASC",
+            "id_desc": "p.paper_id DESC",
+        }
+        order_sql = order_map.get(sort or "", "p.year DESC")
+
+        placeholders = ", ".join("?" for _ in matching_pids)
+        paper_cursor = await db.execute(
+            f"SELECT * FROM papers p WHERE p.paper_id IN ({placeholders}) ORDER BY {order_sql} LIMIT ? OFFSET ?",
+            matching_pids + [limit, offset],
+        )
+        paper_rows = await paper_cursor.fetchall()
+        papers = [_row_to_paper(r) for r in paper_rows]
+
+        # 3. Get all atoms for papers in this field
+        from collections import Counter
+        type_counts: dict[str, Counter] = {
+            "method": Counter(),
+            "mechanism": Counter(),
+            "dataset": Counter(),
+            "puzzle": Counter(),
+        }
+
+        # Get atom links for these papers
+        apr_cursor = await db.execute(
+            f"SELECT atom_slug, paper_id FROM atom_paper_refs WHERE paper_id IN ({placeholders})",
+            matching_pids,
+        )
+        apr_rows = await apr_cursor.fetchall()
+
+        atom_slugs_needed: set[str] = set()
+        for ar in apr_rows:
+            atom_slugs_needed.add(ar["atom_slug"])
+
+        # Load atom metadata
+        atom_info: dict[str, dict] = {}
+        if atom_slugs_needed:
+            slug_ph = ", ".join("?" for _ in atom_slugs_needed)
+            atom_cursor = await db.execute(
+                f"SELECT slug, type, title, description, evidence_strength, access, theme FROM atoms WHERE slug IN ({slug_ph})",
+                list(atom_slugs_needed),
+            )
+            for a in await atom_cursor.fetchall():
+                atom_info[a["slug"]] = {
+                    "slug": a["slug"],
+                    "type": a["type"],
+                    "title": a["title"],
+                    "description": a["description"],
+                    "evidence_strength": a["evidence_strength"],
+                    "access": a["access"],
+                    "theme": a["theme"],
+                }
+
+        # Count occurrences
+        for ar in apr_rows:
+            info = atom_info.get(ar["atom_slug"])
+            if info and info["type"] in type_counts:
+                type_counts[info["type"]][ar["atom_slug"]] += 1
+
+        def _build_atoms(counter: Counter, limit_n: int = 20) -> list[dict]:
+            out = []
+            for slug, count in counter.most_common(limit_n):
+                info = atom_info[slug]
+                out.append({
+                    "slug": info["slug"],
+                    "title": info["title"],
+                    "type": info["type"],
+                    "description": info.get("description"),
+                    "evidence_strength": info.get("evidence_strength"),
+                    "access": info.get("access"),
+                    "theme": info.get("theme"),
+                    "paper_count": count,
+                    "paper_ids": [],
+                })
+            return out
+
+        year_dist = [
+            {"year": yr, "count": cnt}
+            for yr, cnt in sorted(year_counts.items())
+        ]
+
+        # Build JEL code list sorted by count
+        jel_codes = [
+            {"code": code, "count": cnt}
+            for code, cnt in sorted(jel_counter.items(), key=lambda x: -x[1])
+        ]
+
+        return {
+            "field": field,
+            "paper_count": total,
+            "papers": {"items": papers, "total": total},
+            "methods": _build_atoms(type_counts["method"]),
+            "mechanisms": _build_atoms(type_counts["mechanism"]),
+            "datasets": _build_atoms(type_counts["dataset"]),
+            "puzzles": _build_atoms(type_counts["puzzle"]),
+            "year_distribution": year_dist,
+            "jel_codes": jel_codes,
+        }
     except Exception:
         logger.exception("get_field_detail failed for field=%s", field)
         return empty
@@ -5835,15 +5829,15 @@ async def get_available_fields() -> list[str]:
     try:
         from collections import Counter
         counts: Counter = Counter()
-        async with aiosqlite.connect(DB_PATH) as db:
-            cursor = await db.execute(
-                "SELECT fields FROM papers WHERE fields IS NOT NULL AND fields != '' AND fields != '[]'"
-            )
-            rows = await cursor.fetchall()
-            for r in rows:
-                for f in _parse_json_list(r[0]):
-                    if f.strip():
-                        counts[f.strip()] += 1
+        db = await _get_db()
+        cursor = await db.execute(
+            "SELECT fields FROM papers WHERE fields IS NOT NULL AND fields != '' AND fields != '[]'"
+        )
+        rows = await cursor.fetchall()
+        for r in rows:
+            for f in _parse_json_list(r[0]):
+                if f.strip():
+                    counts[f.strip()] += 1
         return [f for f, _ in counts.most_common()]
     except Exception:
         logger.exception("get_available_fields failed")
@@ -5902,85 +5896,84 @@ async def get_atom_theme_hierarchy() -> list[dict[str, Any]]:
     if not _db_exists():
         return []
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
+        db = await _get_db()
 
-            # Load all atoms with themes
-            cursor = await db.execute(
-                "SELECT slug, type, title, description, evidence_strength, theme FROM atoms WHERE theme IS NOT NULL AND theme != ''"
-            )
-            atom_rows = await cursor.fetchall()
+        # Load all atoms with themes
+        cursor = await db.execute(
+            "SELECT slug, type, title, description, evidence_strength, theme FROM atoms WHERE theme IS NOT NULL AND theme != ''"
+        )
+        atom_rows = await cursor.fetchall()
 
-            # Load paper counts per atom
-            apr_cursor = await db.execute("SELECT atom_slug, COUNT(*) as cnt FROM atom_paper_refs GROUP BY atom_slug")
-            paper_counts: dict[str, int] = {}
-            for r in await apr_cursor.fetchall():
-                paper_counts[r["atom_slug"]] = r["cnt"]
+        # Load paper counts per atom
+        apr_cursor = await db.execute("SELECT atom_slug, COUNT(*) as cnt FROM atom_paper_refs GROUP BY atom_slug")
+        paper_counts: dict[str, int] = {}
+        for r in await apr_cursor.fetchall():
+            paper_counts[r["atom_slug"]] = r["cnt"]
 
-            # Group atoms by theme
-            theme_atoms: dict[str, list[dict]] = {}
-            for a in atom_rows:
-                theme = a["theme"]
-                if theme not in theme_atoms:
-                    theme_atoms[theme] = []
-                theme_atoms[theme].append({
-                    "slug": a["slug"],
-                    "type": a["type"],
-                    "title": a["title"],
-                    "description": a["description"],
-                    "evidence_strength": a["evidence_strength"],
-                    "paper_count": paper_counts.get(a["slug"], 0),
+        # Group atoms by theme
+        theme_atoms: dict[str, list[dict]] = {}
+        for a in atom_rows:
+            theme = a["theme"]
+            if theme not in theme_atoms:
+                theme_atoms[theme] = []
+            theme_atoms[theme].append({
+                "slug": a["slug"],
+                "type": a["type"],
+                "title": a["title"],
+                "description": a["description"],
+                "evidence_strength": a["evidence_strength"],
+                "paper_count": paper_counts.get(a["slug"], 0),
+            })
+
+        # Build hierarchy
+        result = []
+        for meta_theme, sub_themes in THEME_HIERARCHY.items():
+            meta_entry = {
+                "meta_theme": meta_theme,
+                "themes": [],
+                "total_atoms": 0,
+                "total_papers": 0,
+            }
+            for theme in sub_themes:
+                atoms = theme_atoms.get(theme, [])
+                atoms.sort(key=lambda x: -x["paper_count"])
+                theme_paper_count = sum(a["paper_count"] for a in atoms)
+                meta_entry["themes"].append({
+                    "theme": theme,
+                    "atoms": atoms,
+                    "atom_count": len(atoms),
+                    "paper_count": theme_paper_count,
                 })
+                meta_entry["total_atoms"] += len(atoms)
+                meta_entry["total_papers"] += theme_paper_count
+            result.append(meta_entry)
 
-            # Build hierarchy
-            result = []
-            for meta_theme, sub_themes in THEME_HIERARCHY.items():
-                meta_entry = {
-                    "meta_theme": meta_theme,
-                    "themes": [],
-                    "total_atoms": 0,
-                    "total_papers": 0,
-                }
-                for theme in sub_themes:
-                    atoms = theme_atoms.get(theme, [])
-                    atoms.sort(key=lambda x: -x["paper_count"])
-                    theme_paper_count = sum(a["paper_count"] for a in atoms)
-                    meta_entry["themes"].append({
-                        "theme": theme,
-                        "atoms": atoms,
-                        "atom_count": len(atoms),
-                        "paper_count": theme_paper_count,
-                    })
-                    meta_entry["total_atoms"] += len(atoms)
-                    meta_entry["total_papers"] += theme_paper_count
-                result.append(meta_entry)
-
-            # Add "Other" meta-theme for uncategorized themes
-            categorized = set(_THEME_TO_META.keys())
-            other_themes = []
-            for theme, atoms in theme_atoms.items():
-                if theme not in categorized:
-                    atoms.sort(key=lambda x: -x["paper_count"])
-                    theme_paper_count = sum(a["paper_count"] for a in atoms)
-                    other_themes.append({
-                        "theme": theme,
-                        "atoms": atoms,
-                        "atom_count": len(atoms),
-                        "paper_count": theme_paper_count,
-                    })
-            if other_themes:
-                other_themes.sort(key=lambda x: -x["paper_count"])
-                result.append({
-                    "meta_theme": "Other",
-                    "themes": other_themes,
-                    "total_atoms": sum(t["atom_count"] for t in other_themes),
-                    "total_papers": sum(t["paper_count"] for t in other_themes),
+        # Add "Other" meta-theme for uncategorized themes
+        categorized = set(_THEME_TO_META.keys())
+        other_themes = []
+        for theme, atoms in theme_atoms.items():
+            if theme not in categorized:
+                atoms.sort(key=lambda x: -x["paper_count"])
+                theme_paper_count = sum(a["paper_count"] for a in atoms)
+                other_themes.append({
+                    "theme": theme,
+                    "atoms": atoms,
+                    "atom_count": len(atoms),
+                    "paper_count": theme_paper_count,
                 })
+        if other_themes:
+            other_themes.sort(key=lambda x: -x["paper_count"])
+            result.append({
+                "meta_theme": "Other",
+                "themes": other_themes,
+                "total_atoms": sum(t["atom_count"] for t in other_themes),
+                "total_papers": sum(t["paper_count"] for t in other_themes),
+            })
 
-            # Sort meta-themes by total papers descending
-            result.sort(key=lambda x: -x["total_papers"])
+        # Sort meta-themes by total papers descending
+        result.sort(key=lambda x: -x["total_papers"])
 
-            return result
+        return result
     except Exception:
         logger.exception("get_atom_theme_hierarchy failed")
         return []

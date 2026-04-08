@@ -43,7 +43,7 @@ function renderDescription(text: string): React.ReactNode {
 
     if (isBulletList) {
       return (
-        <ul key={pIdx} className="list-disc list-inside space-y-1 text-sm text-gray-700">
+        <ul key={pIdx} className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
           {lines
             .filter((line) => line.trim().startsWith("- "))
             .map((line, lIdx) => (
@@ -54,7 +54,7 @@ function renderDescription(text: string): React.ReactNode {
     }
 
     return (
-      <p key={pIdx} className="text-sm leading-relaxed text-gray-700">
+      <p key={pIdx} className="text-sm leading-relaxed text-muted-foreground">
         {lines.map((line, lIdx) => (
           <React.Fragment key={lIdx}>
             {lIdx > 0 && <br />}
@@ -71,7 +71,7 @@ function renderInlineFormatting(text: string): React.ReactNode {
   return parts.map((part, idx) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return (
-        <strong key={idx} className="font-semibold text-gray-900">
+        <strong key={idx} className="font-semibold text-foreground">
           {part.slice(2, -2)}
         </strong>
       );
@@ -174,8 +174,8 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <h2 className="text-xl font-semibold text-gray-900">Error loading atom</h2>
-        <p className="mt-2 text-sm text-gray-500">{error.message}</p>
+        <h2 className="text-xl font-semibold text-foreground">Error loading atom</h2>
+        <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
         <Link
           href={backHref}
           className="mt-4 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
@@ -191,8 +191,8 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
   if (!atom) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <h2 className="text-xl font-semibold text-gray-900">Atom not found</h2>
-        <p className="mt-2 text-sm text-gray-500">
+        <h2 className="text-xl font-semibold text-foreground">Atom not found</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
           The atom &ldquo;{slug}&rdquo; could not be found.
         </p>
         <Link
@@ -206,11 +206,11 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
   }
 
   const evidenceClass = atom.evidenceStrength
-    ? evidenceColors[atom.evidenceStrength.toLowerCase()] || "bg-gray-100 text-gray-800 border-gray-200"
+    ? evidenceColors[atom.evidenceStrength.toLowerCase()] || "bg-muted text-foreground border-border"
     : null;
 
   const accessClass = atom.access
-    ? accessColors[atom.access.toLowerCase()] || "bg-gray-100 text-gray-800 border-gray-200"
+    ? accessColors[atom.access.toLowerCase()] || "bg-muted text-foreground border-border"
     : null;
 
   return (
@@ -284,7 +284,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
               <CardContent className="space-y-3">
                 {atom.access && accessClass && (
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700">Access Level:</span>
+                    <span className="text-sm font-medium text-muted-foreground">Access Level:</span>
                     <Badge className={`text-xs border capitalize ${accessClass}`}>
                       {atom.access}
                     </Badge>
@@ -292,7 +292,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                 )}
                 {atom.url && (
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700">URL:</span>
+                    <span className="text-sm font-medium text-muted-foreground">URL:</span>
                     <a
                       href={atom.url}
                       target="_blank"
@@ -315,7 +315,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                 <CardTitle className="text-base">
                   Connected Papers
                   {atom.papers && atom.papers.length > 0 && (
-                    <span className="ml-2 text-sm font-normal text-gray-500">
+                    <span className="ml-2 text-sm font-normal text-muted-foreground">
                       ({atom.papers.length})
                     </span>
                   )}
@@ -360,7 +360,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                       <Link
                         key={`${bl.entityType}-${bl.entityId}`}
                         href={blHref}
-                        className="flex items-start gap-2 rounded-md border border-blue-100 bg-white p-2.5 hover:bg-blue-50 transition-colors"
+                        className="flex items-start gap-2 rounded-md border border-blue-100 bg-card p-2.5 hover:bg-blue-50 transition-colors"
                       >
                         <Badge className="text-[10px] px-1.5 py-0 shrink-0 mt-0.5 bg-blue-100 text-blue-700 border-blue-200">
                           {bl.entityType}
@@ -369,7 +369,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                           <span className="font-mono text-xs text-blue-600">
                             {bl.entityId}
                           </span>
-                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                             {bl.notePreview}
                           </p>
                         </div>
@@ -385,14 +385,14 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
         {/* Sidebar */}
         <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
           {/* Quick Stats */}
-          <Card className="bg-gray-50/50">
+          <Card className="bg-muted/50">
             <CardHeader>
               <CardTitle className="text-base">Quick Stats</CardTitle>
             </CardHeader>
             <CardContent>
               <dl className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <dt className="text-sm text-gray-500">Type</dt>
+                  <dt className="text-sm text-muted-foreground">Type</dt>
                   <dd>
                     <Badge
                       variant={typeBadgeVariant[atom.type] || "secondary"}
@@ -405,7 +405,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
 
                 {atom.evidenceStrength && evidenceClass && (
                   <div className="flex items-center justify-between">
-                    <dt className="text-sm text-gray-500">Evidence</dt>
+                    <dt className="text-sm text-muted-foreground">Evidence</dt>
                     <dd>
                       <Badge className={`text-xs border capitalize ${evidenceClass}`}>
                         {atom.evidenceStrength}
@@ -415,15 +415,15 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                 )}
 
                 <div className="flex items-center justify-between">
-                  <dt className="text-sm text-gray-500">Paper Count</dt>
-                  <dd className="text-sm font-semibold text-gray-900">
+                  <dt className="text-sm text-muted-foreground">Paper Count</dt>
+                  <dd className="text-sm font-semibold text-foreground">
                     {atom.paperCount}
                   </dd>
                 </div>
 
                 {atom.type === "dataset" && atom.access && accessClass && (
                   <div className="flex items-center justify-between">
-                    <dt className="text-sm text-gray-500">Access</dt>
+                    <dt className="text-sm text-muted-foreground">Access</dt>
                     <dd>
                       <Badge className={`text-xs border capitalize ${accessClass}`}>
                         {atom.access}
@@ -432,9 +432,9 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                   </div>
                 )}
 
-                <div className="border-t border-gray-100 pt-3">
-                  <dt className="text-xs text-gray-400">Slug</dt>
-                  <dd className="mt-0.5 font-mono text-xs text-gray-400">
+                <div className="border-t border-border pt-3">
+                  <dt className="text-xs text-muted-foreground">Slug</dt>
+                  <dd className="mt-0.5 font-mono text-xs text-muted-foreground">
                     {atom.slug}
                   </dd>
                 </div>
@@ -471,7 +471,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                             >
                               {sa.type}
                             </Badge>
-                            <span className="text-sm font-medium text-gray-800 truncate">
+                            <span className="text-sm font-medium text-foreground truncate">
                               {sa.title}
                             </span>
                           </div>
@@ -486,7 +486,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                           />
                         </div>
                         {sa.description && (
-                          <p className="mt-1.5 text-xs text-gray-500 line-clamp-2">
+                          <p className="mt-1.5 text-xs text-muted-foreground line-clamp-2">
                             {sa.description}
                           </p>
                         )}
@@ -502,7 +502,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                 <CardTitle className="text-base">Similar Atoms</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-muted-foreground">
                   Semantic similarity unavailable.
                 </p>
               </CardContent>
@@ -534,7 +534,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                       >
                         {ca.type}
                       </Badge>
-                      <span className="text-xs font-medium text-gray-700 truncate max-w-[140px]">
+                      <span className="text-xs font-medium text-muted-foreground truncate max-w-[140px]">
                         {ca.title}
                       </span>
                       <span className="text-[10px] text-amber-500 font-medium shrink-0">

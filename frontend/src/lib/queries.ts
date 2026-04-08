@@ -1,5 +1,45 @@
 import { gql } from "@apollo/client";
 
+export const PAPER_LIST_FIELDS = gql`
+  fragment PaperListFields on Paper {
+    paperId
+    title
+    authors
+    year
+    fields
+    averageScore
+    hasCard
+    triageDecision
+  }
+`;
+
+export const NETWORK_GRAPH_FIELDS = gql`
+  fragment NetworkGraphFields on NetworkGraph {
+    nodes {
+      id
+      label
+      type
+      size
+      year
+      fields
+      theme
+      paperCount
+      isSeed
+    }
+    edges {
+      source
+      target
+      relation
+      weight
+    }
+    mode
+    sourcePaperCount
+    seedCount
+    totalPaperNodes
+    truncated
+  }
+`;
+
 export const GET_PAPERS = gql`
   query GetPapers($filter: PaperFilter, $sort: PaperSort, $limit: Int, $offset: Int) {
     papers(filter: $filter, sort: $sort, limit: $limit, offset: $offset) {
@@ -176,15 +216,11 @@ export const GET_STATS = gql`
 `;
 
 export const GET_WHATS_NEW = gql`
+  ${PAPER_LIST_FIELDS}
   query GetWhatsNew($limit: Int) {
     whatsNew(limit: $limit) {
       latestPapers {
-        paperId
-        title
-        year
-        fields
-        averageScore
-        hasCard
+        ...PaperListFields
       }
       latestPapersCount
       recentIdeasCount
@@ -214,30 +250,10 @@ export const GET_YEAR_DISTRIBUTION = gql`
 `;
 
 export const GET_PAPER_NETWORK = gql`
+  ${NETWORK_GRAPH_FIELDS}
   query GetPaperNetwork($paperId: String!, $depth: Int) {
     paperNetwork(paperId: $paperId, depth: $depth) {
-      nodes {
-        id
-        label
-        type
-        size
-        year
-        fields
-        theme
-        paperCount
-        isSeed
-      }
-      edges {
-        source
-        target
-        relation
-        weight
-      }
-      mode
-      sourcePaperCount
-      seedCount
-      totalPaperNodes
-      truncated
+      ...NetworkGraphFields
     }
   }
 `;
@@ -324,59 +340,19 @@ export const GET_ATOM_DETAIL = gql`
 `;
 
 export const GET_ATOM_NEIGHBORHOOD = gql`
+  ${NETWORK_GRAPH_FIELDS}
   query GetAtomNeighborhood($slug: String!, $depth: Int) {
     atomNeighborhood(slug: $slug, depth: $depth) {
-      nodes {
-        id
-        label
-        type
-        size
-        year
-        fields
-        theme
-        paperCount
-        isSeed
-      }
-      edges {
-        source
-        target
-        relation
-        weight
-      }
-      mode
-      sourcePaperCount
-      seedCount
-      totalPaperNodes
-      truncated
+      ...NetworkGraphFields
     }
   }
 `;
 
 export const GET_PAPER_SET_NETWORK = gql`
+  ${NETWORK_GRAPH_FIELDS}
   query GetPaperSetNetwork($paperIds: [String!]!, $depth: Int) {
     paperSetNetwork(paperIds: $paperIds, depth: $depth) {
-      nodes {
-        id
-        label
-        type
-        size
-        year
-        fields
-        theme
-        paperCount
-        isSeed
-      }
-      edges {
-        source
-        target
-        relation
-        weight
-      }
-      mode
-      sourcePaperCount
-      seedCount
-      totalPaperNodes
-      truncated
+      ...NetworkGraphFields
     }
   }
 `;
@@ -640,18 +616,14 @@ export const ADVISE_METHODS = gql`
 `;
 
 export const CLUSTER_PAPERS = gql`
+  ${PAPER_LIST_FIELDS}
   query ClusterPapers($paperIds: [String!]!, $nClusters: Int) {
     clusterPapers(paperIds: $paperIds, nClusters: $nClusters) {
       clusterId
       label
       paperCount
       papers {
-        paperId
-        title
-        year
-        fields
-        averageScore
-        hasCard
+        ...PaperListFields
       }
       topAtoms {
         slug
@@ -1223,17 +1195,14 @@ export const UPDATE_RESEARCH_SESSION_NOTES = gql`
 // ---------------------------------------------------------------------------
 
 export const TOPIC_TIMELINE = gql`
+  ${PAPER_LIST_FIELDS}
   query TopicTimeline($query: String!, $limitPerYear: Int) {
     topicTimeline(query: $query, limitPerYear: $limitPerYear) {
       years {
         year
         count
         papers {
-          paperId
-          title
-          hasCard
-          averageScore
-          fields
+          ...PaperListFields
         }
       }
     }

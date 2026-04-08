@@ -21,6 +21,30 @@ def _escape_token(token: str) -> str:
     return f'"{cleaned}"'
 
 
+# Economics method synonyms for query expansion
+_SYNONYMS = {
+    "did": '"difference in differences"',
+    "diff-in-diff": '"difference in differences"',
+    "rdd": '"regression discontinuity"',
+    "rd": '"regression discontinuity"',
+    "iv": '"instrumental variables"',
+    "rct": '"randomized controlled trial"',
+    "ols": '"ordinary least squares"',
+    "fe": '"fixed effects"',
+    "re": '"random effects"',
+    "gmm": '"generalized method of moments"',
+    "ml": '"maximum likelihood"',
+    "2sls": '"two stage least squares"',
+    "tsls": '"two stage least squares"',
+    "ate": '"average treatment effect"',
+    "att": '"average treatment effect on the treated"',
+    "itt": '"intent to treat"',
+    "late": '"local average treatment effect"',
+    "bunching": '"bunching estimator"',
+    "bartik": '"shift share"',
+}
+
+
 def build_fts_query(user_query: str) -> str:
     """Turn a free-form user string into a safe FTS5 MATCH expression.
 
@@ -48,6 +72,17 @@ def build_fts_query(user_query: str) -> str:
         escaped = _escape_token(word)
         if escaped:
             phrases.append(escaped)
+
+    # After building phrases list, expand synonyms
+    expanded = []
+    for phrase in phrases:
+        # Extract the word inside quotes
+        inner = phrase.strip('"').lower()
+        if inner in _SYNONYMS:
+            expanded.append(f"({phrase} OR {_SYNONYMS[inner]})")
+        else:
+            expanded.append(phrase)
+    phrases = expanded
 
     return " ".join(phrases)
 
@@ -109,7 +144,7 @@ def search_sql(params: SearchParams) -> tuple[str, list[object]]:
                rank
         FROM search_index
         WHERE {where_clause}
-        ORDER BY rank
+        ORDER BY bm25(search_index, 0.0, 0.0, 10.0, 1.0)
         LIMIT ?
     """
     binds.append(params.limit)

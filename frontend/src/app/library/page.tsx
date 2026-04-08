@@ -46,6 +46,7 @@ import type { Paper, NoteItem, Collection } from "@/lib/types";
 import { LitReviewModal } from "@/components/research/lit-review-modal";
 import { ExportMenu } from "@/components/shared/export-menu";
 import { NoteRenderer, extractNoteReferences } from "@/components/shared/note-renderer";
+import { QueryErrorBanner } from "@/components/shared/query-error-banner";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -95,8 +96,8 @@ function TableSkeleton() {
 function EmptyState({ icon: Icon, message }: { icon: React.ElementType; message: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <Icon className="h-10 w-10 text-gray-300 mb-3" />
-      <p className="text-sm text-gray-500">{message}</p>
+      <Icon className="h-10 w-10 text-muted-foreground mb-3" />
+      <p className="text-sm text-muted-foreground">{message}</p>
     </div>
   );
 }
@@ -109,18 +110,18 @@ function PaperRow({ paper }: { paper: Paper }) {
   return (
     <Link
       href={`/paper/${paper.paperId}`}
-      className="flex items-center gap-4 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors"
+      className="flex items-center gap-4 px-4 py-3 border-b border-border hover:bg-muted/50 transition-colors"
     >
-      <span className="font-mono text-xs text-gray-400 w-20 shrink-0">
+      <span className="font-mono text-xs text-muted-foreground w-20 shrink-0">
         {paper.paperId}
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">
+        <p className="text-sm font-medium text-foreground truncate">
           {paper.title ?? "Untitled"}
         </p>
         <div className="flex items-center gap-2 mt-0.5">
           {paper.year && (
-            <span className="text-xs text-gray-400">{paper.year}</span>
+            <span className="text-xs text-muted-foreground">{paper.year}</span>
           )}
           {(paper.fields ?? []).slice(0, 2).map((f) => (
             <Badge key={f} variant="paper" className="text-[10px] px-1.5 py-0">
@@ -132,11 +133,11 @@ function PaperRow({ paper }: { paper: Paper }) {
       {paper.readingStatus && (
         <span className="flex items-center gap-1.5 shrink-0">
           <span className={`h-2 w-2 rounded-full ${statusColor(paper.readingStatus)}`} />
-          <span className="text-xs text-gray-500">{statusLabel(paper.readingStatus)}</span>
+          <span className="text-xs text-muted-foreground">{statusLabel(paper.readingStatus)}</span>
         </span>
       )}
       {paper.averageScore !== null && paper.averageScore !== undefined && (
-        <span className="text-xs font-semibold text-gray-600 tabular-nums w-8 text-right shrink-0">
+        <span className="text-xs font-semibold text-muted-foreground tabular-nums w-8 text-right shrink-0">
           {paper.averageScore.toFixed(1)}
         </span>
       )}
@@ -163,8 +164,8 @@ function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3">
-      <span className="text-xs text-gray-500">
+    <div className="flex items-center justify-between border-t border-border px-4 py-3">
+      <span className="text-xs text-muted-foreground">
         {total} item{total !== 1 ? "s" : ""}
       </span>
       <div className="flex items-center gap-1">
@@ -177,7 +178,7 @@ function Pagination({
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <span className="text-xs text-gray-600 px-2">
+        <span className="text-xs text-muted-foreground px-2">
           {page} / {totalPages}
         </span>
         <Button
@@ -201,7 +202,7 @@ function Pagination({
 function BookmarksTab() {
   const [page, setPage] = useState(1);
 
-  const { data, loading } = useQuery<{
+  const { data, loading, error } = useQuery<{
     bookmarks: { items: Paper[]; total: number };
   }>(GET_BOOKMARKS, {
     variables: { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE },
@@ -211,6 +212,7 @@ function BookmarksTab() {
   const total = data?.bookmarks?.total ?? 0;
 
   if (loading) return <TableSkeleton />;
+  if (error) return <QueryErrorBanner error={error} message="Failed to load bookmarks." />;
   if (papers.length === 0) {
     return (
       <EmptyState
@@ -223,11 +225,11 @@ function BookmarksTab() {
   return (
     <div>
       {papers.length > 0 && (
-        <div className="flex items-center justify-end px-4 py-2 border-b border-gray-100">
+        <div className="flex items-center justify-end px-4 py-2 border-b border-border">
           <ExportMenu paperIds={papers.map((p) => p.paperId)} label="Export" compact />
         </div>
       )}
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-border">
         {papers.map((p) => (
           <PaperRow key={p.paperId} paper={p} />
         ))}
@@ -252,7 +254,7 @@ function ReadingListTab() {
 
   const queryStatus = statusFilter === "all" ? null : statusFilter;
 
-  const { data, loading } = useQuery<{
+  const { data, loading, error } = useQuery<{
     readingList: { items: Paper[]; total: number };
   }>(GET_READING_LIST, {
     variables: {
@@ -268,7 +270,7 @@ function ReadingListTab() {
   return (
     <div>
       {/* Status sub-tabs */}
-      <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-100 overflow-x-auto">
+      <div className="flex items-center gap-1 px-4 py-2 border-b border-border overflow-x-auto">
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}
@@ -279,7 +281,7 @@ function ReadingListTab() {
             className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
               statusFilter === tab.value
                 ? "bg-gray-900 text-white"
-                : "text-gray-600 hover:bg-gray-100"
+                : "text-muted-foreground hover:bg-muted"
             }`}
           >
             {tab.color && (
@@ -289,6 +291,8 @@ function ReadingListTab() {
           </button>
         ))}
       </div>
+
+      {error && <QueryErrorBanner error={error} message="Failed to load reading list." />}
 
       {loading ? (
         <TableSkeleton />
@@ -303,7 +307,7 @@ function ReadingListTab() {
         />
       ) : (
         <>
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-border">
             {papers.map((p) => (
               <PaperRow key={p.paperId} paper={p} />
             ))}
@@ -327,7 +331,7 @@ function ReadingListTab() {
 function NotesTab() {
   const [page, setPage] = useState(1);
 
-  const { data, loading } = useQuery<{
+  const { data, loading, error } = useQuery<{
     allNotes: { items: NoteItem[]; total: number };
   }>(GET_ALL_NOTES, {
     variables: { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE },
@@ -337,6 +341,7 @@ function NotesTab() {
   const total = data?.allNotes?.total ?? 0;
 
   if (loading) return <TableSkeleton />;
+  if (error) return <QueryErrorBanner error={error} message="Failed to load notes." />;
   if (notes.length === 0) {
     return (
       <EmptyState
@@ -348,7 +353,7 @@ function NotesTab() {
 
   return (
     <div>
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-border">
         {notes.map((note) => {
           const href =
             note.entityType === "paper"
@@ -360,13 +365,13 @@ function NotesTab() {
             <Link
               key={`${note.entityType}-${note.entityId}`}
               href={href}
-              className="block px-4 py-3 hover:bg-gray-50 transition-colors"
+              className="block px-4 py-3 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-2 mb-1">
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                   {note.entityType}
                 </Badge>
-                <span className="font-mono text-xs text-gray-400">
+                <span className="font-mono text-xs text-muted-foreground">
                   {note.entityId}
                 </span>
                 {(() => {
@@ -379,12 +384,12 @@ function NotesTab() {
                   ) : null;
                 })()}
                 {note.updatedAt && (
-                  <span className="text-[10px] text-gray-400 ml-auto">
+                  <span className="text-[10px] text-muted-foreground ml-auto">
                     {new Date(note.updatedAt).toLocaleDateString()}
                   </span>
                 )}
               </div>
-              <div className="text-sm text-gray-700 line-clamp-2">
+              <div className="text-sm text-muted-foreground line-clamp-2">
                 <NoteRenderer content={note.note} />
               </div>
             </Link>
@@ -417,11 +422,11 @@ function CollectionsTab() {
   const [litReviewPaperIds, setLitReviewPaperIds] = useState<string[]>([]);
   const [page, setPage] = useState(1);
 
-  const { data, loading, refetch } = useQuery<{
+  const { data, loading, error, refetch } = useQuery<{
     collections: Collection[];
   }>(GET_COLLECTIONS);
 
-  const { data: papersData, loading: papersLoading } = useQuery<{
+  const { data: papersData, loading: papersLoading, error: papersError } = useQuery<{
     collectionPapers: { items: Paper[]; total: number };
   }>(GET_COLLECTION_PAPERS, {
     variables: {
@@ -493,12 +498,13 @@ function CollectionsTab() {
   }, [viewingCollection, papers]);
 
   if (loading) return <TableSkeleton />;
+  if (error) return <QueryErrorBanner error={error} message="Failed to load collections." />;
 
   // Viewing a specific collection's papers
   if (viewingCollection) {
     return (
       <div>
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
           <Button
             variant="ghost"
             size="sm"
@@ -508,11 +514,11 @@ function CollectionsTab() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-gray-900 truncate">
+            <h3 className="text-sm font-semibold text-foreground truncate">
               {viewingCollection.name}
             </h3>
             {viewingCollection.description && (
-              <p className="text-xs text-gray-500 truncate">{viewingCollection.description}</p>
+              <p className="text-xs text-muted-foreground truncate">{viewingCollection.description}</p>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -530,6 +536,8 @@ function CollectionsTab() {
           </div>
         </div>
 
+        {papersError && <QueryErrorBanner error={papersError} message="Failed to load collection papers." />}
+
         {papersLoading ? (
           <TableSkeleton />
         ) : papers.length === 0 ? (
@@ -539,7 +547,7 @@ function CollectionsTab() {
           />
         ) : (
           <>
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-border">
               {papers.map((p) => (
                 <div key={p.paperId} className="flex items-center">
                   <div className="flex-1">
@@ -550,7 +558,7 @@ function CollectionsTab() {
                       e.preventDefault();
                       handleRemovePaper(p.paperId);
                     }}
-                    className="px-3 text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                    className="px-3 text-muted-foreground hover:text-red-500 transition-colors shrink-0"
                     title="Remove from collection"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -581,8 +589,8 @@ function CollectionsTab() {
   // Collection list
   return (
     <div>
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <span className="text-xs text-gray-500">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <span className="text-xs text-muted-foreground">
           {collections.length} collection{collections.length !== 1 ? "s" : ""}
         </span>
         <Button
@@ -602,26 +610,26 @@ function CollectionsTab() {
           message="No collections yet. Create one to organize your papers."
         />
       ) : (
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-border">
           {collections.map((col) => (
             <div
               key={col.id}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer"
               onClick={() => { setViewingCollection(col); setPage(1); }}
             >
               <FolderOpen className="h-5 w-5 text-blue-500 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
+                <p className="text-sm font-medium text-foreground truncate">
                   {col.name}
                 </p>
                 {col.description && (
-                  <p className="text-xs text-gray-500 truncate">{col.description}</p>
+                  <p className="text-xs text-muted-foreground truncate">{col.description}</p>
                 )}
               </div>
               <Badge variant="secondary" className="text-[10px] shrink-0">
                 {col.paperCount} paper{col.paperCount !== 1 ? "s" : ""}
               </Badge>
-              <span className="text-[10px] text-gray-400 shrink-0">
+              <span className="text-[10px] text-muted-foreground shrink-0">
                 {new Date(col.createdAt).toLocaleDateString()}
               </span>
               <div className="flex items-center gap-1 shrink-0">
@@ -632,7 +640,7 @@ function CollectionsTab() {
                     setNewName(col.name);
                     setRenameOpen(true);
                   }}
-                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="p-1 text-muted-foreground hover:text-muted-foreground transition-colors"
                   title="Rename"
                 >
                   <Pencil className="h-3.5 w-3.5" />
@@ -643,7 +651,7 @@ function CollectionsTab() {
                     setSelectedCollection(col);
                     setDeleteOpen(true);
                   }}
-                  className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                  className="p-1 text-muted-foreground hover:text-red-500 transition-colors"
                   title="Delete"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -669,7 +677,7 @@ function CollectionsTab() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Collection name"
-              className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
             />
@@ -677,7 +685,7 @@ function CollectionsTab() {
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
               placeholder="Description (optional)"
-              className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               rows={2}
             />
           </div>
@@ -702,7 +710,7 @@ function CollectionsTab() {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="New name"
-            className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
             autoFocus
             onKeyDown={(e) => e.key === "Enter" && handleRename()}
           />
@@ -772,7 +780,7 @@ function LibraryContent() {
         </TabsList>
       </Tabs>
 
-      <Card className="border-gray-200 shadow-none overflow-hidden">
+      <Card className="border-border shadow-none overflow-hidden">
         <CardContent className="p-0">
           {activeTab === "bookmarks" && <BookmarksTab />}
           {activeTab === "reading" && <ReadingListTab />}
@@ -801,7 +809,7 @@ export default function LibraryPage() {
               Your bookmarks, reading list, notes, and collections.
             </p>
           </div>
-          <div className="h-96 animate-pulse rounded-lg border border-gray-200 bg-gray-50" />
+          <div className="h-96 animate-pulse rounded-lg border border-border bg-muted" />
         </div>
       }
     >

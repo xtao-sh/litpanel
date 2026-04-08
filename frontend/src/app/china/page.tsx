@@ -19,13 +19,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 function levelColor(level: string) {
   if (level === "high") return "bg-green-100 text-green-800 border-green-200";
   if (level === "moderate") return "bg-yellow-100 text-yellow-800 border-yellow-200";
-  return "bg-gray-100 text-gray-600 border-gray-200";
+  return "bg-gray-100 text-gray-600 border-border";
 }
 
 function statColor(level: string) {
   if (level === "high") return "bg-green-50 border-green-200 text-green-700";
   if (level === "moderate") return "bg-yellow-50 border-yellow-200 text-yellow-700";
-  return "bg-gray-50 border-gray-200 text-gray-500";
+  return "bg-gray-50 border-border text-gray-500";
 }
 
 // scrollToSection is now defined inside ChinaDashboardPage to access state setters
@@ -38,25 +38,25 @@ function ChinaPaperRow({ paper }: { paper: ChinaPaper }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="border-b border-gray-100 py-3 last:border-0">
+    <div className="border-b border-border py-3 last:border-0">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <Link
             href={`/paper/${paper.paperId}`}
-            className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors"
+            className="text-sm font-medium text-foreground hover:text-blue-600 transition-colors"
           >
             {paper.title || paper.paperId}
           </Link>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-gray-400 font-mono">{paper.paperId}</span>
-            {paper.year && <span className="text-xs text-gray-400">{paper.year}</span>}
+            <span className="text-xs text-muted-foreground font-mono">{paper.paperId}</span>
+            {paper.year && <span className="text-xs text-muted-foreground">{paper.year}</span>}
             {paper.fields.slice(0, 3).map((f) => (
               <Badge key={f} variant="outline" className="text-[10px] py-0">
                 {f}
               </Badge>
             ))}
             {paper.averageScore !== null && (
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-muted-foreground">
                 Score: {paper.averageScore.toFixed(1)}
               </span>
             )}
@@ -72,7 +72,7 @@ function ChinaPaperRow({ paper }: { paper: ChinaPaper }) {
         </Button>
       </div>
       {expanded && (
-        <p className="mt-2 text-xs text-gray-600 leading-relaxed">
+        <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
           {paper.applicabilitySummary}
         </p>
       )}
@@ -91,10 +91,10 @@ function FieldBar({ stat, maxTotal }: { stat: ChinaFieldStat; maxTotal: number }
 
   return (
     <div className="flex items-center gap-3 py-1.5">
-      <span className="w-40 text-xs text-gray-600 truncate shrink-0" title={stat.field}>
+      <span className="w-40 text-xs text-muted-foreground truncate shrink-0" title={stat.field}>
         {stat.field}
       </span>
-      <div className="flex-1 flex h-5 rounded overflow-hidden bg-gray-100">
+      <div className="flex-1 flex h-5 rounded overflow-hidden bg-muted">
         {highPct > 0 && (
           <div
             className="bg-green-400 transition-all"
@@ -110,7 +110,7 @@ function FieldBar({ stat, maxTotal }: { stat: ChinaFieldStat; maxTotal: number }
           />
         )}
       </div>
-      <span className="text-xs text-gray-400 w-8 text-right shrink-0">{total}</span>
+      <span className="text-xs text-muted-foreground w-8 text-right shrink-0">{total}</span>
     </div>
   );
 }
@@ -137,18 +137,18 @@ function DataSourceChip({
     <div className="flex flex-col">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 transition-colors hover:bg-blue-50 hover:border-blue-200 cursor-pointer text-left"
+        className="flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 transition-colors hover:bg-blue-50 hover:border-blue-200 cursor-pointer text-left"
       >
-        <span className="text-sm font-medium text-gray-700">{dm.field}</span>
+        <span className="text-sm font-medium text-muted-foreground">{dm.field}</span>
         <Badge variant="secondary" className="text-xs">
           {dm.count} paper{dm.count !== 1 ? "s" : ""}
         </Badge>
         {dm.paperIds.length > 0 && (
-          <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
+          <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} />
         )}
       </button>
       {expanded && dm.paperIds.length > 0 && (
-        <div className="mt-1 ml-2 rounded-lg border border-gray-100 bg-white p-2 space-y-1">
+        <div className="mt-1 ml-2 rounded-lg border border-border bg-card p-2 space-y-1">
           {dm.paperIds.map((pid) => {
             const title = titleMap.get(pid);
             return (
@@ -161,19 +161,19 @@ function DataSourceChip({
                   {title ? (
                     <>
                       <span className="text-blue-600 font-medium">&ldquo;{title}&rdquo;</span>
-                      <span className="ml-1.5 text-gray-400 font-mono text-[10px]">{pid}</span>
+                      <span className="ml-1.5 text-muted-foreground font-mono text-[10px]">{pid}</span>
                     </>
                   ) : (
                     <span className="text-blue-600 font-mono">{pid}</span>
                   )}
                 </span>
-                <ExternalLink className="h-2.5 w-2.5 shrink-0 text-gray-400" />
+                <ExternalLink className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
               </Link>
             );
           })}
           <Link
             href={`/explorer?search=${encodeURIComponent(dm.field)}`}
-            className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors"
           >
             <Search className="h-2.5 w-2.5" />
             Search in Explorer
@@ -361,7 +361,7 @@ export default function ChinaDashboardPage() {
               </CardContent>
             </Card>
             <Card
-              className={`${statColor("low")} border cursor-pointer transition-shadow hover:shadow-md hover:ring-1 hover:ring-gray-300`}
+              className={`${statColor("low")} border cursor-pointer transition-shadow hover:shadow-md hover:ring-1 hover:ring-border`}
               onClick={() => scrollToSection("low-papers")}
             >
               <CardContent className="p-5">
@@ -371,7 +371,7 @@ export default function ChinaDashboardPage() {
                   Context-specific or difficult to transfer
                 </p>
                 {dashboard.lowPapers.length > 0 && (
-                  <div className="mt-3 space-y-1 border-t border-gray-200/50 pt-2">
+                  <div className="mt-3 space-y-1 border-t border-border/50 pt-2">
                     {dashboard.lowPapers.slice(0, 3).map((p) => (
                       <p key={p.paperId} className="text-xs truncate opacity-80" title={p.title || p.paperId}>
                         {p.title || p.paperId}
@@ -392,7 +392,7 @@ export default function ChinaDashboardPage() {
             <Card id="high-papers" className={`scroll-mt-24 transition-all duration-500 ${highlightClass("high-papers")}`}>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-base font-semibold text-gray-900">
+                  <h3 className="text-base font-semibold text-foreground">
                     Highly Applicable Papers
                   </h3>
                   <Badge className={levelColor("high")}>{dashboard.highPapers.length}</Badge>
@@ -400,7 +400,7 @@ export default function ChinaDashboardPage() {
               </CardHeader>
               <CardContent className="max-h-[500px] overflow-y-auto">
                 {dashboard.highPapers.length === 0 ? (
-                  <p className="text-sm text-gray-400">No highly applicable papers found.</p>
+                  <p className="text-sm text-muted-foreground">No highly applicable papers found.</p>
                 ) : (
                   dashboard.highPapers.map((p) => (
                     <ChinaPaperRow key={p.paperId} paper={p} />
@@ -412,17 +412,17 @@ export default function ChinaDashboardPage() {
             {/* Right: Field Distribution */}
             <Card>
               <CardHeader className="pb-3">
-                <h3 className="text-base font-semibold text-gray-900">
+                <h3 className="text-base font-semibold text-foreground">
                   Field Distribution
                 </h3>
                 <div className="flex items-center gap-4 mt-1">
                   <div className="flex items-center gap-1.5">
                     <div className="h-3 w-3 rounded-sm bg-green-400" />
-                    <span className="text-xs text-gray-500">High</span>
+                    <span className="text-xs text-muted-foreground">High</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <div className="h-3 w-3 rounded-sm bg-yellow-300" />
-                    <span className="text-xs text-gray-500">Moderate</span>
+                    <span className="text-xs text-muted-foreground">Moderate</span>
                   </div>
                 </div>
               </CardHeader>
@@ -439,8 +439,8 @@ export default function ChinaDashboardPage() {
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
-                  <Database className="h-4 w-4 text-gray-500" />
-                  <h3 className="text-base font-semibold text-gray-900">
+                  <Database className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-base font-semibold text-foreground">
                     Chinese Data Sources Mentioned
                   </h3>
                 </div>
@@ -463,7 +463,7 @@ export default function ChinaDashboardPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-semibold text-gray-900">
+                  <h3 className="text-base font-semibold text-foreground">
                     Moderately Applicable Papers
                   </h3>
                   <Badge className={levelColor("moderate")}>{dashboard.moderatePapers.length}</Badge>
@@ -500,7 +500,7 @@ export default function ChinaDashboardPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-semibold text-gray-900">
+                  <h3 className="text-base font-semibold text-foreground">
                     Limited Applicability Papers
                   </h3>
                   <Badge className={levelColor("low")}>{dashboard.lowPapers.length}</Badge>
@@ -526,7 +526,7 @@ export default function ChinaDashboardPage() {
             {showLow && (
               <CardContent className="max-h-[500px] overflow-y-auto">
                 {dashboard.lowPapers.length === 0 ? (
-                  <p className="text-sm text-gray-400">No limited applicability papers found.</p>
+                  <p className="text-sm text-muted-foreground">No limited applicability papers found.</p>
                 ) : (
                   dashboard.lowPapers.map((p) => (
                     <ChinaPaperRow key={p.paperId} paper={p} />

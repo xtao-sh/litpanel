@@ -669,6 +669,15 @@ def stage8_build_fts(conn: sqlite3.Connection) -> int:
             "SELECT content FROM card_sections WHERE paper_id = ?", (pid,)
         ).fetchall()
         content_parts = [s["content"] for s in sections if s["content"]]
+
+        # Also include triage summary if available and no card sections
+        if not content_parts:
+            triage = conn.execute(
+                "SELECT summary FROM triage_cards WHERE paper_id = ?", (pid,)
+            ).fetchone()
+            if triage and triage["summary"]:
+                content_parts.append(triage["summary"])
+
         content = "\n\n".join(content_parts)
 
         conn.execute(
