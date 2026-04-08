@@ -2,6 +2,7 @@
 
 # Root build artifacts
 .next/
+.run/
 
 # Frontend
 frontend/.env.local
