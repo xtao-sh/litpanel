@@ -183,7 +183,7 @@ export function LitReviewModal({
 
     abortRef.current = new AbortController();
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
     try {
       const resp = await fetch(`${apiUrl}/api/generate/lit-review`, {

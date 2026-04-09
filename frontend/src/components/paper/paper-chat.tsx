@@ -5,7 +5,7 @@ import { Send, Sparkles, RotateCcw, X, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChatMessage, type Message } from "@/components/ask/chat-message";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 // ---------------------------------------------------------------------------
 // Suggested questions for a single paper

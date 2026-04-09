@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useLazyQuery } from "@apollo/client/react";
 import {
   Plus,
@@ -85,13 +86,23 @@ function CreateIdeaDialog({
   open,
   onClose,
   onCreate,
+  initialTitle = "",
+  initialDescription = "",
 }: {
   open: boolean;
   onClose: () => void;
   onCreate: (title: string, description: string) => void;
+  initialTitle?: string;
+  initialDescription?: string;
 }) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [title, setTitle] = useState(initialTitle);
+  const [description, setDescription] = useState(initialDescription);
+
+  // Sync with initial values when they change (e.g. from URL params)
+  useEffect(() => {
+    setTitle(initialTitle);
+    setDescription(initialDescription);
+  }, [initialTitle, initialDescription]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -924,6 +935,27 @@ function WorkspaceSkeleton() {
 type ViewMode = "list" | "kanban";
 
 export default function IdeaWorkspacePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-24 rounded-lg" />
+          <Skeleton className="h-24 rounded-lg" />
+          <Skeleton className="h-24 rounded-lg" />
+        </div>
+      }
+    >
+      <IdeaWorkspaceContent />
+    </Suspense>
+  );
+}
+
+function IdeaWorkspaceContent() {
+  const searchParams = useSearchParams();
+  const prefillTitle = searchParams.get("title") || "";
+  const prefillDescription = searchParams.get("description") || "";
+
   const { data, loading, error } = useQuery<{ userIdeas: UserIdea[] }>(
     GET_USER_IDEAS
   );
@@ -937,6 +969,13 @@ export default function IdeaWorkspacePage() {
   const [showCreate, setShowCreate] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  // Auto-open create dialog if URL params are present (from frontier gaps)
+  useEffect(() => {
+    if (prefillTitle) {
+      setShowCreate(true);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ideas = data?.userIdeas || [];
   const selectedIdea = ideas.find((i) => i.id === selectedId);
@@ -1071,6 +1110,8 @@ export default function IdeaWorkspacePage() {
         open={showCreate}
         onClose={() => setShowCreate(false)}
         onCreate={handleCreate}
+        initialTitle={prefillTitle}
+        initialDescription={prefillDescription}
       />
     </div>
   );

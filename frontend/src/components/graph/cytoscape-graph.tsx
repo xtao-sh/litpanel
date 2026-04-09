@@ -430,8 +430,30 @@ export function CytoscapeGraph({
   // Main init/update effect
   useEffect(() => {
     const key = JSON.stringify({
-      ids: nodes.map((n) => n.id).sort(),
-      ec: edges.length,
+      nodes: nodes
+        .map((node) => ({
+          id: node.id,
+          type: node.type,
+          label: node.label,
+          size: node.size ?? null,
+          year: node.year ?? null,
+          theme: node.theme ?? null,
+          paperCount: node.paperCount ?? null,
+          isSeed: Boolean(node.isSeed),
+        }))
+        .sort((a, b) => a.id.localeCompare(b.id)),
+      edges: edges
+        .map((edge) => ({
+          source: edge.source,
+          target: edge.target,
+          relation: edge.relation,
+          weight: edge.weight ?? null,
+        }))
+        .sort((a, b) => {
+          const left = `${a.source}|${a.target}|${a.relation}`;
+          const right = `${b.source}|${b.target}|${b.relation}`;
+          return left.localeCompare(right);
+        }),
       ly: layout,
       vt: Array.from(visibleTypes).sort().join(","),
     });

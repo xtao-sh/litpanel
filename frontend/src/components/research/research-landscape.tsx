@@ -121,6 +121,25 @@ export function ResearchLandscapePanel({
   const [litReviewOpen, setLitReviewOpen] = useState(false);
   const [methodAdvisorOpen, setMethodAdvisorOpen] = useState(false);
 
+  const anchorItems = useMemo(() => {
+    const items: { id: string; label: string }[] = [];
+    items.push({ id: "landscape-gaps", label: "Gaps" });
+    if (allPaperIds.length > 0 && searchQuery) {
+      items.push({ id: "landscape-saturation", label: "Saturation" });
+    }
+    items.push({ id: "landscape-methods", label: "Methods" });
+    if (allPaperIds.length > 0 && searchQuery) {
+      items.push({ id: "landscape-consensus", label: "Consensus" });
+    }
+    items.push({ id: "landscape-datasets", label: "Datasets" });
+    items.push({ id: "landscape-mechanisms", label: "Mechanisms" });
+    if (papers.length > 0) {
+      items.push({ id: "landscape-authors", label: "Authors" });
+    }
+    items.push({ id: "landscape-china", label: "China" });
+    return items;
+  }, [allPaperIds.length, searchQuery, papers.length]);
+
   if (loading) {
     return <LandscapeSkeleton />;
   }
@@ -131,6 +150,21 @@ export function ResearchLandscapePanel({
 
   return (
     <div className="space-y-4">
+      {/* Section anchor nav */}
+      <nav className="flex gap-1.5 overflow-x-auto pb-3 mb-3 border-b border-border">
+        {anchorItems.map(item => (
+          <button
+            key={item.id}
+            onClick={() => {
+              document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            className="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
       {allPaperIds.length > 0 && (
         <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
           <p className="font-medium text-foreground">
@@ -197,20 +231,38 @@ export function ResearchLandscapePanel({
       )}
 
       {/* Gaps card gets visual prominence at the top */}
-      <LandscapeGapsCard gaps={landscape.gaps} onAtomClick={onAtomClick} />
+      <div id="landscape-gaps">
+        <LandscapeGapsCard gaps={landscape.gaps} onAtomClick={onAtomClick} />
+      </div>
       {/* Topic saturation — after gaps */}
       {allPaperIds.length > 0 && searchQuery && (
-        <SaturationCard searchQuery={searchQuery} allPaperIds={allPaperIds} />
+        <div id="landscape-saturation">
+          <SaturationCard searchQuery={searchQuery} allPaperIds={allPaperIds} />
+        </div>
       )}
-      <LandscapeMethodsCard methods={landscape.methods} onAtomClick={onAtomClick} />
+      <div id="landscape-methods">
+        <LandscapeMethodsCard methods={landscape.methods} onAtomClick={onAtomClick} />
+      </div>
       {/* Consensus meter — between methods and datasets */}
       {allPaperIds.length > 0 && searchQuery && (
-        <ConsensusCard allPaperIds={allPaperIds} searchQuery={searchQuery} />
+        <div id="landscape-consensus">
+          <ConsensusCard allPaperIds={allPaperIds} searchQuery={searchQuery} />
+        </div>
       )}
-      <LandscapeDatasetsCard datasets={landscape.datasets} onAtomClick={onAtomClick} />
-      <LandscapeMechanismsCard mechanisms={landscape.mechanisms} onAtomClick={onAtomClick} />
-      {papers.length > 0 && <KeyAuthorsCard papers={papers} />}
-      <LandscapeChinaCard chinaApplicability={landscape.chinaApplicability} />
+      <div id="landscape-datasets">
+        <LandscapeDatasetsCard datasets={landscape.datasets} onAtomClick={onAtomClick} />
+      </div>
+      <div id="landscape-mechanisms">
+        <LandscapeMechanismsCard mechanisms={landscape.mechanisms} onAtomClick={onAtomClick} />
+      </div>
+      {papers.length > 0 && (
+        <div id="landscape-authors">
+          <KeyAuthorsCard papers={papers} />
+        </div>
+      )}
+      <div id="landscape-china">
+        <LandscapeChinaCard chinaApplicability={landscape.chinaApplicability} />
+      </div>
 
       {litReviewOpen && (
         <LitReviewModal

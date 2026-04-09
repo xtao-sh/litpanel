@@ -9,7 +9,7 @@ import type { ContextItem } from "@/components/ask/context-panel";
 import { ExampleQuestions } from "@/components/ask/example-questions";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 export default function AskPage() {
   return (
@@ -363,21 +363,34 @@ function AskPageInner() {
           </div>
         ) : (
           <div className="space-y-4 py-4">
-            {messages.map((msg, idx) => {
-              // Find the preceding user question for assistant messages
-              let userQuestion: string | undefined;
-              if (msg.role === "assistant") {
-                for (let i = idx - 1; i >= 0; i--) {
-                  if (messages[i].role === "user") {
-                    userQuestion = messages[i].content;
-                    break;
+            {(() => {
+              let firstContextSeen = false;
+              return messages.map((msg, idx) => {
+                // Find the preceding user question for assistant messages
+                let userQuestion: string | undefined;
+                let isFirstContext = false;
+                if (msg.role === "assistant") {
+                  for (let i = idx - 1; i >= 0; i--) {
+                    if (messages[i].role === "user") {
+                      userQuestion = messages[i].content;
+                      break;
+                    }
+                  }
+                  if (msg.context && msg.context.length > 0 && !firstContextSeen) {
+                    firstContextSeen = true;
+                    isFirstContext = true;
                   }
                 }
-              }
-              return (
-                <ChatMessage key={idx} message={msg} userQuestion={userQuestion} />
-              );
-            })}
+                return (
+                  <ChatMessage
+                    key={idx}
+                    message={msg}
+                    userQuestion={userQuestion}
+                    defaultContextExpanded={isFirstContext}
+                  />
+                );
+              });
+            })()}
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -407,14 +420,26 @@ function AskPageInner() {
             rows={1}
             className="flex min-h-[48px] max-h-[120px] flex-1 resize-none rounded-xl border border-border bg-muted/50 px-5 py-3 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus-visible:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           />
-          <Button
-            type="submit"
-            size="icon"
-            disabled={!input.trim() || isStreaming}
-            className="h-12 w-12 shrink-0 rounded-xl shadow-sm"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+          {isStreaming ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (abortRef.current) abortRef.current.abort();
+              }}
+              className="shrink-0 rounded-lg bg-red-600 px-3 py-2 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+            >
+              Stop
+            </button>
+          ) : (
+            <Button
+              type="submit"
+              size="icon"
+              disabled={!input.trim()}
+              className="h-12 w-12 shrink-0 rounded-xl shadow-sm"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          )}
         </form>
       </div>
     </div>

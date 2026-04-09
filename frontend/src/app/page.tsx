@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { WhatsNewCard } from "@/components/dashboard/whats-new";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { YearChart } from "@/components/dashboard/year-chart";
@@ -310,170 +311,147 @@ function DashboardContent() {
         </p>
       </div>
 
-      <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground">How to read this dashboard</p>
-        <p className="mt-1 leading-relaxed">
-          This page mixes full-corpus and subset metrics. Total papers and atoms reflect the indexed
-          knowledge base, top papers only use papers with deep-read cards, the method heatmap uses
-          triage metadata, and the gap card is computed from atom links across the corpus. If you
-          want a recency-first entry point, use Latest Research.
-        </p>
-      </div>
-
+      {/* Compact entry-point cards */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Link
           href="/latest"
-          className="rounded-xl border border-border bg-background p-5 transition-colors hover:border-violet-200 hover:bg-violet-50/40"
+          className="flex items-center justify-between rounded-xl border border-border bg-background px-4 py-3 transition-colors hover:border-violet-200 hover:bg-violet-50/40"
         >
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <Clock3 className="h-4 w-4 text-violet-600" />
-            Follow what is new
+            Latest Research
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Use Latest Research when you want the newest papers, rising topics, and recent publication momentum before narrowing to a topic.
-          </p>
-          <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-violet-700">
-            Open Latest Research
-            <ArrowRight className="h-3.5 w-3.5" />
-          </div>
+          <ArrowRight className="h-3.5 w-3.5 text-violet-700" />
         </Link>
 
         <Link
           href="/research"
-          className="rounded-xl border border-border bg-background p-5 transition-colors hover:border-blue-200 hover:bg-blue-50/40"
+          className="flex items-center justify-between rounded-xl border border-border bg-background px-4 py-3 transition-colors hover:border-blue-200 hover:bg-blue-50/40"
         >
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <Microscope className="h-4 w-4 text-blue-600" />
-            Start with a question
+            Research
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Use Research when you want a topic-first entry point, a paper set, and a quick landscape of methods, data, and gaps.
-          </p>
-          <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-blue-700">
-            Open Research
-            <ArrowRight className="h-3.5 w-3.5" />
-          </div>
+          <ArrowRight className="h-3.5 w-3.5 text-blue-700" />
         </Link>
 
         <Link
           href="/explorer"
-          className="rounded-xl border border-border bg-background p-5 transition-colors hover:border-emerald-200 hover:bg-emerald-50/40"
+          className="flex items-center justify-between rounded-xl border border-border bg-background px-4 py-3 transition-colors hover:border-emerald-200 hover:bg-emerald-50/40"
         >
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <Compass className="h-4 w-4 text-emerald-600" />
-            Inspect the corpus
+            Explorer
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Use Explorer for structured browsing: filters, atoms, ideas, and paper-by-paper inspection without leaving the dataset.
-          </p>
-          <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-emerald-700">
-            Open Explorer
-            <ArrowRight className="h-3.5 w-3.5" />
-          </div>
+          <ArrowRight className="h-3.5 w-3.5 text-emerald-700" />
         </Link>
 
         <Link
           href={featuredProject ? `/projects/${featuredProject.slug}` : "/projects"}
-          className="rounded-xl border border-border bg-background p-5 transition-colors hover:border-amber-200 hover:bg-amber-50/40"
+          className="flex items-center justify-between rounded-xl border border-border bg-background px-4 py-3 transition-colors hover:border-amber-200 hover:bg-amber-50/40"
         >
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <FolderOpen className="h-4 w-4 text-amber-700" />
-            {featuredProject ? "Open Projects" : "Build a review space"}
+            Projects
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            {featuredProject
-              ? `Projects are the synthesis layer. The current featured entry is "${featuredProject.title}", surfaced as a ${getDashboardProjectLabel(featuredProject).toLowerCase()}.`
-              : "Use Projects as the synthesis layer when a paper set is stable enough to turn into a curated thematic review or evidence map."}
-          </p>
-          <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-amber-700">
-            {featuredProject ? "Open Featured Project" : "Open Projects"}
-            <ArrowRight className="h-3.5 w-3.5" />
-          </div>
+          <ArrowRight className="h-3.5 w-3.5 text-amber-700" />
         </Link>
       </div>
 
-      {projectsLoading ? (
-        <FeaturedProjectSkeleton />
-      ) : featuredProject ? (
-        <FeaturedProjectSection project={featuredProject} />
-      ) : (
-        <Card className="rounded-xl border border-dashed shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Projects</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>No project has been published yet. Start in Research, then promote a stable paper set into Projects.</p>
-            <div className="flex flex-wrap gap-2">
-              <Button asChild variant="outline" size="sm">
-                <Link href="/research">Open Research</Link>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <Link href="/projects">Open Projects</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Tabs defaultValue="today" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="today">Today</TabsTrigger>
+          <TabsTrigger value="analytics">Corpus Analytics</TabsTrigger>
+        </TabsList>
 
-      {/* Hero search section */}
-      <div className="mb-8 rounded-xl border bg-gradient-to-r from-blue-50 to-indigo-50 p-8 text-center">
-        <h2 className="text-xl font-semibold text-foreground mb-2">What are you researching?</h2>
-        <p className="text-sm text-muted-foreground mb-4">Search across 14,000+ NBER papers, methods, mechanisms, and datasets</p>
-        <form onSubmit={handleSearch} className="mx-auto max-w-xl flex gap-2">
-          <Input
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="e.g., effect of AI on labor markets, minimum wage, DID methods..."
-            className="h-12 text-base"
+        <TabsContent value="today" className="space-y-6">
+          {/* Hero search section */}
+          <div className="rounded-xl border bg-gradient-to-r from-blue-50 to-indigo-50 p-8 text-center">
+            <h2 className="text-xl font-semibold text-foreground mb-2">What are you researching?</h2>
+            <p className="text-sm text-muted-foreground mb-4">Search across 14,000+ NBER papers, methods, mechanisms, and datasets</p>
+            <form onSubmit={handleSearch} className="mx-auto max-w-xl flex gap-2">
+              <Input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="e.g., effect of AI on labor markets, minimum wage, DID methods..."
+                className="h-12 text-base"
+              />
+              <Button type="submit" size="lg">Search</Button>
+            </form>
+          </div>
+
+          {/* What's New */}
+          <WhatsNewCard />
+
+          {/* Personalized Feed */}
+          <PersonalizedFeed />
+
+          {/* Featured project */}
+          {projectsLoading ? (
+            <FeaturedProjectSkeleton />
+          ) : featuredProject ? (
+            <FeaturedProjectSection project={featuredProject} />
+          ) : (
+            <Card className="rounded-xl border border-dashed shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Projects</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-muted-foreground">
+                <p>No project has been published yet. Start in Research, then promote a stable paper set into Projects.</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild variant="outline" size="sm">
+                    <Link href="/research">Open Research</Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href="/projects">Open Projects</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Active Ideas */}
+          <ActiveIdeas ideas={ideasData?.ideas} loading={ideasLoading} />
+
+          {/* Top Papers */}
+          <TopPapers
+            papers={papersData?.papers?.items}
+            loading={papersLoading}
           />
-          <Button type="submit" size="lg">Search</Button>
-        </form>
-      </div>
+        </TabsContent>
 
-      {/* What's New */}
-      <WhatsNewCard />
+        <TabsContent value="analytics" className="space-y-6">
+          {/* Stats Cards */}
+          <StatsCards stats={statsData?.stats} loading={statsLoading} />
 
-      {/* Row 1: Stats Cards */}
-      <StatsCards stats={statsData?.stats} loading={statsLoading} />
+          {/* Charts */}
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+            <YearChart
+              data={yearData?.yearDistribution}
+              loading={yearLoading}
+            />
+            <FieldChart
+              data={fieldData?.fieldOverview}
+              loading={fieldLoading}
+            />
+          </div>
 
-      {/* Row 2: Charts */}
-      <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
-        <YearChart
-          data={yearData?.yearDistribution}
-          loading={yearLoading}
-        />
-        <FieldChart
-          data={fieldData?.fieldOverview}
-          loading={fieldLoading}
-        />
-      </div>
+          {/* Trending Topics */}
+          <TrendingTopics
+            data={trendingData?.trendingTopics}
+            loading={trendingLoading}
+          />
 
-      {/* Row 3: Trending Topics */}
-      <TrendingTopics
-        data={trendingData?.trendingTopics}
-        loading={trendingLoading}
-      />
+          {/* Method x Field Heatmap */}
+          <MethodFieldHeatmap />
 
-      {/* Row 3.25: Method x Field Heatmap */}
-      <MethodFieldHeatmap />
+          {/* Gap Analysis */}
+          <GapAnalysisCard data={gapData?.gapAnalysis} loading={gapLoading} />
 
-      {/* Row 3.5: Personalized Feed & Active Ideas */}
-      <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
-        <PersonalizedFeed />
-        <ActiveIdeas ideas={ideasData?.ideas} loading={ideasLoading} />
-      </div>
-
-      {/* Row 4: Top Papers */}
-      <TopPapers
-        papers={papersData?.papers?.items}
-        loading={papersLoading}
-      />
-
-      {/* Row 4: Gap Analysis */}
-      <GapAnalysisCard data={gapData?.gapAnalysis} loading={gapLoading} />
-
-      {/* Row 5: Atom type breakdown */}
-      <AtomBreakdown stats={statsData?.stats} loading={statsLoading} />
+          {/* Atom type breakdown */}
+          <AtomBreakdown stats={statsData?.stats} loading={statsLoading} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

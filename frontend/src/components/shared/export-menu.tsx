@@ -35,7 +35,7 @@ export function ExportMenu({ paperIds, label = "Export", compact = false }: Expo
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
   const idsParam = paperIds.join(",");
   const hasIds = paperIds.length > 0;
 

@@ -32,10 +32,11 @@ function entityHref(item: ContextItem): string {
 
 interface ContextPanelProps {
   items: ContextItem[];
+  defaultExpanded?: boolean;
 }
 
-export function ContextPanel({ items }: ContextPanelProps) {
-  const [expanded, setExpanded] = useState(false);
+export function ContextPanel({ items, defaultExpanded }: ContextPanelProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded ?? false);
 
   if (items.length === 0) return null;
 
@@ -59,12 +60,8 @@ export function ContextPanel({ items }: ContextPanelProps) {
               className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
             >
               {entityIcon(item.entityType)}
-              <span className="font-medium">{item.entityId}</span>
-              {item.title && (
-                <span className="max-w-[180px] truncate text-gray-500">
-                  &mdash; {item.title}
-                </span>
-              )}
+              <span className="font-medium text-sm text-foreground truncate">{item.title || item.entityId}</span>
+              <span className="text-xs font-mono text-muted-foreground">{item.entityId}</span>
             </Link>
           ))}
         </div>

@@ -134,7 +134,7 @@ Core tables in `backend/kb.db`:
 
 ## 3. Backend API
 
-Built with **FastAPI** + **Strawberry GraphQL**, served via uvicorn on port 8000.
+Built with **FastAPI** + **Strawberry GraphQL**, served via uvicorn on port 8001.
 
 ### 3.1 GraphQL API (`/graphql`)
 
@@ -317,7 +317,7 @@ Built with **Next.js 14** (App Router), **Apollo Client** for GraphQL, **Tailwin
 ./scripts/dev.sh
 
 # Or separately:
-cd backend && python3 -m uvicorn app:app --host 127.0.0.1 --port 8000 --reload
+cd backend && python3 -m uvicorn app:app --host 127.0.0.1 --port 8001 --reload
 cd frontend && npm run dev
 ```
 
@@ -337,8 +337,8 @@ cd backend && python3 ingest.py
 
 **Access points:**
 - Frontend: http://localhost:3000
-- GraphQL API: http://localhost:8000/graphql (with GraphiQL IDE)
-- Health check: http://localhost:8000/api/health
+- GraphQL API: http://localhost:8001/graphql (with GraphiQL IDE)
+- Health check: http://localhost:8001/api/health
 
 ---
 

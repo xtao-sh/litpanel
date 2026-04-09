@@ -11,6 +11,7 @@ import {
   GET_ATOM_NEIGHBORHOOD,
   GET_PAPER_SET_NETWORK,
   RESEARCH_PAPERS,
+  SEARCH,
 } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { GraphControls } from "@/components/graph/graph-controls";
@@ -200,10 +201,13 @@ function GraphPageInner() {
           setErrorMsg("No results found for that paper ID.");
           setGraphData(null);
         } else {
+          const paperNodeCount = net.nodes.filter((node) => node.type === "paper").length;
           setErrorMsg(null);
           setSearchMessage(
-            net.nodes.length <= 1 || net.edges.length === 0
-              ? `"${nextContext?.label ?? paperId}" does not yet have structured graph links. Try topic keywords to open a broader paper-set graph.`
+            paperNodeCount <= 1
+              ? `"${nextContext?.label ?? paperId}" is currently linked only to atoms that are unique to this paper in the knowledge base, so depth 2 and 3 will match depth 1. Try topic keywords to open a broader paper-set graph.`
+              : net.nodes.length <= 1 || net.edges.length === 0
+                ? `"${nextContext?.label ?? paperId}" does not yet have structured graph links. Try topic keywords to open a broader paper-set graph.`
               : null
           );
           setGraphData(net);
@@ -598,6 +602,29 @@ function GraphPageInner() {
     return searchMessage;
   }, [depth, graphContext, graphData, paperSetScope, searchMessage]);
 
+  const disabledDepths = useMemo(() => {
+    if (!graphData) return new Set<number>();
+    if ((graphData.mode === "paper" || graphData.mode === "atom") && graphData.totalPaperNodes <= 1) {
+      return new Set([2, 3]);
+    }
+    return new Set<number>();
+  }, [graphData]);
+
+  const depthHint = useMemo(() => {
+    if (!graphData) return null;
+    if ((graphData.mode === "paper" || graphData.mode === "atom") && graphData.totalPaperNodes <= 1) {
+      return "No additional papers are connected through the current entity yet, so deeper hops will not change this graph.";
+    }
+    if (graphData.mode === "paper_set") {
+      return depth === 1
+        ? "Depth 1 keeps only atoms shared within the current seed set."
+        : depth === 2
+          ? "Depth 2 adds all atoms attached to the visible seed papers."
+          : "Depth 3 adds outside papers linked through the visible atoms.";
+    }
+    return null;
+  }, [depth, graphData]);
+
   return (
     <div className="-m-6 flex h-[calc(100vh-4rem)] flex-col lg:-m-8">
       <div className="relative flex-1">
@@ -631,6 +658,9 @@ function GraphPageInner() {
               onNodeSelect={setSelectedNode}
               onNodeExpand={handleNodeExpand}
             />
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-muted-foreground bg-background/80 backdrop-blur px-3 py-1 rounded-full">
+              Click a node for details · Double-click to re-center
+            </div>
           </div>
         ) : (
           <EmptyState
@@ -669,6 +699,8 @@ function GraphPageInner() {
               onSearchSubmit={handleSearchSubmit}
               depth={depth}
               onDepthChange={handleDepthChange}
+              disabledDepths={disabledDepths}
+              depthHint={depthHint}
               visibleTypes={visibleTypes}
               onToggleType={handleToggleType}
               layout={layout}
@@ -862,6 +894,11 @@ function EmptyState({
                     Explore
                   </Button>
                 </div>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto mt-3">
+                  The knowledge graph connects papers (blue circles) to their methods (green rectangles),
+                  datasets (purple diamonds), mechanisms (orange hexagons), and puzzles (red triangles).
+                  Higher depth shows more connections.
+                </p>
                 <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
                   <span className="text-xs text-muted-foreground">Try:</span>
                   {[

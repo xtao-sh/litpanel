@@ -85,9 +85,10 @@ function renderContent(text: string) {
 interface ChatMessageProps {
   message: Message;
   userQuestion?: string;
+  defaultContextExpanded?: boolean;
 }
 
-export function ChatMessage({ message, userQuestion }: ChatMessageProps) {
+export function ChatMessage({ message, userQuestion, defaultContextExpanded }: ChatMessageProps) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
 
@@ -148,7 +149,7 @@ export function ChatMessage({ message, userQuestion }: ChatMessageProps) {
 
         {/* Context panel for assistant messages */}
         {!isUser && message.context && message.context.length > 0 && (
-          <ContextPanel items={message.context} />
+          <ContextPanel items={message.context} defaultExpanded={defaultContextExpanded} />
         )}
 
         {/* Message text */}

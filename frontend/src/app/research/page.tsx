@@ -19,6 +19,7 @@ import {
   FolderOpen,
   FolderPlus,
   Loader2,
+  X,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -191,6 +192,12 @@ function ResearchPageInner() {
 
   // Delete confirmation state
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+
+  // Dismissible workflow card
+  const [showWorkflowCard, setShowWorkflowCard] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return localStorage.getItem('research-workflow-card-dismissed') !== 'true';
+  });
 
   // Whether a search has been performed
   const hasSearched = submittedQuery.length > 0;
@@ -802,45 +809,56 @@ function ResearchPageInner() {
         </div>
       )}
 
-      <div className="mx-4 mt-2 rounded-xl border border-border bg-background/80 px-4 py-3">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-medium text-foreground">
-              Topic-first discovery belongs here
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Use Research to define the paper set, Explorer to inspect records, and Projects when the set is stable enough for synthesis.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link href={explorerHref}>
-                <Compass className="mr-1.5 h-3.5 w-3.5" />
-                Inspect in Explorer
-              </Link>
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleCreateProjectDraft}
-              disabled={allPaperIds.length === 0 || creatingProject}
-            >
-              {creatingProject ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <FolderPlus className="mr-1.5 h-3.5 w-3.5" />
-              )}
-              Create Research Draft
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/projects">
-                <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
-                Open Projects
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </Link>
-            </Button>
+      {showWorkflowCard && (
+        <div className="relative mx-4 mt-2 rounded-xl border border-border bg-background/80 px-4 py-3">
+          <button
+            onClick={() => {
+              setShowWorkflowCard(false);
+              localStorage.setItem('research-workflow-card-dismissed', 'true');
+            }}
+            className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                Topic-first discovery belongs here
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Use Research to define the paper set, Explorer to inspect records, and Projects when the set is stable enough for synthesis.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link href={explorerHref}>
+                  <Compass className="mr-1.5 h-3.5 w-3.5" />
+                  Inspect in Explorer
+                </Link>
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleCreateProjectDraft}
+                disabled={allPaperIds.length === 0 || creatingProject}
+              >
+                {creatingProject ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <FolderPlus className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                Create Research Draft
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/projects">
+                  <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+                  Open Projects
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {compareCount > 0 && (
         <div className="mx-4 mt-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">

@@ -42,13 +42,27 @@ function YearBars({
   data: { year: number; count: number }[];
 }) {
   if (!data.length) return null;
-  const maxCount = Math.max(...data.map((d) => d.count));
+  const minYear = Math.min(...data.map((d) => d.year));
+  const maxYear = Math.max(...data.map((d) => d.year));
+  const countsByYear = new Map(data.map((d) => [d.year, d.count]));
+  const series = Array.from({ length: maxYear - minYear + 1 }, (_, index) => {
+    const year = minYear + index;
+    return {
+      year,
+      count: countsByYear.get(year) ?? 0,
+    };
+  });
+  const maxCount = Math.max(...series.map((d) => d.count), 1);
+
   return (
-    <div className="flex items-end gap-px h-16">
-      {data.map((d) => (
+    <div
+      className="grid h-16 items-end gap-1"
+      style={{ gridTemplateColumns: `repeat(${series.length}, minmax(0, 1fr))` }}
+    >
+      {series.map((d) => (
         <div
           key={d.year}
-          className="group relative flex-1 min-w-[3px] max-w-[12px]"
+          className="group relative flex min-w-0 items-end"
         >
           <div
             className="w-full rounded-t bg-blue-400/70 hover:bg-blue-500 transition-colors"

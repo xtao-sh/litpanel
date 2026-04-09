@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ChatMessage, type Message } from "@/components/ask/chat-message";
 import type { ResearchLandscape } from "@/lib/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 // ---------------------------------------------------------------------------
 // Landscape summary generator (compressed for context window)

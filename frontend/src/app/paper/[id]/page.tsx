@@ -47,6 +47,7 @@ import {
 } from "@/lib/navigation";
 import type { Paper, RelatedPaper, Collection, PaperDebate, BacklinkNote } from "@/lib/types";
 
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -532,6 +533,12 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedIndicatorRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // --- Score chart toggle ---
+  const [showRadar, setShowRadar] = useState(false);
+
+  // --- Scroll-spy for section TOC ---
+  const [activeSection, setActiveSection] = useState<string>("");
+
   // --- Axis control for "More Like This" ---
   const [activeAxis, setActiveAxis] = useState<string>("all");
   const [axisPapers, setAxisPapers] = useState<RelatedPaper[] | null>(null);
@@ -545,6 +552,25 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
       if (savedIndicatorRef.current) clearTimeout(savedIndicatorRef.current);
     };
   }, []);
+
+  // --- Scroll-spy observer for section TOC ---
+  const sections_ = data?.paper?.sections ?? [];
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        }
+      },
+      { rootMargin: "-20% 0px -70% 0px" }
+    );
+
+    const sectionEls = document.querySelectorAll("[id^='section-']");
+    sectionEls.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [sections_]);
 
   // --- Handlers ---
   async function handleToggleBookmark() {
@@ -793,102 +819,6 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               )}
             </div>
 
-            {/* User actions row: Bookmark + Reading Status */}
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <Button
-                variant={isBookmarked ? "default" : "outline"}
-                size="sm"
-                onClick={handleToggleBookmark}
-                className={
-                  isBookmarked
-                    ? "gap-1.5 bg-amber-500 hover:bg-amber-600 text-white border-amber-500"
-                    : "gap-1.5"
-                }
-              >
-                {isBookmarked ? (
-                  <BookmarkCheck className="h-4 w-4" />
-                ) : (
-                  <Bookmark className="h-4 w-4" />
-                )}
-                {isBookmarked ? "Bookmarked" : "Bookmark"}
-              </Button>
-
-              <div className="flex items-center gap-2">
-                <span
-                  className={`h-2.5 w-2.5 rounded-full ${statusColor(displayStatus)}`}
-                />
-                <Select
-                  value={displayStatus ?? "not_set"}
-                  onValueChange={handleStatusChange}
-                >
-                  <SelectTrigger className="h-8 w-[160px] text-xs">
-                    <SelectValue placeholder="Reading status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {READING_STATUS_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        <span className="flex items-center gap-2">
-                          <span
-                            className={`inline-block h-2 w-2 rounded-full ${opt.color}`}
-                          />
-                          {opt.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <AddToCollectionDropdown paperId={paper.paperId} />
-              <AddToIdeaDropdown paperId={paper.paperId} />
-
-              <Link
-                href={buildEntityGraphHref({
-                  query: paper.paperId,
-                  source: "paper",
-                  returnTo: currentPageHref,
-                  label: paper.title || paper.paperId,
-                })}
-              >
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <GitBranch className="h-4 w-4" />
-                  View Network
-                </Button>
-              </Link>
-
-              <Link
-                href={buildCompareHref({
-                  paperIds: [paper.paperId],
-                  source: "paper",
-                  returnTo: currentPageHref,
-                  context: paper.title || paper.paperId,
-                })}
-              >
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <Scale className="h-4 w-4" />
-                  Compare
-                </Button>
-              </Link>
-            </div>
-
-            {/* Average score */}
-            {paper.averageScore !== null && (
-              <div
-                className={`inline-flex items-center gap-3 rounded-xl border px-4 py-2.5 ${scoreBg(paper.averageScore)} ${paper.averageScore >= 4.5 ? "border-green-200" : paper.averageScore >= 3.5 ? "border-blue-200" : "border-border"}`}
-              >
-                <span
-                  className={`text-3xl font-bold tabular-nums ${scoreColor(paper.averageScore)}`}
-                >
-                  {paper.averageScore.toFixed(1)}
-                </span>
-                <div className="flex flex-col">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Average Score
-                  </span>
-                  <span className="text-xs text-muted-foreground">out of 5.0</span>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* --- Abstract --- */}
@@ -915,22 +845,127 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             </div>
           )}
 
+          {/* --- Average Score + Action Bar --- */}
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            {/* Average score */}
+            {paper.averageScore !== null && (
+              <div
+                className={`inline-flex items-center gap-3 rounded-xl border px-4 py-2.5 ${scoreBg(paper.averageScore)} ${paper.averageScore >= 4.5 ? "border-green-200" : paper.averageScore >= 3.5 ? "border-blue-200" : "border-border"}`}
+              >
+                <span
+                  className={`text-3xl font-bold tabular-nums ${scoreColor(paper.averageScore)}`}
+                >
+                  {paper.averageScore.toFixed(1)}
+                </span>
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Average Score
+                  </span>
+                  <span className="text-xs text-muted-foreground">out of 5.0</span>
+                </div>
+              </div>
+            )}
+
+            <Button
+              variant={isBookmarked ? "default" : "outline"}
+              size="sm"
+              onClick={handleToggleBookmark}
+              className={
+                isBookmarked
+                  ? "gap-1.5 bg-amber-500 hover:bg-amber-600 text-white border-amber-500"
+                  : "gap-1.5"
+              }
+            >
+              {isBookmarked ? (
+                <BookmarkCheck className="h-4 w-4" />
+              ) : (
+                <Bookmark className="h-4 w-4" />
+              )}
+              {isBookmarked ? "Bookmarked" : "Bookmark"}
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${statusColor(displayStatus)}`}
+              />
+              <Select
+                value={displayStatus ?? "not_set"}
+                onValueChange={handleStatusChange}
+              >
+                <SelectTrigger className="h-8 w-[160px] text-xs">
+                  <SelectValue placeholder="Reading status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {READING_STATUS_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={`inline-block h-2 w-2 rounded-full ${opt.color}`}
+                        />
+                        {opt.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <AddToCollectionDropdown paperId={paper.paperId} />
+            <AddToIdeaDropdown paperId={paper.paperId} />
+
+            <Link
+              href={buildEntityGraphHref({
+                query: paper.paperId,
+                source: "paper",
+                returnTo: currentPageHref,
+                label: paper.title || paper.paperId,
+              })}
+            >
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <GitBranch className="h-4 w-4" />
+                View Network
+              </Button>
+            </Link>
+
+            <Link
+              href={buildCompareHref({
+                paperIds: [paper.paperId],
+                source: "paper",
+                returnTo: currentPageHref,
+                context: paper.title || paper.paperId,
+              })}
+            >
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Scale className="h-4 w-4" />
+                Compare
+              </Button>
+            </Link>
+          </div>
+
           {/* --- Section Navigation --- */}
           {paper.hasCard && orderedSections.filter((s) => s.content && s.content.trim().length > 0).length > 0 && (
             <nav className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-4 py-2 flex gap-2 overflow-x-auto rounded-lg">
               {orderedSections
                 .filter((s) => s.content && s.content.trim().length > 0)
-                .map((s) => (
-                  <button
-                    key={s.section}
-                    onClick={() => {
-                      document.getElementById(`section-${s.section.replace(/\s+/g, '-').toLowerCase()}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }}
-                    className="shrink-0 rounded-full px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                  >
-                    {s.section.replace(/_/g, ' ')}
-                  </button>
-                ))}
+                .map((s) => {
+                  const sectionId = `section-${s.section.replace(/\s+/g, '-').toLowerCase()}`;
+                  return (
+                    <button
+                      key={s.section}
+                      onClick={() => {
+                        document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }}
+                      className={cn(
+                        "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                        activeSection === sectionId
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      {s.section.replace(/_/g, ' ')}
+                    </button>
+                  );
+                })}
             </nav>
           )}
 
@@ -1240,30 +1275,22 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
         {/* SIDEBAR (~35%)                                                */}
         {/* ============================================================= */}
         <div className="w-full space-y-6 lg:w-[35%] lg:sticky lg:top-6 lg:self-start">
-          {/* --- Radar Chart --- */}
-          {paper.hasCard && scores.length > 0 && (
-            <Card className="border-border shadow-none">
-              <CardHeader className="p-4 pb-0">
-                <CardTitle className="text-sm font-semibold text-muted-foreground">
-                  Score Profile
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-2">
-                <ScoreRadar scores={scores} />
-              </CardContent>
-            </Card>
-          )}
-
-          {/* --- Score Breakdown --- */}
+          {/* --- Score Profile (toggle between Bars and Radar) --- */}
           {scores.length > 0 && (
             <Card className="border-border shadow-none">
               <CardHeader className="p-4 pb-0">
-                <CardTitle className="text-sm font-semibold text-muted-foreground">
-                  Score Breakdown
-                </CardTitle>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-foreground">Score Profile</h3>
+                  <button
+                    onClick={() => setShowRadar(!showRadar)}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    {showRadar ? "Show Bars" : "Show Radar"}
+                  </button>
+                </div>
               </CardHeader>
-              <CardContent className="p-4 pt-3">
-                <ScoreBars scores={scores} />
+              <CardContent className="p-4 pt-2">
+                {showRadar ? <ScoreRadar scores={scores} /> : <ScoreBars scores={scores} />}
               </CardContent>
             </Card>
           )}
@@ -1394,58 +1421,6 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             </Card>
           )}
 
-          {/* --- Semantically Similar Papers --- */}
-          {similarPapers.length > 0 && (
-            <Card className="border-purple-200 shadow-none">
-              <CardHeader className="p-4 pb-0">
-                <CardTitle className="text-sm font-semibold text-purple-700">
-                  Semantically Similar Papers
-                </CardTitle>
-                <p className="text-[11px] text-purple-400 mt-0.5">
-                  Based on content similarity
-                </p>
-              </CardHeader>
-              <CardContent className="p-4 pt-3">
-                <div className="space-y-3">
-                  {similarPapers.map((sp) => {
-                    const pct = Math.round(sp.similarityScore * 100);
-                    return (
-                      <Link
-                        key={sp.paperId}
-                        href={getPaperHref(sp.paperId)}
-                        className="block rounded-md border border-purple-100 p-3 transition-colors hover:bg-purple-50/50"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="font-mono text-xs text-muted-foreground">
-                            {sp.paperId}
-                          </span>
-                          <span className="shrink-0 rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700">
-                            {pct}% match
-                          </span>
-                        </div>
-                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                          {sp.title ?? "Untitled"}
-                        </p>
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <div className="h-1.5 flex-1 rounded-full bg-purple-100 overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-purple-500 transition-all"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          {sp.year && (
-                            <span className="text-xs text-muted-foreground shrink-0">
-                              {sp.year}
-                            </span>
-                          )}
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
 

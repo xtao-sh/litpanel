@@ -59,7 +59,7 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
     setResult(null);
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
       const res = await fetch(`${apiBase}/api/analyze/consensus`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

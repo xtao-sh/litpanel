@@ -97,6 +97,7 @@ def _projects_exist() -> bool:
 
 MAX_GRAPH_SEED_PAPERS = 60
 MAX_GRAPH_CONTEXT_PAPERS = 20
+MAX_GRAPH_CANDIDATE_PAPERS = 200
 
 
 def _graph_edge_relation(atom_type: str) -> str:
@@ -1897,15 +1898,62 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
         return empty
 
     source_paper_count = len(deduped_ids)
-    seed_ids = deduped_ids[:MAX_GRAPH_SEED_PAPERS]
-    truncated = source_paper_count > len(seed_ids)
+    candidate_ids = deduped_ids[:MAX_GRAPH_CANDIDATE_PAPERS]
 
     try:
         db = await _get_db()
 
         nodes: dict[str, dict[str, Any]] = {}
         edges: dict[tuple[str, str, str], dict[str, Any]] = {}
+        candidate_placeholders = ", ".join("?" for _ in candidate_ids)
+
+        candidate_atom_link_cursor = await db.execute(
+            f"""
+            SELECT a.slug, a.type, a.title, a.theme, apr.paper_id
+            FROM atoms a
+            JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+            WHERE apr.paper_id IN ({candidate_placeholders})
+            """,
+            candidate_ids,
+        )
+        candidate_atom_link_rows = await candidate_atom_link_cursor.fetchall()
+
+        atom_candidate_papers: dict[str, set[str]] = {}
+        papers_with_any_atoms: set[str] = set()
+        for row in candidate_atom_link_rows:
+            atom_candidate_papers.setdefault(row["slug"], set()).add(row["paper_id"])
+            papers_with_any_atoms.add(row["paper_id"])
+
+        if depth <= 1:
+            connected_candidate_papers = {
+                paper_id
+                for linked_papers in atom_candidate_papers.values()
+                if len(linked_papers) >= 2
+                for paper_id in linked_papers
+            }
+        else:
+            connected_candidate_papers = set(papers_with_any_atoms)
+
+        preferred_seed_ids = [
+            pid for pid in candidate_ids if pid in connected_candidate_papers
+        ]
+        fallback_seed_ids = [
+            pid for pid in candidate_ids if pid in papers_with_any_atoms and pid not in connected_candidate_papers
+        ]
+        remaining_seed_ids = [
+            pid for pid in candidate_ids if pid not in connected_candidate_papers and pid not in papers_with_any_atoms
+        ]
+
+        seed_ids = (
+            preferred_seed_ids
+            + fallback_seed_ids
+            + remaining_seed_ids
+        )[:MAX_GRAPH_SEED_PAPERS]
+        truncated = source_paper_count > len(seed_ids)
         seed_set = set(seed_ids)
+
+        if not seed_ids:
+            return empty
 
         placeholders = ", ".join("?" for _ in seed_ids)
         paper_cursor = await db.execute(
@@ -1919,16 +1967,7 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
         if not nodes:
             return empty
 
-        atom_link_cursor = await db.execute(
-            f"""
-            SELECT a.slug, a.type, a.title, a.theme, apr.paper_id
-            FROM atoms a
-            JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-            WHERE apr.paper_id IN ({placeholders})
-            """,
-            seed_ids,
-        )
-        atom_link_rows = await atom_link_cursor.fetchall()
+        atom_link_rows = [row for row in candidate_atom_link_rows if row["paper_id"] in seed_set]
 
         atom_info: dict[str, dict[str, Any]] = {}
         atom_seed_papers: dict[str, set[str]] = {}
@@ -2038,6 +2077,18 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
                         target=f"atom:{atom_slug}",
                         relation=_graph_edge_relation(info["type"]),
                     )
+
+        if edges:
+            connected_node_ids: set[str] = set()
+            for edge in edges.values():
+                connected_node_ids.add(edge["source"])
+                connected_node_ids.add(edge["target"])
+
+            nodes = {
+                node_id: node
+                for node_id, node in nodes.items()
+                if node_id in connected_node_ids
+            }
 
         return _finalize_network_graph(
             nodes=nodes,

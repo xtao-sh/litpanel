@@ -33,6 +33,8 @@ interface GraphControlsProps {
   onSearchSubmit: (value: string) => void;
   depth: number;
   onDepthChange: (depth: number) => void;
+  disabledDepths?: Set<number>;
+  depthHint?: string | null;
   visibleTypes: Set<string>;
   onToggleType: (type: string) => void;
   layout: LayoutName;
@@ -49,6 +51,8 @@ export function GraphControls({
   onSearchSubmit,
   depth,
   onDepthChange,
+  disabledDepths,
+  depthHint,
   visibleTypes,
   onToggleType,
   layout,
@@ -261,11 +265,17 @@ export function GraphControls({
                     size="sm"
                     className="h-8 w-8 p-0 text-xs"
                     onClick={() => onDepthChange(d)}
+                    disabled={disabledDepths?.has(d)}
                   >
                     {d}
                   </Button>
                 ))}
               </div>
+              {depthHint ? (
+                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                  {depthHint}
+                </p>
+              ) : null}
             </div>
 
             {/* Node types */}

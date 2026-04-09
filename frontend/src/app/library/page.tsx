@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, Suspense } from "react";
 import Link from "next/link";
-import { useQuery, useMutation } from "@apollo/client/react";
+import { useQuery, useMutation, useLazyQuery } from "@apollo/client/react";
 import {
   Bookmark,
   BookOpen,
@@ -42,6 +42,7 @@ import {
   RENAME_COLLECTION,
   REMOVE_FROM_COLLECTION,
   TOGGLE_BOOKMARK,
+  SET_READING_STATUS,
 } from "@/lib/queries";
 import type { Paper, NoteItem, Collection } from "@/lib/types";
 import { LitReviewModal } from "@/components/research/lit-review-modal";
@@ -203,6 +204,7 @@ function Pagination({
 function BookmarksTab() {
   const [page, setPage] = useState(1);
   const [selectedPapers, setSelectedPapers] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data, loading, error, refetch } = useQuery<{
     bookmarks: { items: Paper[]; total: number };
@@ -214,6 +216,12 @@ function BookmarksTab() {
 
   const papers = data?.bookmarks?.items ?? [];
   const total = data?.bookmarks?.total ?? 0;
+
+  const filteredPapers = papers.filter(p => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (p.title?.toLowerCase().includes(q) || p.paperId.toLowerCase().includes(q));
+  });
 
   if (loading) return <TableSkeleton />;
   if (error) return <QueryErrorBanner error={error} message="Failed to load bookmarks." />;
@@ -228,14 +236,23 @@ function BookmarksTab() {
 
   return (
     <div>
+      <div className="px-4 py-2 border-b border-border">
+        <input
+          type="text"
+          placeholder="Search bookmarks by title or ID..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
       <div className="flex items-center justify-between px-4 py-2 border-b border-border">
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <input
             type="checkbox"
-            checked={selectedPapers.size === papers.length && papers.length > 0}
+            checked={selectedPapers.size === filteredPapers.length && filteredPapers.length > 0}
             onChange={(e) => {
               if (e.target.checked) {
-                setSelectedPapers(new Set(papers.map((b: any) => b.paperId)));
+                setSelectedPapers(new Set(filteredPapers.map((b: any) => b.paperId)));
               } else {
                 setSelectedPapers(new Set());
               }
@@ -244,19 +261,24 @@ function BookmarksTab() {
           />
           Select all
         </label>
-        <ExportMenu paperIds={papers.map((p) => p.paperId)} label="Export" compact />
+        <ExportMenu paperIds={filteredPapers.map((p) => p.paperId)} label="Export" compact />
       </div>
       {selectedPapers.size > 0 && (
         <div className="flex items-center gap-3 rounded-lg border border-border bg-muted p-2 mb-3 mx-4 mt-2">
           <span className="text-sm font-medium">{selectedPapers.size} selected</span>
           <ExportMenu paperIds={Array.from(selectedPapers)} label="Export" compact />
           <button
-            onClick={() => {
-              Array.from(selectedPapers).forEach(pid => {
-                toggleBookmark({ variables: { paperId: pid } });
-              });
+            onClick={async () => {
+              const pids = Array.from(selectedPapers);
+              try {
+                await Promise.all(pids.map(pid =>
+                  toggleBookmark({ variables: { paperId: pid } })
+                ));
+              } catch (e) {
+                console.error("Some removals failed:", e);
+              }
               setSelectedPapers(new Set());
-              setTimeout(() => refetch(), 500);
+              refetch();
             }}
             className="text-xs text-red-600 hover:underline"
           >
@@ -271,7 +293,7 @@ function BookmarksTab() {
         </div>
       )}
       <div className="divide-y divide-border">
-        {papers.map((p) => (
+        {filteredPapers.map((p) => (
           <div key={p.paperId} className="flex items-center gap-2 px-4">
             <input
               type="checkbox"
@@ -310,7 +332,7 @@ function ReadingListTab() {
 
   const queryStatus = statusFilter === "all" ? null : statusFilter;
 
-  const { data, loading, error } = useQuery<{
+  const { data, loading, error, refetch } = useQuery<{
     readingList: { items: Paper[]; total: number };
   }>(GET_READING_LIST, {
     variables: {
@@ -319,6 +341,8 @@ function ReadingListTab() {
       offset: (page - 1) * PAGE_SIZE,
     },
   });
+
+  const [setReadingStatus] = useMutation(SET_READING_STATUS);
 
   const papers = data?.readingList?.items ?? [];
   const total = data?.readingList?.total ?? 0;
@@ -365,7 +389,27 @@ function ReadingListTab() {
         <>
           <div className="divide-y divide-border">
             {papers.map((p) => (
-              <PaperRow key={p.paperId} paper={p} />
+              <div key={p.paperId} className="flex items-center">
+                <div className="flex-1 min-w-0">
+                  <PaperRow paper={p} />
+                </div>
+                <select
+                  value={p.readingStatus ?? "to_read"}
+                  onChange={async (e) => {
+                    await setReadingStatus({
+                      variables: { paperId: p.paperId, status: e.target.value },
+                    });
+                    refetch();
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-xs rounded border border-border bg-background px-1.5 py-0.5 text-muted-foreground mr-4 shrink-0"
+                >
+                  <option value="to_read">To Read</option>
+                  <option value="reading">Reading</option>
+                  <option value="skimmed">Skimmed</option>
+                  <option value="read_in_detail">Read in Detail</option>
+                </select>
+              </div>
             ))}
           </div>
           <Pagination
@@ -386,6 +430,7 @@ function ReadingListTab() {
 
 function NotesTab() {
   const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data, loading, error } = useQuery<{
     allNotes: { items: NoteItem[]; total: number };
@@ -395,6 +440,12 @@ function NotesTab() {
 
   const notes = data?.allNotes?.items ?? [];
   const total = data?.allNotes?.total ?? 0;
+
+  const filteredNotes = notes.filter(n => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (n.note?.toLowerCase().includes(q) || n.entityId.toLowerCase().includes(q));
+  });
 
   if (loading) return <TableSkeleton />;
   if (error) return <QueryErrorBanner error={error} message="Failed to load notes." />;
@@ -409,8 +460,17 @@ function NotesTab() {
 
   return (
     <div>
+      <div className="px-4 py-2 border-b border-border">
+        <input
+          type="text"
+          placeholder="Search notes by content or ID..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
       <div className="divide-y divide-border">
-        {notes.map((note) => {
+        {filteredNotes.map((note) => {
           const href =
             note.entityType === "paper"
               ? `/paper/${note.entityId}`
@@ -493,6 +553,10 @@ function CollectionsTab() {
     skip: !viewingCollection,
   });
 
+  const [fetchAllPapers] = useLazyQuery<{
+    collectionPapers: { items: Paper[]; total: number };
+  }>(GET_COLLECTION_PAPERS);
+
   const [createMut] = useMutation(CREATE_COLLECTION);
   const [deleteMut] = useMutation(DELETE_COLLECTION);
   const [renameMut] = useMutation(RENAME_COLLECTION);
@@ -546,12 +610,27 @@ function CollectionsTab() {
     [viewingCollection, removeFromMut, refetch]
   );
 
-  const handleOpenLitReview = useCallback(() => {
+  const handleOpenLitReview = useCallback(async () => {
     if (!viewingCollection) return;
-    const ids = papers.map((p) => p.paperId);
-    setLitReviewPaperIds(ids);
+    // Fetch ALL paper IDs in the collection, not just the current page
+    const totalCount = papersTotal || viewingCollection.paperCount || 0;
+    if (totalCount <= PAGE_SIZE) {
+      // Current page already has all papers
+      setLitReviewPaperIds(papers.map((p) => p.paperId));
+    } else {
+      // Fetch all papers for this collection
+      const { data: allData } = await fetchAllPapers({
+        variables: {
+          collectionId: viewingCollection.id,
+          limit: totalCount,
+          offset: 0,
+        },
+      });
+      const allIds = (allData?.collectionPapers?.items ?? []).map((p) => p.paperId);
+      setLitReviewPaperIds(allIds);
+    }
     setLitReviewOpen(true);
-  }, [viewingCollection, papers]);
+  }, [viewingCollection, papers, papersTotal, fetchAllPapers]);
 
   if (loading) return <TableSkeleton />;
   if (error) return <QueryErrorBanner error={error} message="Failed to load collections." />;
