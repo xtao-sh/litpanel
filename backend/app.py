@@ -881,7 +881,7 @@ async def export_project(slug: str, include_notes: bool = Query(False)):
             authors = _parse_authors_bibtex(row["authors"])
             author_str = ", ".join(authors) if authors else "Unknown"
             year_str = str(row["year"]) if row["year"] else "N/A"
-            score_str = f'{row["average_score"]:.1f}/5' if row["average_score"] else "N/A"
+            score_str = f'{row["average_score"]:.1f}/5' if row["average_score"] is not None else "N/A"
 
             md_lines.append(f'## {pid}: {row["title"] or "Untitled"}')
             md_lines.append(f"**Authors:** {author_str} | **Year:** {year_str} | **Score:** {score_str}\n")
@@ -907,7 +907,8 @@ async def export_project(slug: str, include_notes: bool = Query(False)):
             for pid in paper_ids:
                 note = await resolvers.get_note("paper", pid)
                 if note and note.get("note"):
-                    title = row_map.get(pid, {}).get("title", pid) if isinstance(row_map.get(pid), dict) else pid
+                    row = row_map.get(pid)
+                    title = row["title"] if row else pid
                     notes_lines.append(f"## {pid}: {title}")
                     notes_lines.append(note["note"])
                     notes_lines.append("")

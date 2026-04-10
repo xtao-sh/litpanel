@@ -263,6 +263,7 @@ def init_db() -> None:
     cur.execute("CREATE INDEX IF NOT EXISTS idx_cs_paper ON card_sections(paper_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_tc_paper ON triage_cards(paper_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_cp_paper ON collection_papers(paper_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_debate_idea ON debate_results(idea_id)")
 
     # FTS5 virtual table -- drop and recreate to avoid stale data
     cur.execute("DROP TABLE IF EXISTS search_index")

@@ -105,16 +105,9 @@ function AskPageInner() {
       abortRef.current = controller;
 
       try {
-        const body: Record<string, unknown> = {
-          question: question.trim(),
-          max_context: 20,
-        };
-        if (sessionId) {
-          body.session_id = sessionId;
-        }
-        if (paperIdParam) {
-          body.paper_id = paperIdParam;
-        }
+        const body: Record<string, unknown> = paperIdParam
+          ? { paper_id: paperIdParam, question: question.trim() }
+          : { question: question.trim(), max_context: 20, ...(sessionId ? { session_id: sessionId } : {}) };
 
         const askEndpoint = paperIdParam ? `${API_URL}/api/ask/paper` : `${API_URL}/api/ask`;
         const response = await fetch(askEndpoint, {

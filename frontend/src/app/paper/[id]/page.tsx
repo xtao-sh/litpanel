@@ -956,15 +956,13 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               Generate Ideas
             </button>
 
-            <button
-              onClick={() => {
-                window.location.href = `/ask?paperId=${paper.paperId}`;
-              }}
+            <Link
+              href={`/ask?paperId=${paper.paperId}`}
               className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             >
               <MessageCircle className="h-4 w-4" />
               Ask AI
-            </button>
+            </Link>
           </div>
 
           {/* --- Section Navigation --- */}
@@ -1475,7 +1473,8 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                   setIdeaGenLoading(true);
                   setIdeaGenResult("");
                   try {
-                    const res = await fetch("http://localhost:8000/api/generate-ideas", {
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+                    const res = await fetch(`${apiUrl}/api/generate-ideas`, {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ paper_ids: [paper.paperId], num_ideas: 3 }),

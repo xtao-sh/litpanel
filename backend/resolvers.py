@@ -3706,7 +3706,7 @@ Respond with ONLY a JSON array (no markdown, no extra text). Each element:
         from rag import _get_client, _API_MODEL
 
         client = _get_client()
-        response = client.messages.create(
+        response = await client.messages.create(
             model=_API_MODEL,
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],

@@ -140,36 +140,36 @@ async def hybrid_search(
 async def _lookup_title(entity_type: str, entity_id: str) -> tuple[str, str]:
     """Quick DB lookup for entity title and snippet."""
     import aiosqlite
-    from resolvers import DB_PATH, _db_exists
+    from resolvers import _db_exists, _get_db
 
     if not _db_exists():
         return entity_id, ""
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            if entity_type == "paper":
-                cursor = await db.execute(
-                    "SELECT title FROM papers WHERE paper_id = ?", (entity_id,)
-                )
-                row = await cursor.fetchone()
-                title = row[0] if row and row[0] else entity_id
-                # Try to get a snippet from card sections
-                cursor2 = await db.execute(
-                    "SELECT content FROM card_sections WHERE paper_id = ? LIMIT 1",
-                    (entity_id,),
-                )
-                row2 = await cursor2.fetchone()
-                snippet = row2[0][:200] if row2 and row2[0] else ""
-                return title, snippet
-            elif entity_type == "atom":
-                cursor = await db.execute(
-                    "SELECT title, description FROM atoms WHERE slug = ?", (entity_id,)
-                )
-                row = await cursor.fetchone()
-                title = row[0] if row and row[0] else entity_id
-                snippet = row[1][:200] if row and row[1] else ""
-                return title, snippet
-            else:
-                return entity_id, ""
+        db = await _get_db()
+        if entity_type == "paper":
+            cursor = await db.execute(
+                "SELECT title FROM papers WHERE paper_id = ?", (entity_id,)
+            )
+            row = await cursor.fetchone()
+            title = row[0] if row and row[0] else entity_id
+            # Try to get a snippet from card sections
+            cursor2 = await db.execute(
+                "SELECT content FROM card_sections WHERE paper_id = ? LIMIT 1",
+                (entity_id,),
+            )
+            row2 = await cursor2.fetchone()
+            snippet = row2[0][:200] if row2 and row2[0] else ""
+            return title, snippet
+        elif entity_type == "atom":
+            cursor = await db.execute(
+                "SELECT title, description FROM atoms WHERE slug = ?", (entity_id,)
+            )
+            row = await cursor.fetchone()
+            title = row[0] if row and row[0] else entity_id
+            snippet = row[1][:200] if row and row[1] else ""
+            return title, snippet
+        else:
+            return entity_id, ""
     except Exception:
         return entity_id, ""
 
