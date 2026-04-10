@@ -1472,32 +1472,43 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                 onClick={async () => {
                   setIdeaGenLoading(true);
                   setIdeaGenResult("");
+                  const controller = new AbortController();
                   try {
                     const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
                     const res = await fetch(`${apiUrl}/api/generate-ideas`, {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ paper_ids: [paper.paperId], num_ideas: 3 }),
+                      signal: controller.signal,
                     });
+                    if (!res.ok) {
+                      throw new Error(`Server error: ${res.status}`);
+                    }
                     const reader = res.body?.getReader();
                     const decoder = new TextDecoder();
+                    let buffer = "";
                     if (reader) {
                       while (true) {
                         const { done, value } = await reader.read();
                         if (done) break;
-                        const text = decoder.decode(value);
-                        for (const line of text.split("\n")) {
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split("\n");
+                        buffer = lines.pop() || "";
+                        for (const line of lines) {
                           if (line.startsWith("data: ")) {
                             try {
                               const data = JSON.parse(line.slice(6));
                               if (data.type === "chunk") setIdeaGenResult(prev => prev + data.text);
+                              if (data.type === "error") setIdeaGenResult(prev => prev + "\n\nError: " + data.message);
                             } catch {}
                           }
                         }
                       }
                     }
                   } catch (e) {
-                    setIdeaGenResult("Failed to generate ideas. Please try again.");
+                    if ((e as Error).name !== "AbortError") {
+                      setIdeaGenResult("Failed to generate ideas. Please try again.");
+                    }
                   }
                   setIdeaGenLoading(false);
                 }}

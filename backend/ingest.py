@@ -76,16 +76,27 @@ def _parse_meta(body: str) -> dict:
 
 
 def _parse_scores(body: str) -> tuple[list[tuple[str, int]], float | None]:
-    """Parse the Scores section, returning (dimension, score) pairs and average."""
+    """Parse the Scores section, returning (dimension, score) pairs and average.
+
+    Handles two formats:
+    Format A (inline): innovation: 3/5 | theory: 2/5 | empirical_rigor: 4/5
+    Format B (bulleted): - literature_innovation: 4/5 [comment]
+    """
     scores = []
     average = None
     for line in body.splitlines():
         line = line.strip()
-        # Match lines like "- literature_innovation: 5/5 [comment]"
-        # or "- literature_innovation: 4"
+        # Format B: Match lines like "- literature_innovation: 5/5 [comment]"
         m = re.match(r"-\s+(\w+):\s+(\d+)(?:/5)?", line)
         if m:
             scores.append((m.group(1), int(m.group(2))))
+            continue
+        # Format A: Match pipe-delimited "innovation: 3/5 | theory: 2/5 | ..."
+        if "|" in line and ":" in line:
+            for part in line.split("|"):
+                pm = re.match(r"\s*(\w+):\s*(\d+)(?:/5)?\s*", part.strip())
+                if pm:
+                    scores.append((pm.group(1), int(pm.group(2))))
         # Match "**Average: 4.2/5**" or "**Average: 4.1/5**"
         avg_m = re.search(r"\*\*Average:\s*([\d.]+)/5\*\*", line)
         if avg_m:

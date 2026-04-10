@@ -974,6 +974,8 @@ function IdeaWorkspaceContent() {
   useEffect(() => {
     if (prefillTitle) {
       setShowCreate(true);
+      // Clean up URL params so refresh doesn't re-open the dialog
+      window.history.replaceState({}, "", "/ideas/workspace");
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

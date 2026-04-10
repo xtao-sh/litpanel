@@ -3609,6 +3609,7 @@ async def research_suggested_questions(
 import hashlib
 
 _consensus_cache: dict[str, dict[str, Any]] = {}
+_CONSENSUS_CACHE_MAX = 100  # Evict oldest entries when cache exceeds this size
 
 
 def _consensus_cache_key(query: str, paper_ids: list[str]) -> str:
@@ -3769,7 +3770,10 @@ Respond with ONLY a JSON array (no markdown, no extra text). Each element:
             "items": items,
         }
 
-        # Cache the result
+        # Cache the result (evict oldest if over limit)
+        if len(_consensus_cache) >= _CONSENSUS_CACHE_MAX:
+            oldest_key = next(iter(_consensus_cache))
+            del _consensus_cache[oldest_key]
         _consensus_cache[cache_key] = result
         return result
 

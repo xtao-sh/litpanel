@@ -87,17 +87,24 @@ def _load_api_key() -> str:
     return key
 
 
+_client: anthropic.AsyncAnthropic | None = None
+
+
 def _get_client() -> anthropic.AsyncAnthropic:
-    """Create an async Anthropic client pointed at the Kimi Coding API.
+    """Return a cached async Anthropic client pointed at the Kimi Coding API.
 
     Raises ValueError when no API key is available.
     """
+    global _client
+    if _client is not None:
+        return _client
     key = _load_api_key()
     if not key:
         raise ValueError(
             "LLM API key not configured. Set KIMI_API_KEY environment variable."
         )
-    return anthropic.AsyncAnthropic(base_url=_API_BASE_URL, api_key=key)
+    _client = anthropic.AsyncAnthropic(base_url=_API_BASE_URL, api_key=key)
+    return _client
 
 
 # ---------------------------------------------------------------------------
