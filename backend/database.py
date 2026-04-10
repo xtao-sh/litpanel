@@ -207,6 +207,16 @@ def init_db() -> None:
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
+        -- Debate results persistence
+        CREATE TABLE IF NOT EXISTS debate_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            idea_id TEXT,
+            verdict_json TEXT,
+            transcript_json TEXT,
+            focus_prompt TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         -- Research sessions (saved search contexts)
         CREATE TABLE IF NOT EXISTS research_sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

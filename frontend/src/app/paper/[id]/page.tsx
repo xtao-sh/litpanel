@@ -16,10 +16,12 @@ import {
   Lightbulb,
   Loader2,
   FolderPlus,
+  MessageCircle,
   Plus,
   Swords,
   GitBranch,
   Scale,
+  X,
 } from "lucide-react";
 
 import {
@@ -536,6 +538,11 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
   // --- Score chart toggle ---
   const [showRadar, setShowRadar] = useState(false);
 
+  // --- Generate Ideas modal ---
+  const [ideaGenOpen, setIdeaGenOpen] = useState(false);
+  const [ideaGenResult, setIdeaGenResult] = useState("");
+  const [ideaGenLoading, setIdeaGenLoading] = useState(false);
+
   // --- Scroll-spy for section TOC ---
   const [activeSection, setActiveSection] = useState<string>("");
 
@@ -940,6 +947,24 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                 Compare
               </Button>
             </Link>
+
+            <button
+              onClick={() => setIdeaGenOpen(true)}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <Lightbulb className="h-4 w-4" />
+              Generate Ideas
+            </button>
+
+            <button
+              onClick={() => {
+                window.location.href = `/ask?paperId=${paper.paperId}`;
+              }}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Ask AI
+            </button>
           </div>
 
           {/* --- Section Navigation --- */}
@@ -1429,6 +1454,74 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
         paperId={paper.paperId}
         paperTitle={paper.title ?? "Untitled Paper"}
       />
+
+      {/* Generate Ideas modal */}
+      {ideaGenOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-lg bg-card border border-border p-6 shadow-lg">
+            <button
+              onClick={() => { setIdeaGenOpen(false); setIdeaGenResult(""); }}
+              className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h2 className="text-lg font-semibold text-foreground mb-4">
+              Research Ideas from {paper.title}
+            </h2>
+
+            {!ideaGenResult && !ideaGenLoading && (
+              <button
+                onClick={async () => {
+                  setIdeaGenLoading(true);
+                  setIdeaGenResult("");
+                  try {
+                    const res = await fetch("http://localhost:8000/api/generate-ideas", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ paper_ids: [paper.paperId], num_ideas: 3 }),
+                    });
+                    const reader = res.body?.getReader();
+                    const decoder = new TextDecoder();
+                    if (reader) {
+                      while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        const text = decoder.decode(value);
+                        for (const line of text.split("\n")) {
+                          if (line.startsWith("data: ")) {
+                            try {
+                              const data = JSON.parse(line.slice(6));
+                              if (data.type === "chunk") setIdeaGenResult(prev => prev + data.text);
+                            } catch {}
+                          }
+                        }
+                      }
+                    }
+                  } catch (e) {
+                    setIdeaGenResult("Failed to generate ideas. Please try again.");
+                  }
+                  setIdeaGenLoading(false);
+                }}
+                className="w-full rounded-lg bg-primary text-primary-foreground py-2 font-medium hover:bg-primary/90"
+              >
+                Generate 3 Research Ideas
+              </button>
+            )}
+
+            {ideaGenLoading && !ideaGenResult && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Generating ideas...
+              </div>
+            )}
+
+            {ideaGenResult && (
+              <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap">
+                {ideaGenResult}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

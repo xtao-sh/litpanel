@@ -4937,6 +4937,51 @@ async def unlink_ideas(idea_id: int, linked_idea_id: int) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Debate results persistence
+# ---------------------------------------------------------------------------
+
+def _ensure_debate_results_table() -> None:
+    """Create debate_results table if it doesn't exist (migration safe)."""
+    import sqlite3
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS debate_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            idea_id TEXT,
+            verdict_json TEXT,
+            transcript_json TEXT,
+            focus_prompt TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+async def save_debate_result(idea_id: str, verdict_json: str, transcript_json: str, focus_prompt: str = "") -> int:
+    _ensure_debate_results_table()
+    db = await _get_db()
+    cursor = await db.execute(
+        "INSERT INTO debate_results (idea_id, verdict_json, transcript_json, focus_prompt) VALUES (?, ?, ?, ?)",
+        (idea_id, verdict_json, transcript_json, focus_prompt),
+    )
+    await db.commit()
+    return cursor.lastrowid
+
+
+async def get_debate_history(idea_id: str) -> list[dict]:
+    _ensure_debate_results_table()
+    if not _db_exists():
+        return []
+    db = await _get_db()
+    cursor = await db.execute(
+        "SELECT id, verdict_json, focus_prompt, created_at FROM debate_results WHERE idea_id = ? ORDER BY created_at DESC",
+        (idea_id,),
+    )
+    return [{"id": r["id"], "verdict_json": r["verdict_json"], "focus_prompt": r["focus_prompt"], "created_at": r["created_at"]} for r in await cursor.fetchall()]
+
+
+# ---------------------------------------------------------------------------
 # System-assisted idea refinement
 # ---------------------------------------------------------------------------
 

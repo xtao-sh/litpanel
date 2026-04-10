@@ -21,6 +21,7 @@ export default function AskPage() {
 
 function AskPageInner() {
   const searchParams = useSearchParams();
+  const paperIdParam = searchParams.get("paperId");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -111,8 +112,12 @@ function AskPageInner() {
         if (sessionId) {
           body.session_id = sessionId;
         }
+        if (paperIdParam) {
+          body.paper_id = paperIdParam;
+        }
 
-        const response = await fetch(`${API_URL}/api/ask`, {
+        const askEndpoint = paperIdParam ? `${API_URL}/api/ask/paper` : `${API_URL}/api/ask`;
+        const response = await fetch(askEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
@@ -272,7 +277,7 @@ function AskPageInner() {
         abortRef.current = null;
       }
     },
-    [isStreaming, sessionId]
+    [isStreaming, sessionId, paperIdParam]
   );
 
   // Auto-fill (and optionally auto-submit) from URL param ?q=...
@@ -345,6 +350,16 @@ function AskPageInner() {
           )}
         </p>
       </div>
+
+      {/* Paper context banner */}
+      {paperIdParam && (
+        <div className="shrink-0 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5">
+          <MessageCircle className="h-4 w-4 text-blue-500 shrink-0" />
+          <span className="text-sm text-blue-700">
+            Asking about paper <span className="font-mono font-semibold">{paperIdParam}</span>
+          </span>
+        </div>
+      )}
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto rounded-lg">

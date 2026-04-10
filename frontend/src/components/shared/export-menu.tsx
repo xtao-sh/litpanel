@@ -40,7 +40,7 @@ export function ExportMenu({ paperIds, label = "Export", compact = false }: Expo
   const hasIds = paperIds.length > 0;
 
   const handleExport = useCallback(
-    (format: "bibtex" | "csv" | "markdown") => {
+    (format: "bibtex" | "csv" | "markdown" | "ris") => {
       if (!hasIds) return;
       window.open(`${apiUrl}/api/export/${format}?ids=${idsParam}`, "_blank");
       setOpen(false);
@@ -85,6 +85,14 @@ export function ExportMenu({ paperIds, label = "Export", compact = false }: Expo
           >
             <FileText className="h-3.5 w-3.5 text-muted-foreground" />
             Download BibTeX
+          </button>
+          <button
+            type="button"
+            onClick={() => handleExport("ris")}
+            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-muted/50 transition-colors"
+          >
+            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+            Download RIS
           </button>
           <button
             type="button"

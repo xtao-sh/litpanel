@@ -508,6 +508,62 @@ async def export_bibtex(ids: str = Query(..., description="Comma-separated paper
 
 
 # ---------------------------------------------------------------------------
+# RIS export
+# ---------------------------------------------------------------------------
+
+
+def _paper_to_ris(paper_id: str, title: str | None, authors_raw: str | None, year: int | None) -> str:
+    """Generate a single RIS entry for an NBER working paper."""
+    authors = _parse_authors_bibtex(authors_raw)
+    lines = ["TY  - RPRT"]
+    for author in authors:
+        lines.append(f"AU  - {_format_author_bibtex(author)}")
+    lines.append(f"TI  - {title or paper_id}")
+    if year:
+        lines.append(f"PY  - {year}")
+    lines.append("PB  - National Bureau of Economic Research")
+    number = paper_id.lstrip("w") if paper_id.startswith("w") else paper_id
+    lines.append(f"M1  - Working Paper {number}")
+    lines.append("T3  - NBER Working Papers")
+    lines.append(f"UR  - https://www.nber.org/papers/{paper_id}")
+    lines.append("ER  - ")
+    return "\n".join(lines)
+
+
+@app.get("/api/export/ris")
+async def export_ris(ids: str = Query(..., description="Comma-separated paper IDs")):
+    """Export papers as RIS format for reference managers."""
+    paper_ids = [pid.strip() for pid in ids.split(",") if pid.strip()]
+    if not paper_ids:
+        return PlainTextResponse("", media_type="application/x-research-info-systems",
+                                 headers={"Content-Disposition": 'attachment; filename="nber_papers.ris"'})
+
+    entries = []
+    try:
+        db = await resolvers._get_db()
+        placeholders = ",".join("?" for _ in paper_ids)
+        cursor = await db.execute(
+            f"SELECT paper_id, title, authors, year FROM papers WHERE paper_id IN ({placeholders})",
+            paper_ids,
+        )
+        rows = await cursor.fetchall()
+        row_map = {r["paper_id"]: r for r in rows}
+        for pid in paper_ids:
+            row = row_map.get(pid)
+            if row:
+                entries.append(_paper_to_ris(row["paper_id"], row["title"], row["authors"], row["year"]))
+    except Exception:
+        logger.exception("export_ris failed")
+
+    content = "\n\n".join(entries)
+    return PlainTextResponse(
+        content,
+        media_type="application/x-research-info-systems",
+        headers={"Content-Disposition": 'attachment; filename="nber_papers.ris"'},
+    )
+
+
+# ---------------------------------------------------------------------------
 # CSV export
 # ---------------------------------------------------------------------------
 
@@ -766,6 +822,104 @@ async def export_annotated_bibliography(
         content,
         media_type="text/markdown",
         headers={"Content-Disposition": 'attachment; filename="annotated_bibliography.md"'},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Project export bundle (ZIP)
+# ---------------------------------------------------------------------------
+
+import zipfile
+
+
+@app.get("/api/export/project/{slug}")
+async def export_project(slug: str, include_notes: bool = Query(False)):
+    """Export a project as a ZIP bundle (markdown + bibtex + csv)."""
+    project = await resolvers.get_project(slug)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    paper_ids = project.get("paper_ids", [])
+    if not paper_ids:
+        raise HTTPException(status_code=400, detail="Project has no papers")
+
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as zf:
+        # 1. Project overview markdown
+        overview = project.get("overview_content") or f"# {project['title']}\n\n{project.get('description', '')}"
+        zf.writestr("README.md", overview)
+
+        # 2. Paper summaries markdown
+        db = await resolvers._get_db()
+        placeholders = ",".join("?" for _ in paper_ids)
+        cursor = await db.execute(
+            f"SELECT paper_id, title, authors, year, average_score FROM papers WHERE paper_id IN ({placeholders})",
+            paper_ids,
+        )
+        rows = await cursor.fetchall()
+
+        sec_cursor = await db.execute(
+            f"SELECT paper_id, section, content FROM card_sections WHERE paper_id IN ({placeholders})",
+            paper_ids,
+        )
+        sec_rows = await sec_cursor.fetchall()
+        sections_by_paper = {}
+        for sr in sec_rows:
+            sections_by_paper.setdefault(sr["paper_id"], {})[sr["section"]] = sr["content"]
+
+        md_lines = [f"# Paper Summaries: {project['title']}\n"]
+        bib_entries = []
+        csv_output = io.StringIO()
+        csv_writer = csv.writer(csv_output)
+        csv_writer.writerow(["paper_id", "title", "authors", "year", "average_score", "nber_url"])
+
+        row_map = {r["paper_id"]: r for r in rows}
+        for pid in paper_ids:
+            row = row_map.get(pid)
+            if not row:
+                continue
+            authors = _parse_authors_bibtex(row["authors"])
+            author_str = ", ".join(authors) if authors else "Unknown"
+            year_str = str(row["year"]) if row["year"] else "N/A"
+            score_str = f'{row["average_score"]:.1f}/5' if row["average_score"] else "N/A"
+
+            md_lines.append(f'## {pid}: {row["title"] or "Untitled"}')
+            md_lines.append(f"**Authors:** {author_str} | **Year:** {year_str} | **Score:** {score_str}\n")
+
+            sections = sections_by_paper.get(pid, {})
+            for section_key, section_label in [("Research Question", "Research Question"), ("Key Findings", "Key Findings"), ("Identification & Method", "Method"), ("Limitations & Open Questions", "Limitations")]:
+                if section_key in sections:
+                    md_lines.append(f"### {section_label}")
+                    md_lines.append(sections[section_key].strip())
+                    md_lines.append("")
+            md_lines.append("---\n")
+
+            bib_entries.append(_paper_to_bibtex(pid, row["title"], row["authors"], row["year"]))
+            csv_writer.writerow([pid, row["title"] or "", "; ".join(authors), row["year"] or "", score_str, f"https://www.nber.org/papers/{pid}"])
+
+        zf.writestr("papers.md", "\n".join(md_lines))
+        zf.writestr("references.bib", "\n\n".join(bib_entries))
+        zf.writestr("papers.csv", csv_output.getvalue())
+
+        # 3. Include user notes if requested
+        if include_notes:
+            notes_lines = ["# Research Notes\n"]
+            for pid in paper_ids:
+                note = await resolvers.get_note("paper", pid)
+                if note and note.get("note"):
+                    title = row_map.get(pid, {}).get("title", pid) if isinstance(row_map.get(pid), dict) else pid
+                    notes_lines.append(f"## {pid}: {title}")
+                    notes_lines.append(note["note"])
+                    notes_lines.append("")
+            if len(notes_lines) > 1:
+                zf.writestr("notes.md", "\n".join(notes_lines))
+
+    output.seek(0)
+    filename = f"{slug}_export.zip"
+    return StreamingResponse(
+        output,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -1037,6 +1191,74 @@ async def analyze_consensus_endpoint(request: Request, body: ConsensusRequest) -
 
 
 # ---------------------------------------------------------------------------
+# Debate results persistence
+# ---------------------------------------------------------------------------
+
+class SaveDebateRequest(BaseModel):
+    idea_id: str
+    verdict_json: str
+    transcript_json: str
+    focus_prompt: str = ""
+
+
+@app.post("/api/debate/save")
+async def save_debate_endpoint(body: SaveDebateRequest) -> dict:
+    result_id = await resolvers.save_debate_result(
+        body.idea_id, body.verdict_json, body.transcript_json, body.focus_prompt
+    )
+    return {"id": result_id, "status": "saved"}
+
+
+@app.get("/api/debate/history/{idea_id}")
+async def debate_history_endpoint(idea_id: str) -> dict:
+    history = await resolvers.get_debate_history(idea_id)
+    return {"idea_id": idea_id, "debates": history}
+
+
+# ---------------------------------------------------------------------------
+# Unified feasibility pre-flight check
+# ---------------------------------------------------------------------------
+
+class FeasibilityCheckRequest(BaseModel):
+    title: str
+    description: str
+    research_question: str = ""
+    proposed_method: str = ""
+
+
+@app.post("/api/feasibility-check")
+@limiter.limit("5/minute")
+async def feasibility_check_endpoint(request: Request, body: FeasibilityCheckRequest) -> dict:
+    """Run novelty + method + data checks in parallel, then synthesize."""
+    import asyncio
+
+    # Run all three checks in parallel
+    novelty_task = resolvers.check_idea_novelty(body.title + " " + body.description)
+    method_task = resolvers.suggest_methodology(body.description + " " + body.research_question)
+    data_task = resolvers.check_data_availability(body.description + " " + body.research_question)
+
+    novelty_result, method_result, data_result = await asyncio.gather(
+        novelty_task, method_task, data_task,
+        return_exceptions=True
+    )
+
+    # Handle exceptions
+    if isinstance(novelty_result, Exception):
+        novelty_result = {"similar_papers": [], "similar_ideas": [], "novelty_assessment": "Check failed"}
+    if isinstance(method_result, Exception):
+        method_result = []
+    if isinstance(data_result, Exception):
+        data_result = []
+
+    return {
+        "novelty": novelty_result,
+        "methods": method_result[:5] if isinstance(method_result, list) else [],
+        "data": data_result[:5] if isinstance(data_result, list) else [],
+        "title": body.title,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Multi-agent research debate
 # ---------------------------------------------------------------------------
 
@@ -1075,4 +1297,161 @@ async def debate_endpoint(request: Request, body: DebateRequest) -> StreamingRes
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },
+    )
+
+
+# ---------------------------------------------------------------------------
+# On-demand idea generation
+# ---------------------------------------------------------------------------
+
+class GenerateIdeasRequest(BaseModel):
+    topic: str = ""
+    paper_ids: list[str] = []
+    method_focus: str = ""
+    field_focus: str = ""
+    num_ideas: int = 3
+
+
+@app.post("/api/generate-ideas")
+@limiter.limit("5/minute")
+async def generate_ideas_endpoint(request: Request, body: GenerateIdeasRequest) -> StreamingResponse:
+    """Generate research ideas on-demand via SSE streaming."""
+
+    async def event_stream():
+        try:
+            # Build context from paper cards and knowledge base
+            context_parts = []
+
+            if body.paper_ids:
+                for pid in body.paper_ids[:5]:  # Max 5 source papers
+                    paper = await resolvers.get_paper(pid)
+                    if paper:
+                        sections = await resolvers.get_card_sections(pid)
+                        sections_text = "\n".join(f"### {s['section']}\n{s['content']}" for s in sections)
+                        context_parts.append(f"## Paper {pid}: {paper.get('title', pid)}\n{sections_text}")
+
+            # Fetch landscape context
+            db = await resolvers._get_db()
+            cursor = await db.execute("SELECT content FROM field_maps WHERE slug = 'frontier_gaps' LIMIT 1")
+            row = await cursor.fetchone()
+            gaps_context = row["content"][:5000] if row else ""
+
+            cursor2 = await db.execute("SELECT content FROM field_maps WHERE slug = 'method_registry' LIMIT 1")
+            row2 = await cursor2.fetchone()
+            methods_context = row2["content"][:3000] if row2 else ""
+
+            system_prompt = (
+                "You are a research idea generator for an empirical economics researcher. "
+                "Generate novel, actionable research ideas based on the provided context. "
+                "Each idea should include: Title, Research Question, Proposed Method, "
+                "Data Needed, Why It Matters, and a Feasibility assessment (1-5). "
+                "Focus on ideas that are specific enough to start working on immediately. "
+                "Format each idea with ## IDEA-N: Title header."
+            )
+
+            user_message_parts = [f"Generate {body.num_ideas} research ideas."]
+            if body.topic:
+                user_message_parts.append(f"Topic focus: {body.topic}")
+            if body.method_focus:
+                user_message_parts.append(f"Method preference: {body.method_focus}")
+            if body.field_focus:
+                user_message_parts.append(f"Field focus: {body.field_focus}")
+            if context_parts:
+                user_message_parts.append("\n## Source Papers\n" + "\n\n".join(context_parts))
+            if gaps_context:
+                user_message_parts.append(f"\n## Known Frontier Gaps\n{gaps_context}")
+            if methods_context:
+                user_message_parts.append(f"\n## Available Methods\n{methods_context}")
+
+            user_message = "\n\n".join(user_message_parts)
+
+            from rag import _get_client, _API_MODEL
+            client = _get_client()
+
+            async with client.messages.stream(
+                model=_API_MODEL,
+                max_tokens=4096,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_message}],
+            ) as stream:
+                async for text in stream.text_stream:
+                    event = json.dumps({"type": "chunk", "text": text})
+                    yield f"data: {event}\n\n"
+
+            yield f'data: {json.dumps({"type": "done"})}\n\n'
+
+        except Exception as e:
+            logger.exception("Idea generation failed")
+            yield f'data: {json.dumps({"type": "error", "message": str(e)})}\n\n'
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Paper-specific Q&A
+# ---------------------------------------------------------------------------
+
+class PaperAskRequest(BaseModel):
+    paper_id: str
+    question: str
+    style: str = "detailed"  # detailed | seminar | brief
+
+
+@app.post("/api/ask/paper")
+@limiter.limit("10/minute")
+async def ask_paper_endpoint(request: Request, body: PaperAskRequest) -> StreamingResponse:
+    """Ask a question about a specific paper with full card context."""
+
+    async def event_stream():
+        try:
+            paper = await resolvers.get_paper(body.paper_id)
+            if not paper:
+                yield f'data: {json.dumps({"type": "error", "message": "Paper not found"})}\n\n'
+                return
+
+            sections = await resolvers.get_card_sections(body.paper_id)
+            sections_text = "\n".join(f"### {s['section']}\n{s['content']}" for s in sections)
+
+            style_instruction = {
+                "detailed": "Give a thorough, detailed answer with specific references to the paper's content.",
+                "seminar": "Answer as if presenting this paper in a research seminar — focus on contribution, identification, and limitations.",
+                "brief": "Give a concise 2-3 sentence answer.",
+            }.get(body.style, "Give a detailed answer.")
+
+            system_prompt = (
+                f"You are a research assistant answering questions about a specific economics paper. "
+                f"Paper: {paper.get('title', body.paper_id)} ({paper.get('year', 'N/A')})\n"
+                f"Authors: {', '.join(paper.get('authors', []))}\n\n"
+                f"Full paper card:\n{sections_text}\n\n"
+                f"Instructions: {style_instruction} "
+                f"Cite specific findings with numbers when available."
+            )
+
+            from rag import _get_client, _API_MODEL
+            client = _get_client()
+
+            async with client.messages.stream(
+                model=_API_MODEL,
+                max_tokens=2048,
+                system=system_prompt,
+                messages=[{"role": "user", "content": body.question}],
+            ) as stream:
+                async for text in stream.text_stream:
+                    event = json.dumps({"type": "chunk", "text": text})
+                    yield f"data: {event}\n\n"
+
+            yield f'data: {json.dumps({"type": "done"})}\n\n'
+
+        except Exception as e:
+            logger.exception("Paper Q&A failed")
+            yield f'data: {json.dumps({"type": "error", "message": str(e)})}\n\n'
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )
