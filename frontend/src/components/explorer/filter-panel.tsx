@@ -289,12 +289,12 @@ function AuthorSearch({
           {selected.map((name) => (
             <span
               key={name}
-              className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-800"
+              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-accent/55 px-2 py-0.5 text-[11px] font-medium text-primary"
             >
               {name.length > 20 ? name.slice(0, 18) + ".." : name}
               <button
                 onClick={() => removeAuthor(name)}
-                className="ml-0.5 rounded-full p-0.5 hover:bg-blue-200 transition-colors"
+                className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-accent/80"
               >
                 <X className="h-2.5 w-2.5" />
               </button>
@@ -376,7 +376,7 @@ function MethodFilter({
       </div>
       {allMethods.length > TOP_METHODS_LIMIT && (
         <button
-          className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+          className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
           onClick={() => setShowAll(!showAll)}
         >
           {showAll
@@ -394,9 +394,9 @@ function MethodFilter({
 
 const ATOM_TYPE_COLORS: Record<string, string> = {
   mechanism: "bg-orange-100 text-orange-800",
-  method: "bg-green-100 text-green-800",
-  dataset: "bg-purple-100 text-purple-800",
-  puzzle: "bg-red-100 text-red-800",
+  method: "bg-emerald-100 text-emerald-800",
+  dataset: "bg-violet-100 text-violet-800",
+  puzzle: "bg-rose-100 text-rose-800",
 };
 
 function AtomSearch({
@@ -530,12 +530,12 @@ function AtomSearch({
           {selected.map((slug) => (
             <span
               key={slug}
-              className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-medium text-indigo-800"
+              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-accent/55 px-2 py-0.5 text-[11px] font-medium text-primary"
             >
               {slug.length > 25 ? slug.slice(0, 23) + ".." : slug.replace(/_/g, " ")}
               <button
                 onClick={() => removeAtom(slug)}
-                className="ml-0.5 rounded-full p-0.5 hover:bg-indigo-200 transition-colors"
+                className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-accent/80"
               >
                 <X className="h-2.5 w-2.5" />
               </button>
@@ -566,12 +566,21 @@ function DynamicFieldFilter({
   onChange: (fields: string[]) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
+  const [fieldSearch, setFieldSearch] = useState("");
 
   const { data } = useQuery<{ availableFields: string[] }>(
     GET_AVAILABLE_FIELDS
   );
   const allFields = data?.availableFields ?? FALLBACK_PAPER_FIELDS;
-  const displayFields = showAll ? allFields : allFields.slice(0, TOP_FIELDS_LIMIT);
+
+  // Client-side filtering of field options when searching
+  const filteredFields = fieldSearch.trim()
+    ? allFields.filter((f) =>
+        f.toLowerCase().includes(fieldSearch.trim().toLowerCase())
+      )
+    : showAll
+      ? allFields
+      : allFields.slice(0, TOP_FIELDS_LIMIT);
 
   const toggle = useCallback(
     (field: string) => {
@@ -596,8 +605,20 @@ function DynamicFieldFilter({
           </span>
         )}
       </div>
+      {allFields.length > 10 && (
+        <div className="relative">
+          <Search className="absolute left-2 top-1.5 h-3 w-3 text-muted-foreground" />
+          <input
+            type="text"
+            value={fieldSearch}
+            onChange={(e) => setFieldSearch(e.target.value)}
+            placeholder="Filter fields..."
+            className="h-7 w-full rounded-md border border-input bg-background pl-6 pr-2 text-[11px] placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+      )}
       <div className="space-y-2">
-        {displayFields.map((field) => (
+        {filteredFields.map((field) => (
           <label
             key={field}
             className="flex cursor-pointer items-center gap-2 text-sm text-foreground/80 hover:text-foreground transition-colors"
@@ -609,10 +630,13 @@ function DynamicFieldFilter({
             <span className="truncate text-xs">{field}</span>
           </label>
         ))}
+        {fieldSearch.trim() && filteredFields.length === 0 && (
+          <p className="text-[11px] text-muted-foreground">No fields match "{fieldSearch.trim()}"</p>
+        )}
       </div>
-      {allFields.length > TOP_FIELDS_LIMIT && (
+      {!fieldSearch.trim() && allFields.length > TOP_FIELDS_LIMIT && (
         <button
-          className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+          className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
           onClick={() => setShowAll(!showAll)}
         >
           {showAll ? "Show fewer" : `Show all ${allFields.length} fields`}
@@ -733,8 +757,8 @@ function ScoreDimensionFilterSection({
                       onClick={() => handleDimensionChange(dim, opt.value)}
                       className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
                         currentScore === opt.value
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-accent/70"
                       }`}
                     >
                       {opt.label}
@@ -1039,7 +1063,7 @@ export function FilterPanel({
 
   const content = (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <SlidersHorizontal className="h-4 w-4" />
           Filters
@@ -1054,12 +1078,12 @@ export function FilterPanel({
 
       <div className="px-4 py-3">
         <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search..."
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="h-9 pl-9 text-sm"
+            className="h-9 rounded-2xl border-border/70 bg-background/85 pl-9 text-sm"
           />
         </div>
       </div>
@@ -1087,11 +1111,11 @@ export function FilterPanel({
         </div>
       </ScrollArea>
 
-      <div className="border-t border-border px-4 py-3">
+      <div className="border-t border-border/70 px-4 py-3">
         <Button
           variant={hasActiveFilters ? "default" : "outline"}
           size="sm"
-          className="w-full"
+          className="w-full rounded-full"
           onClick={onClearFilters}
         >
           Clear filters
@@ -1104,7 +1128,7 @@ export function FilterPanel({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden w-[260px] shrink-0 border-r border-border bg-background lg:flex lg:flex-col">
+      <aside className="hidden w-[260px] shrink-0 border-r border-border/70 bg-background/85 lg:flex lg:flex-col">
         {content}
       </aside>
 
@@ -1115,7 +1139,7 @@ export function FilterPanel({
             className="absolute inset-0 bg-black/30 backdrop-blur-sm"
             onClick={onMobileClose}
           />
-          <aside className="absolute inset-y-0 left-0 w-[280px] bg-background shadow-xl">
+          <aside className="absolute inset-y-0 left-0 w-[280px] border-r border-border/70 bg-background/95 shadow-xl backdrop-blur-sm">
             {content}
           </aside>
         </div>

@@ -95,10 +95,13 @@ export function ClusterView({
   if (allPaperIds.length < 4) {
     return (
       <div className="flex h-full flex-col items-center justify-center px-4 py-12 text-center">
-        <Layers className="mb-2 h-6 w-6 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          Need at least 4 papers to cluster.
-        </p>
+        <div className="paper-panel rounded-[1.4rem] px-5 py-4">
+          <Layers className="mx-auto mb-2 h-6 w-6 text-primary/60" />
+          <p className="section-kicker">Cluster view</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Need at least 4 papers to cluster.
+          </p>
+        </div>
       </div>
     );
   }
@@ -110,7 +113,7 @@ export function ClusterView({
         {Array.from({ length: 3 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-xl border border-border p-4 space-y-2"
+            className="paper-panel space-y-2 rounded-[1.35rem] p-4"
           >
             <Skeleton className="h-5 w-48" />
             <div className="space-y-1">
@@ -127,9 +130,12 @@ export function ClusterView({
   if (clusters.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center px-4 py-12 text-center">
-        <p className="text-sm text-muted-foreground">
-          Could not cluster papers. Try a broader search.
-        </p>
+        <div className="paper-panel rounded-[1.4rem] px-5 py-4">
+          <p className="section-kicker">Cluster view</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Could not cluster papers. Try a broader search.
+          </p>
+        </div>
       </div>
     );
   }
@@ -137,8 +143,8 @@ export function ClusterView({
   return (
     <div className="flex h-full flex-col">
       {/* Summary bar */}
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-        <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+      <div className="paper-panel mx-2 mb-2 flex items-center gap-2 rounded-[1.15rem] px-3 py-2">
+        <Layers className="h-3.5 w-3.5 text-primary/70" />
         <span className="text-xs text-muted-foreground">
           {clusters.length} cluster{clusters.length !== 1 ? "s" : ""} across{" "}
           {allPaperIds.length} papers
@@ -156,7 +162,7 @@ export function ClusterView({
             <div
               key={cluster.clusterId}
               className={cn(
-                "rounded-xl border transition-colors",
+                "paper-panel rounded-[1.35rem] transition-colors",
                 color.border,
                 color.bg
               )}
@@ -172,7 +178,7 @@ export function ClusterView({
                 />
                 <span
                   className={cn(
-                    "flex-1 text-sm font-medium leading-snug",
+                    "font-display flex-1 text-[1.2rem] leading-snug",
                     color.text
                   )}
                 >
@@ -210,7 +216,7 @@ export function ClusterView({
                                   ? "mechanism"
                                   : "outline"
                           }
-                          className="cursor-pointer text-[9px] hover:opacity-80"
+                          className="cursor-pointer rounded-full text-[9px] hover:opacity-80"
                         >
                           {atom.title.length > 25
                             ? atom.title.slice(0, 23) + ".."
@@ -220,7 +226,7 @@ export function ClusterView({
                       {getAtomExplorerHref && (
                         <Link
                           href={getAtomExplorerHref(atom.slug)}
-                          className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-white/70 hover:text-foreground"
+                          className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground"
                           title="Open this cluster atom in Explorer"
                         >
                           <Search className="h-3 w-3" />
@@ -239,8 +245,8 @@ export function ClusterView({
                       key={paper.paperId}
                       className={cn(
                         "flex w-full items-start gap-2 px-3 py-1.5 text-left transition-colors hover:bg-white/60",
-                        selectedPaperId === paper.paperId && "bg-white/80",
-                        showCompare && compareIds.has(paper.paperId) && "bg-blue-50/70"
+                        selectedPaperId === paper.paperId && "bg-background/85",
+                        showCompare && compareIds.has(paper.paperId) && "bg-[color:oklch(var(--accent)/0.55)]"
                       )}
                     >
                       {showCompare && onToggleCompare && (
@@ -260,14 +266,14 @@ export function ClusterView({
                         {paperClickMode === "detail" && getPaperDetailHref ? (
                           <Link
                             href={getPaperDetailHref(paper.paperId)}
-                            className="block line-clamp-1 text-xs font-medium text-foreground hover:text-primary"
+                            className="font-display block line-clamp-1 text-[1rem] text-foreground hover:text-primary"
                           >
                             {paper.title ?? "Untitled"}
                           </Link>
                         ) : (
                           <button
                             type="button"
-                            className="block text-left text-xs font-medium text-foreground hover:text-primary"
+                            className="font-display block text-left text-[1rem] text-foreground hover:text-primary"
                             onClick={() => onSelectPaper(paper.paperId)}
                           >
                             {paper.title ?? "Untitled"}

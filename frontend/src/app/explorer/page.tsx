@@ -21,7 +21,7 @@ import { IdeaTable } from "@/components/explorer/idea-table";
 import { DetailPanel } from "@/components/explorer/detail-panel";
 import { GET_PAPERS, GET_ATOMS, GET_IDEAS } from "@/lib/queries";
 import { buildCompareHref } from "@/lib/navigation";
-import { ArrowRight, FolderOpen, Microscope, SlidersHorizontal } from "lucide-react";
+import { ArrowRight, FolderOpen, Microscope, SlidersHorizontal, SearchX } from "lucide-react";
 import { ExportMenu } from "@/components/shared/export-menu";
 import type { Paper, Atom, Idea } from "@/lib/types";
 
@@ -489,57 +489,140 @@ function ExplorerContent() {
   }, []);
 
   // ---------------------------------------------------------------------------
+  // Active filter count (for badge on Filters button)
+  // ---------------------------------------------------------------------------
+
+  const activeFilterCount = useMemo(() => {
+    if (activeTab === "papers") {
+      let count = 0;
+      if (paperFilters.fields.length > 0) count++;
+      if (paperFilters.triageDecision.length > 0) count++;
+      if (paperFilters.yearMin !== null || paperFilters.yearMax !== null) count++;
+      if (paperFilters.scoreMin !== null || paperFilters.scoreMax !== null) count++;
+      if (paperFilters.hasCard !== null) count++;
+      if (paperFilters.search.length > 0) count++;
+      if (paperFilters.authors.length > 0) count++;
+      if (paperFilters.methods.length > 0) count++;
+      if (paperFilters.scoreDimensions.length > 0) count++;
+      if (paperFilters.atomSlugs.length > 0) count++;
+      return count;
+    }
+    if (activeTab === "atoms") {
+      let count = 0;
+      if (atomFilters.types.length > 0) count++;
+      if (atomFilters.evidenceStrength.length > 0) count++;
+      if (atomFilters.access.length > 0) count++;
+      if (atomFilters.search.length > 0) count++;
+      if (atomFilters.theme.length > 0) count++;
+      return count;
+    }
+    let count = 0;
+    if (ideaFilters.statuses.length > 0) count++;
+    if (ideaFilters.search.length > 0) count++;
+    return count;
+  }, [activeTab, paperFilters, atomFilters, ideaFilters]);
+
+  // Whether the current data set is empty (for empty-state rendering)
+  const isCurrentTabEmpty =
+    (activeTab === "papers" && !papersLoading && papers.length === 0) ||
+    (activeTab === "atoms" && !atomsLoading && atoms.length === 0) ||
+    (activeTab === "ideas" && !ideasLoading && ideas.length === 0);
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Error banner */}
       {anyError && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="paper-panel border-red-200/80 bg-red-50/80 p-4 text-sm text-red-700 shadow-none">
           <p className="font-medium">Some data failed to load. Please refresh the page.</p>
         </div>
       )}
 
       {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-            Explorer
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Browse and filter papers, atoms, and research ideas.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="lg:hidden"
-          onClick={() => setMobileFiltersOpen(true)}
-        >
-          <SlidersHorizontal className="mr-1.5 h-4 w-4" />
-          Filters
-        </Button>
-      </div>
-
-      <div className="rounded-xl border border-border bg-background/80 px-4 py-3">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-medium text-foreground">
-              Explorer is the structured browsing layer
+      <div className="paper-panel overflow-hidden p-0">
+        <div className="grid gap-6 border-b border-border/70 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
+          <div className="space-y-3">
+            <p className="section-kicker">Evidence Cabinet</p>
+            <div className="space-y-2">
+              <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+                Explorer
+              </h2>
+              <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+                Browse the structured layer of the archive: individual papers,
+                reusable atoms, and research ideas. Use this page when you need
+                precise filters, row-level inspection, and exportable evidence.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-3 rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
+            <p className="section-kicker">Role</p>
+            <p className="text-sm leading-6 text-foreground/80">
+              Research frames the topic. Explorer verifies the record.
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Stay here for filters, atoms, and row-level inspection. Go back to Research for topic framing, or move stable paper sets into Projects as Research Drafts.
+            <p className="text-sm leading-6 text-muted-foreground">
+              Move back to Research for synthesis, or move stable paper sets
+              into Projects as Research Drafts.
             </p>
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm">
+            <Button asChild variant="outline" size="sm" className="rounded-full">
               <Link href={researchHref}>
                 <ReturnIcon className="mr-1.5 h-3.5 w-3.5" />
                 {returnLabel}
               </Link>
             </Button>
-            <Button asChild variant="outline" size="sm">
+            <Button asChild variant="outline" size="sm" className="rounded-full">
+              <Link href="/projects">
+                <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+                Open Projects
+                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="relative rounded-full lg:hidden"
+            onClick={() => setMobileFiltersOpen(true)}
+          >
+            <SlidersHorizontal className="mr-1.5 h-4 w-4" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-1.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      <div className="paper-panel px-5 py-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="section-kicker">Workflow</p>
+            <p className="mt-2 text-base font-medium text-foreground">
+              Explorer is the structured browsing layer.
+            </p>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+              Stay here for filters, atoms, and row-level inspection. Go back to
+              Research for topic framing, or move stable paper sets into
+              Projects as Research Drafts.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm" className="rounded-full">
+              <Link href={researchHref}>
+                <ReturnIcon className="mr-1.5 h-3.5 w-3.5" />
+                {returnLabel}
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="rounded-full">
               <Link href="/projects">
                 <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
                 Open Projects
@@ -552,17 +635,23 @@ function ExplorerContent() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="h-11 gap-1 p-1">
-          <TabsTrigger value="papers" className="px-5 text-sm">Papers</TabsTrigger>
-          <TabsTrigger value="atoms" className="px-5 text-sm">Atoms</TabsTrigger>
-          <TabsTrigger value="ideas" className="px-5 text-sm">Ideas</TabsTrigger>
+        <TabsList className="h-auto gap-1 rounded-full border border-border/70 bg-background/85 p-1 shadow-sm">
+          <TabsTrigger value="papers" className="rounded-full px-5 py-2 text-sm">
+            Papers
+          </TabsTrigger>
+          <TabsTrigger value="atoms" className="rounded-full px-5 py-2 text-sm">
+            Atoms
+          </TabsTrigger>
+          <TabsTrigger value="ideas" className="rounded-full px-5 py-2 text-sm">
+            Ideas
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
       {/* Results count */}
       {activeTab === "papers" && !papersLoading && (
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
+        <div className="paper-panel flex items-center justify-between px-4 py-3 shadow-none">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
             Showing {papers.length} of {papersTotal} papers
           </p>
           <ExportMenu
@@ -573,18 +662,23 @@ function ExplorerContent() {
         </div>
       )}
       {activeTab === "atoms" && !atomsLoading && (
-        <p className="text-xs text-muted-foreground">
-          Showing {atoms.length} of {atomsTotal} atoms
-        </p>
+        <div className="paper-panel px-4 py-3 shadow-none">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            Showing {atoms.length} of {atomsTotal} atoms
+          </p>
+        </div>
       )}
       {activeTab === "ideas" && !ideasLoading && (
-        <p className="text-xs text-muted-foreground">
-          Showing {ideas.length} idea{ideas.length !== 1 ? "s" : ""}
-        </p>
+        <div className="paper-panel px-4 py-3 shadow-none">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            Showing {ideas.length} idea{ideas.length !== 1 ? "s" : ""}
+          </p>
+        </div>
       )}
 
       {/* Main layout: sidebar + table + detail */}
-      <div className="flex gap-0 overflow-hidden rounded-lg border border-border bg-card">
+      <div className="overflow-hidden rounded-[1.75rem] border border-border/75 bg-background/92 shadow-[0_24px_60px_rgba(44,51,71,0.08)] backdrop-blur-sm">
+        <div className="flex gap-0">
         {/* Filter sidebar */}
         <FilterPanel
           activeTab={activeTab}
@@ -600,7 +694,7 @@ function ExplorerContent() {
         />
 
         {/* Table area */}
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 [&_tbody_tr]:h-[52px] [&_tbody_tr:nth-child(even)]:bg-muted/30">
           {activeTab === "papers" && (
             <PaperTable
               data={papers}
@@ -649,6 +743,27 @@ function ExplorerContent() {
               }
             />
           )}
+
+          {/* Empty state when no results after filtering */}
+          {isCurrentTabEmpty && (
+            <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+              <SearchX className="h-10 w-10 text-muted-foreground/50" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">No results found</p>
+                <p className="max-w-xs text-xs text-muted-foreground">
+                  Try adjusting your filters or search query to find what you are looking for.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 rounded-full"
+                onClick={handleClearFilters}
+              >
+                Clear all filters
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Detail panel */}
@@ -656,6 +771,7 @@ function ExplorerContent() {
           item={detailItem}
           onClose={() => setDetailItem(null)}
         />
+        </div>
       </div>
     </div>
   );
@@ -669,16 +785,17 @@ export default function ExplorerPage() {
   return (
     <Suspense
       fallback={
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+        <div className="space-y-5">
+          <div className="paper-panel space-y-3 px-6 py-6">
+            <p className="section-kicker">Evidence Cabinet</p>
+            <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
               Explorer
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
               Browse and filter papers, atoms, and research ideas.
             </p>
           </div>
-          <div className="h-96 animate-pulse rounded-lg border border-border bg-muted" />
+          <div className="paper-panel h-96 animate-pulse bg-muted/40" />
         </div>
       }
     >

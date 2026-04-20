@@ -37,14 +37,14 @@ function ProjectsSkeleton() {
   return (
     <div className="space-y-8">
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <Card className="rounded-xl shadow-sm">
+        <Card className="paper-panel rounded-[1.8rem] shadow-none">
           <CardHeader className="pb-3">
             <Skeleton className="h-7 w-64" />
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-4/5" />
           </CardHeader>
         </Card>
-        <Card className="rounded-xl shadow-sm">
+        <Card className="paper-panel rounded-[1.8rem] shadow-none">
           <CardHeader className="pb-3">
             <Skeleton className="h-5 w-32" />
           </CardHeader>
@@ -58,7 +58,7 @@ function ProjectsSkeleton() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <Card key={index} className="rounded-xl shadow-sm">
+          <Card key={index} className="paper-panel rounded-[1.45rem] shadow-none">
             <CardHeader className="pb-2">
               <Skeleton className="h-4 w-24" />
             </CardHeader>
@@ -72,7 +72,7 @@ function ProjectsSkeleton() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {Array.from({ length: 4 }).map((_, index) => (
-          <Card key={index} className="rounded-xl shadow-sm">
+          <Card key={index} className="paper-panel rounded-[1.65rem] shadow-none">
             <CardHeader className="pb-3">
               <Skeleton className="h-5 w-48" />
             </CardHeader>
@@ -102,12 +102,12 @@ function SummaryCard({
   detail: string;
 }) {
   return (
-    <Card className="rounded-xl shadow-sm">
+    <Card className="paper-panel rounded-[1.45rem] shadow-none">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <p className="section-kicker">{title}</p>
       </CardHeader>
       <CardContent>
-        <p className="text-lg font-semibold text-foreground">{value}</p>
+        <p className="font-display text-[2.3rem] text-foreground">{value}</p>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{detail}</p>
       </CardContent>
     </Card>
@@ -116,28 +116,28 @@ function SummaryCard({
 
 function ProjectCard({ project }: { project: Project }) {
   return (
-    <Card className="rounded-xl shadow-sm">
+    <Card className="paper-panel rounded-[1.65rem] shadow-none">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+              <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
                 {project.paperCount} papers
               </span>
-              <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+              <span className="rounded-full bg-[color:oklch(var(--accent)/0.45)] px-2 py-1 text-xs font-medium text-muted-foreground">
                 {getProjectStatusLabel(project.status)}
               </span>
-              <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+              <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
                 {getProjectTypeLabel(project)}
               </span>
-              <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+              <span className="rounded-full bg-[color:oklch(var(--accent)/0.45)] px-2 py-1 text-xs font-medium text-muted-foreground">
                 {getProjectScopeLabel(project.scopeType)}
               </span>
             </div>
             <div>
               <Link
                 href={`/projects/${project.slug}`}
-                className="text-base font-semibold text-foreground hover:text-primary"
+                className="font-display text-[1.45rem] text-foreground transition-colors hover:text-primary"
               >
                 {project.title}
               </Link>
@@ -153,7 +153,7 @@ function ProjectCard({ project }: { project: Project }) {
       </CardHeader>
       <CardContent className="space-y-4">
         {project.originQuery && (
-          <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+          <div className="rounded-[1rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.34)] px-3 py-2 text-sm text-muted-foreground">
             <span className="font-medium text-foreground">Source query:</span> &ldquo;{project.originQuery}&rdquo;
           </div>
         )}
@@ -167,31 +167,31 @@ function ProjectCard({ project }: { project: Project }) {
         <div className="flex flex-wrap gap-1.5">
           <Link
             href={`/projects/${project.slug}`}
-            className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+            className="rounded-full border border-foreground/10 bg-background/80 px-3 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-background"
           >
             Overview
           </Link>
           <Link
             href={`/projects/${project.slug}/themes`}
-            className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+            className="rounded-full border border-foreground/10 bg-background/80 px-3 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-background"
           >
             Themes
           </Link>
           <Link
             href={`/projects/${project.slug}/methods`}
-            className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+            className="rounded-full border border-foreground/10 bg-background/80 px-3 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-background"
           >
             Methods
           </Link>
           <Link
             href={`/projects/${project.slug}/gaps`}
-            className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+            className="rounded-full border border-foreground/10 bg-background/80 px-3 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-background"
           >
             Gaps
           </Link>
           <Link
             href={`/projects/${project.slug}/matrix`}
-            className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+            className="rounded-full border border-foreground/10 bg-background/80 px-3 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-background"
           >
             Matrix
           </Link>
@@ -200,7 +200,7 @@ function ProjectCard({ project }: { project: Project }) {
         <div className="flex flex-wrap gap-2">
           <Link
             href={`/projects/${project.slug}`}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/90"
           >
             Open project
             <ArrowRight className="h-3.5 w-3.5" />
@@ -235,7 +235,8 @@ function ProjectSection({
   return (
     <section className="space-y-4">
       <div className="space-y-1">
-        <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+        <p className="section-kicker">Shelf section</p>
+        <h3 className="font-display text-[2rem] text-foreground">{title}</h3>
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
@@ -273,9 +274,10 @@ export default function ProjectsPage() {
   return (
     <div className="space-y-8">
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-2xl font-semibold tracking-tight text-foreground">
+        <Card className="paper-panel rounded-[1.9rem] shadow-none">
+          <CardHeader className="pb-4">
+            <p className="section-kicker">Dossier shelf</p>
+            <CardTitle className="font-display text-[clamp(2.6rem,4.4vw,4.2rem)] text-foreground">
               Projects
             </CardTitle>
             <p className="text-sm leading-relaxed text-muted-foreground">
@@ -299,9 +301,10 @@ export default function ProjectsPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">How Projects Work</CardTitle>
+        <Card className="paper-panel rounded-[1.9rem] shadow-none">
+          <CardHeader className="pb-4">
+            <p className="section-kicker">Reading path</p>
+            <CardTitle className="font-display text-[1.75rem] text-foreground">How Projects Work</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <div className="flex items-start gap-2">
@@ -354,7 +357,7 @@ export default function ProjectsPage() {
           </div>
 
           {sortedProjects.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
+            <div className="paper-panel rounded-[1.8rem] border-dashed p-8 text-center">
               <FolderOpen className="mx-auto h-10 w-10 text-muted-foreground/50" />
               <h3 className="mt-3 text-base font-semibold text-foreground">
                 No curated projects yet

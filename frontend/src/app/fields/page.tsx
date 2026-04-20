@@ -65,7 +65,7 @@ function YearBars({
           className="group relative flex min-w-0 items-end"
         >
           <div
-            className="w-full rounded-t bg-blue-400/70 hover:bg-blue-500 transition-colors"
+            className="w-full rounded-t bg-primary/55 transition-colors hover:bg-primary/70"
             style={{ height: `${Math.max(Math.round((d.count / maxCount) * 56), 2)}px` }}
           />
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block whitespace-nowrap rounded bg-gray-900 px-1.5 py-0.5 text-[10px] text-white z-10">
@@ -101,6 +101,7 @@ function AtomBadges({
           <Badge
             variant={variant}
             className="cursor-pointer hover:opacity-80 transition-opacity text-[11px]"
+            title={a.title}
           >
             {a.title}
             <span className="ml-1 opacity-60">({a.paperCount})</span>
@@ -110,7 +111,7 @@ function AtomBadges({
       {atoms.length > limit && (
         <button
           onClick={() => setShowAll(!showAll)}
-          className="text-[11px] text-blue-600 hover:text-blue-700 font-medium px-1"
+          className="px-1 text-[11px] font-medium text-primary hover:text-primary/80"
         >
           {showAll ? "Show fewer" : `+${atoms.length - limit} more`}
         </button>
@@ -229,7 +230,7 @@ function CommonTopics({
                   {/* Mini bar indicator */}
                   <div className="hidden sm:block h-1.5 flex-1 max-w-[80px] bg-muted rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-blue-400/70 rounded-full"
+                      className="h-full rounded-full bg-primary/55"
                       style={{ width: `${barWidth}%` }}
                     />
                   </div>
@@ -250,6 +251,7 @@ function CommonTopics({
                           <Badge
                             variant={typeVariant(atom.atomType)}
                             className="cursor-pointer hover:opacity-80 transition-opacity text-[11px]"
+                            title={atom.title}
                           >
                             {atom.title}
                             <span className="ml-1 opacity-60">({atom.paperCount})</span>
@@ -303,13 +305,13 @@ function FieldList({
               onClick={() => onSelect(f.field)}
               className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors ${
                 isActive
-                  ? "bg-blue-50 text-blue-800 font-medium border-l-2 border-blue-500"
+                  ? "paper-panel border border-border/70 bg-accent/60 font-medium text-foreground shadow-none"
                   : "text-foreground/80 hover:bg-accent/60"
               }`}
             >
               <span className="truncate text-left">{f.field}</span>
               <span className={`ml-2 shrink-0 text-xs tabular-nums ${
-                isActive ? "text-blue-600" : "text-muted-foreground"
+                isActive ? "text-primary" : "text-muted-foreground"
               }`}>
                 {f.paperCount.toLocaleString()}
               </span>
@@ -426,14 +428,15 @@ function FieldDetailPanel({
 
   return (
     <ScrollArea className="h-full">
-      <div className="p-6 space-y-6 max-w-5xl">
+      <div className="max-w-5xl space-y-6 p-6">
         {/* Header */}
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">{field}</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+        <div className="paper-panel p-5">
+          <p className="section-kicker">Field Dossier</p>
+          <h2 className="mt-2 font-display text-4xl tracking-tight text-foreground">{field}</h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             {total.toLocaleString()} papers
             {jelFilter && (
-              <span className="ml-2 text-blue-600 font-medium">
+              <span className="ml-2 font-medium text-primary">
                 (filtered by JEL: {jelFilter})
               </span>
             )}
@@ -452,10 +455,10 @@ function FieldDetailPanel({
                 <button
                   key={theme}
                   onClick={() => handleThemePillClick(theme)}
-                  className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-colors cursor-pointer"
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-border/70 bg-accent/55 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-accent/80"
                 >
                   {theme}
-                  <span className="text-blue-500 font-normal">({group.totalPaperRefs})</span>
+                  <span className="font-normal text-primary/80">({group.totalPaperRefs})</span>
                 </button>
               ))}
             </div>
@@ -469,7 +472,7 @@ function FieldDetailPanel({
               <BarChart3 className="h-3.5 w-3.5" />
               Year Distribution
             </div>
-            <div className="rounded-lg border border-border bg-background p-3">
+            <div className="paper-panel p-3 shadow-none">
               <YearBars data={yearDist} />
               <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
                 <span>{yearDist[0]?.year}</span>
@@ -483,7 +486,7 @@ function FieldDetailPanel({
               <BarChart3 className="h-3.5 w-3.5" />
               Year Distribution
             </div>
-            <div className="rounded-lg border border-border bg-background p-3">
+            <div className="paper-panel p-3 shadow-none">
               <p className="text-xs text-muted-foreground italic">
                 {error
                   ? "Unable to load year distribution data."
@@ -509,7 +512,7 @@ function FieldDetailPanel({
                 </button>
               )}
             </div>
-            <div className="rounded-lg border border-border bg-background p-3">
+            <div className="paper-panel p-3 shadow-none">
               {/* First-level codes */}
               <div className="flex flex-wrap gap-1.5">
                 {jelFirstLevel.map(({ prefix, totalCount }) => {
@@ -526,7 +529,7 @@ function FieldDetailPanel({
                       }}
                       className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
                         isActive
-                          ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                          ? "bg-accent/65 border-border/70 text-foreground"
                           : "bg-background border-border text-foreground hover:bg-accent/40"
                       }`}
                     >
@@ -554,7 +557,7 @@ function FieldDetailPanel({
                             onClick={() => handleJelSelect(jc.code)}
                             className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors ${
                               isSelected
-                                ? "bg-indigo-100 border-indigo-400 text-indigo-800"
+                                ? "bg-accent/65 border-border/70 text-foreground"
                                 : "bg-background border-border text-foreground hover:bg-accent/40"
                             }`}
                           >
@@ -574,7 +577,7 @@ function FieldDetailPanel({
         {/* Subtopic sections */}
         <div className="grid gap-4 sm:grid-cols-2">
           {/* Methods */}
-          <div className="space-y-2 rounded-lg border border-border p-4">
+          <div className="paper-panel space-y-2 p-4 shadow-none">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               <FlaskConical className="h-3.5 w-3.5" />
               Methods
@@ -583,7 +586,7 @@ function FieldDetailPanel({
           </div>
 
           {/* Datasets */}
-          <div className="space-y-2 rounded-lg border border-border p-4">
+          <div className="paper-panel space-y-2 p-4 shadow-none">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               <Database className="h-3.5 w-3.5" />
               Datasets
@@ -592,7 +595,7 @@ function FieldDetailPanel({
           </div>
 
           {/* Mechanisms */}
-          <div className="space-y-2 rounded-lg border border-border p-4">
+          <div className="paper-panel space-y-2 p-4 shadow-none">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               <Cog className="h-3.5 w-3.5" />
               Mechanisms
@@ -602,7 +605,7 @@ function FieldDetailPanel({
 
           {/* Puzzles */}
           {puzzles.length > 0 && (
-            <div className="space-y-2 rounded-lg border border-border p-4">
+            <div className="paper-panel space-y-2 p-4 shadow-none">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <HelpCircle className="h-3.5 w-3.5" />
                 Puzzles
@@ -664,7 +667,7 @@ function FieldDetailPanel({
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground group-hover:text-blue-700 transition-colors line-clamp-1">
+                        <span className="line-clamp-1 text-sm font-medium text-foreground transition-colors group-hover:text-primary">
                         {p.title || p.paperId}
                       </span>
                       {p.hasCard && (
@@ -742,9 +745,12 @@ function FieldDetailPanel({
 function EmptyDetail() {
   return (
     <div className="flex h-full items-center justify-center text-muted-foreground">
-      <div className="text-center space-y-2">
-        <BookOpen className="h-10 w-10 mx-auto opacity-40" />
-        <p className="text-sm">Select a field to explore its subtopics and papers</p>
+      <div className="paper-panel space-y-2 px-8 py-10 text-center">
+        <BookOpen className="mx-auto h-10 w-10 opacity-40" />
+        <p className="font-display text-2xl tracking-tight text-foreground">Select a field</p>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Open a field to inspect its topic clusters, methods, datasets, and representative papers.
+        </p>
       </div>
     </div>
   );
@@ -766,24 +772,25 @@ export default function FieldsPage() {
   const selectedItem = fields.find((f) => f.field === selectedField);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col gap-5">
       {error && (
-        <div className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950 p-3 text-sm text-red-800 dark:text-red-200">
+        <div className="mx-6 paper-panel border-red-200/80 bg-red-50/80 p-3 text-sm text-red-800 shadow-none">
           Failed to load field taxonomy. Please refresh the page.
         </div>
       )}
       {/* Page header */}
-      <div className="shrink-0 border-b border-border px-6 py-4">
-        <h1 className="text-xl font-bold text-foreground">Fields & Subtopics</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
+      <div className="mx-6 shrink-0 paper-panel p-6">
+        <p className="section-kicker">Reference Shelf</p>
+        <h1 className="mt-2 font-display text-4xl tracking-tight text-foreground sm:text-5xl">Fields & Subtopics</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
           Explore research by field -- see what methods, datasets, and mechanisms are used
         </p>
       </div>
 
       {/* Two-panel layout */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="mx-6 flex flex-1 overflow-hidden rounded-[1.75rem] border border-border/75 bg-background/92 shadow-[0_24px_60px_rgba(44,51,71,0.08)]">
         {/* Left panel: field list */}
-        <div className="w-[280px] shrink-0 border-r border-border bg-background">
+        <div className="w-[280px] shrink-0 border-r border-border/70 bg-background/85">
           <FieldList
             fields={fields}
             selected={selectedField}
@@ -793,7 +800,7 @@ export default function FieldsPage() {
         </div>
 
         {/* Right panel: detail */}
-        <div className="flex-1 bg-background overflow-hidden">
+        <div className="flex-1 overflow-hidden bg-background/70">
           {selectedField ? (
             <FieldDetailPanel field={selectedField} taxonomyItem={selectedItem} />
           ) : (

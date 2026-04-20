@@ -52,7 +52,8 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
         <Link
           key={`${keyPrefix}-${match.index}`}
           href={`/paper/${paperId}`}
-          className="inline-flex items-baseline gap-0.5 rounded bg-blue-50 px-1.5 py-0.5 font-mono text-sm font-medium text-blue-700 no-underline hover:bg-blue-100 hover:text-blue-800"
+          title={`Paper ${paperId}`}
+          className="inline-flex items-baseline gap-0.5 rounded-full border border-border/70 bg-accent/50 px-2 py-0.5 font-mono text-sm font-medium text-primary no-underline transition-colors hover:bg-accent/80 hover:text-primary"
         >
           {display}
         </Link>
@@ -69,7 +70,8 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
         <Link
           key={`${keyPrefix}-${match.index}`}
           href={`/paper/${paperId}`}
-          className="inline-flex items-baseline gap-0.5 rounded bg-blue-50 px-1.5 py-0.5 font-mono text-sm font-medium text-blue-700 no-underline hover:bg-blue-100 hover:text-blue-800"
+          title={`Paper ${paperId}`}
+          className="inline-flex items-baseline gap-0.5 rounded-full border border-border/70 bg-accent/50 px-2 py-0.5 font-mono text-sm font-medium text-primary no-underline transition-colors hover:bg-accent/80 hover:text-primary"
         >
           {paperId}
         </Link>
@@ -137,7 +139,7 @@ function renderBlock(block: string, blockIndex: number): React.ReactNode {
       <h2
         key={`h2-${blockIndex}`}
         id={id}
-        className="mt-10 mb-4 scroll-mt-24 border-b border-gray-200 pb-2 text-xl font-semibold tracking-tight text-gray-900"
+        className="font-display mt-12 mb-4 scroll-mt-24 border-b border-border/70 pb-3 text-3xl tracking-tight text-foreground"
       >
         {renderInlineText(headingText, `h2i-${blockIndex}`)}
       </h2>
@@ -152,34 +154,54 @@ function renderBlock(block: string, blockIndex: number): React.ReactNode {
       <h3
         key={`h3-${blockIndex}`}
         id={id}
-        className="mt-6 mb-3 scroll-mt-24 text-lg font-medium text-gray-800"
+        className="font-display mt-8 mb-3 scroll-mt-24 text-2xl tracking-tight text-foreground/90"
       >
         {renderInlineText(headingText, `h3i-${blockIndex}`)}
       </h3>
     );
   }
 
-  // --- Bullet list: lines starting with "- "
+  // --- Bullet list: lines starting with "- " (supports one level of nesting via "  - ")
   const lines = trimmed.split("\n");
   const allBullets = lines.every(
     (l) => l.trimStart().startsWith("- ") || l.trim() === ""
   );
 
   if (allBullets) {
-    const items = lines.filter((l) => l.trimStart().startsWith("- "));
+    const bulletLines = lines.filter((l) => l.trimStart().startsWith("- "));
+
+    // Build a structure that supports one level of nesting
+    const topItems: { text: string; children: string[] }[] = [];
+    for (const line of bulletLines) {
+      const indent = line.length - line.trimStart().length;
+      const text = line.trimStart().slice(2);
+      if (indent >= 2 && topItems.length > 0) {
+        // Nested bullet: attach to previous top-level item
+        topItems[topItems.length - 1].children.push(text);
+      } else {
+        topItems.push({ text, children: [] });
+      }
+    }
+
     return (
       <ul
         key={`ul-${blockIndex}`}
-        className="my-3 list-disc pl-5 space-y-1 text-gray-700"
+        className="my-4 list-disc space-y-1.5 pl-5 text-foreground/80"
       >
-        {items.map((item, i) => {
-          const text = item.trimStart().slice(2);
-          return (
-            <li key={`li-${blockIndex}-${i}`} className="leading-relaxed">
-              {renderInlineText(text, `li-${blockIndex}-${i}`)}
-            </li>
-          );
-        })}
+        {topItems.map((item, i) => (
+          <li key={`li-${blockIndex}-${i}`} className="leading-relaxed">
+            {renderInlineText(item.text, `li-${blockIndex}-${i}`)}
+            {item.children.length > 0 && (
+              <ul className="mt-1.5 list-disc space-y-1 pl-5 text-foreground/70">
+                {item.children.map((child, j) => (
+                  <li key={`li-${blockIndex}-${i}-${j}`} className="leading-relaxed">
+                    {renderInlineText(child, `li-${blockIndex}-${i}-${j}`)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
       </ul>
     );
   }
@@ -187,34 +209,55 @@ function renderBlock(block: string, blockIndex: number): React.ReactNode {
   // --- Mixed block: may contain some bullet lines and some paragraph lines
   // Split into sub-sections of consecutive bullets and paragraphs
   const parts: React.ReactNode[] = [];
-  let currentBullets: string[] = [];
+  let currentBulletLines: string[] = [];
 
   const flushBullets = () => {
-    if (currentBullets.length > 0) {
-      const bulletsCopy = [...currentBullets];
+    if (currentBulletLines.length > 0) {
+      const rawLines = [...currentBulletLines];
+      // Build nested structure
+      const topItems: { text: string; children: string[] }[] = [];
+      for (const raw of rawLines) {
+        const indent = raw.length - raw.trimStart().length;
+        const text = raw.trimStart().slice(2);
+        if (indent >= 2 && topItems.length > 0) {
+          topItems[topItems.length - 1].children.push(text);
+        } else {
+          topItems.push({ text, children: [] });
+        }
+      }
+      const partIdx = parts.length;
       parts.push(
         <ul
-          key={`ul-${blockIndex}-${parts.length}`}
-          className="my-3 list-disc pl-5 space-y-1 text-gray-700"
+          key={`ul-${blockIndex}-${partIdx}`}
+          className="my-4 list-disc space-y-1.5 pl-5 text-foreground/80"
         >
-          {bulletsCopy.map((item, i) => (
+          {topItems.map((item, i) => (
             <li
-              key={`li-${blockIndex}-${parts.length}-${i}`}
+              key={`li-${blockIndex}-${partIdx}-${i}`}
               className="leading-relaxed"
             >
-              {renderInlineText(item, `li-${blockIndex}-${parts.length}-${i}`)}
+              {renderInlineText(item.text, `li-${blockIndex}-${partIdx}-${i}`)}
+              {item.children.length > 0 && (
+                <ul className="mt-1.5 list-disc space-y-1 pl-5 text-foreground/70">
+                  {item.children.map((child, j) => (
+                    <li key={`li-${blockIndex}-${partIdx}-${i}-${j}`} className="leading-relaxed">
+                      {renderInlineText(child, `li-${blockIndex}-${partIdx}-${i}-${j}`)}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
         </ul>
       );
-      currentBullets = [];
+      currentBulletLines = [];
     }
   };
 
   for (const line of lines) {
     const stripped = line.trimStart();
     if (stripped.startsWith("- ")) {
-      currentBullets.push(stripped.slice(2));
+      currentBulletLines.push(line);
     } else if (stripped === "") {
       flushBullets();
     } else {
@@ -227,7 +270,7 @@ function renderBlock(block: string, blockIndex: number): React.ReactNode {
           <h2
             key={`h2-${blockIndex}-${parts.length}`}
             id={id}
-            className="mt-10 mb-4 scroll-mt-24 border-b border-gray-200 pb-2 text-xl font-semibold tracking-tight text-gray-900"
+            className="font-display mt-12 mb-4 scroll-mt-24 border-b border-border/70 pb-3 text-3xl tracking-tight text-foreground"
           >
             {renderInlineText(headingText, `h2m-${blockIndex}-${parts.length}`)}
           </h2>
@@ -239,7 +282,7 @@ function renderBlock(block: string, blockIndex: number): React.ReactNode {
           <h3
             key={`h3-${blockIndex}-${parts.length}`}
             id={id}
-            className="mt-6 mb-3 scroll-mt-24 text-lg font-medium text-gray-800"
+            className="font-display mt-8 mb-3 scroll-mt-24 text-2xl tracking-tight text-foreground/90"
           >
             {renderInlineText(headingText, `h3m-${blockIndex}-${parts.length}`)}
           </h3>
@@ -248,7 +291,7 @@ function renderBlock(block: string, blockIndex: number): React.ReactNode {
         parts.push(
           <p
             key={`p-${blockIndex}-${parts.length}`}
-            className="my-3 leading-relaxed text-gray-700"
+            className="my-4 text-[15px] leading-8 text-foreground/80"
           >
             {renderInlineText(stripped, `p-${blockIndex}-${parts.length}`)}
           </p>

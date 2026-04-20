@@ -9,7 +9,7 @@ import type { ContextItem } from "@/components/ask/context-panel";
 import { ExampleQuestions } from "@/components/ask/example-questions";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8011";
 
 export default function AskPage() {
   return (
@@ -65,7 +65,7 @@ function AskPageInner() {
 
   // Auto-focus input on mount
   useEffect(() => {
-    inputRef.current?.focus();
+    inputRef.current?.focus({ preventScroll: true });
   }, []);
 
   // Count the number of conversation turns (user messages)
@@ -297,71 +297,87 @@ function AskPageInner() {
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-5rem)] max-w-3xl flex-col">
+    <div
+      className={`mx-auto flex max-w-4xl flex-col pt-6 ${
+        isEmpty ? "min-h-[calc(100vh-5rem)]" : "h-[calc(100vh-5rem)]"
+      }`}
+    >
       {/* Header */}
       <div className="shrink-0 pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
-              <Sparkles className="h-5 w-5 text-blue-600" />
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              Ask the Knowledge Base
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Session indicator */}
-            {sessionId && turnCount > 0 && (
-              <div className="flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5">
-                <MessageCircle className="h-3.5 w-3.5 text-blue-500" />
-                <span className="text-xs font-medium text-blue-600">
-                  {turnCount} {turnCount === 1 ? "turn" : "turns"}
-                </span>
+        <div className="paper-panel rounded-[1.8rem] px-6 py-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="paper-panel flex h-11 w-11 items-center justify-center rounded-[1rem]">
+                <Sparkles className="h-5 w-5 text-primary" />
               </div>
-            )}
-            {/* New conversation button */}
-            {messages.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNewConversation}
-                className="gap-1.5 text-xs"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                New Chat
-              </Button>
-            )}
+              <div>
+                <p className="section-kicker">Research assistant</p>
+                <h1 className="font-display text-[2rem] text-foreground">
+                  Ask the Knowledge Base
+                </h1>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Session indicator */}
+              {sessionId && turnCount > 0 && (
+                <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5">
+                  <MessageCircle className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-xs font-medium text-primary">
+                    {turnCount} {turnCount === 1 ? "turn" : "turns"}
+                  </span>
+                </div>
+              )}
+              {/* New conversation button */}
+              {messages.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNewConversation}
+                  className="gap-1.5 rounded-full text-xs"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  New Chat
+                </Button>
+              )}
+            </div>
           </div>
+          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+            Ask questions about your research and get AI-generated answers with
+            citations from NBER working papers.
+            {sessionId && turnCount > 0 && (
+              <span className="ml-1 text-primary">
+                The assistant is keeping the thread context.
+              </span>
+            )}
+          </p>
         </div>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Ask questions about your research and get AI-generated answers with
-          citations from NBER working papers.
-          {sessionId && turnCount > 0 && (
-            <span className="ml-1 text-blue-500">
-              The AI remembers this conversation.
-            </span>
-          )}
-        </p>
       </div>
 
       {/* Paper context banner */}
       {paperIdParam && (
-        <div className="shrink-0 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5">
-          <MessageCircle className="h-4 w-4 text-blue-500 shrink-0" />
-          <span className="text-sm text-blue-700">
+        <div className="paper-panel mb-4 shrink-0 flex items-center gap-2 rounded-[1.15rem] px-4 py-2.5">
+          <MessageCircle className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm text-foreground">
             Asking about paper <span className="font-mono font-semibold">{paperIdParam}</span>
           </span>
         </div>
       )}
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto rounded-lg">
+      <div
+        className={`paper-panel overflow-y-auto rounded-[1.7rem] px-4 ${
+          isEmpty ? "min-h-[26rem] py-6" : "flex-1"
+        }`}
+      >
         {isEmpty ? (
-          <div className="flex h-full flex-col items-center justify-center px-4">
-            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
-              <Sparkles className="h-7 w-7 text-blue-500" />
+          <div className="mx-auto flex max-w-2xl flex-col items-center px-4 pt-4">
+            <div className="paper-panel mb-5 flex h-14 w-14 items-center justify-center rounded-[1.15rem]">
+              <Sparkles className="h-7 w-7 text-primary" />
             </div>
-            <p className="mb-6 text-center text-sm text-muted-foreground">
+            <p className="mb-3 text-center text-sm font-medium text-foreground">
+              Start with a question, then keep the thread open while you refine it.
+            </p>
+            <p className="mb-6 text-center text-sm leading-relaxed text-muted-foreground">
               Ask a question to get started. The AI will search the knowledge
               base and provide an answer with citations.
             </p>
@@ -405,36 +421,38 @@ function AskPageInner() {
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 border-t border-border bg-card pt-4 pb-2">
+      <div className={`shrink-0 border-t border-border/70 bg-card/60 ${isEmpty ? "pt-3 pb-4" : "pt-4 pb-2"}`}>
         <form onSubmit={handleSubmit} className="flex items-end gap-3">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              // Auto-resize
-              const el = e.target;
-              el.style.height = "auto";
-              el.style.height = `${Math.min(el.scrollHeight, 4 * 24 + 24)}px`;
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-            placeholder="Ask a question about your research knowledge..."
-            disabled={isStreaming}
-            rows={1}
-            className="flex min-h-[48px] max-h-[120px] flex-1 resize-none rounded-xl border border-border bg-muted/50 px-5 py-3 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus-visible:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          />
+          <div className="paper-panel flex flex-1 rounded-[1.15rem] p-1.5">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                // Auto-resize
+                const el = e.target;
+                el.style.height = "auto";
+                el.style.height = `${Math.min(el.scrollHeight, 4 * 24 + 24)}px`;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
+              placeholder="Ask a question about your research knowledge..."
+              disabled={isStreaming}
+              rows={1}
+              className="flex min-h-[48px] max-h-[120px] flex-1 resize-none rounded-[0.95rem] border border-border bg-background/80 px-5 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
           {isStreaming ? (
             <button
               type="button"
               onClick={() => {
                 if (abortRef.current) abortRef.current.abort();
               }}
-              className="shrink-0 rounded-lg bg-red-600 px-3 py-2 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+              className="shrink-0 rounded-full bg-red-600 px-3 py-2 text-white text-sm font-medium hover:bg-red-700 transition-colors"
             >
               Stop
             </button>
@@ -443,7 +461,7 @@ function AskPageInner() {
               type="submit"
               size="icon"
               disabled={!input.trim()}
-              className="h-12 w-12 shrink-0 rounded-xl shadow-sm"
+              className="h-12 w-12 shrink-0 rounded-full shadow-sm"
             >
               <Send className="h-4 w-4" />
             </Button>

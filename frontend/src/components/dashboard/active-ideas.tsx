@@ -13,9 +13,9 @@ interface ActiveIdeasProps {
 function ScoreBar({ value, max = 10 }: { value: number | null; max?: number }) {
   const pct = value !== null ? Math.min((value / max) * 100, 100) : 0;
   return (
-    <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
       <div
-        className="h-full bg-blue-500 rounded-full transition-all"
+        className="h-full rounded-full bg-sky-500 transition-all"
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -26,13 +26,16 @@ function ScoreDot({
   value,
   color,
   label,
+  shortLabel,
 }: {
   value: number | null;
   color: string;
   label: string;
+  shortLabel: string;
 }) {
   return (
-    <span className="flex items-center gap-1 text-xs text-gray-500" title={label}>
+    <span className="flex items-center gap-1 text-xs text-muted-foreground" title={label}>
+      <span className="text-[9px] text-muted-foreground">{shortLabel}</span>
       <span
         className={`inline-block h-2 w-2 rounded-full ${color}`}
       />
@@ -43,15 +46,18 @@ function ScoreDot({
 
 export function ActiveIdeas({ ideas, loading }: ActiveIdeasProps) {
   return (
-    <Card>
+    <Card className="paper-panel rounded-[1.45rem] border-border/75 shadow-none">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold">
-            Active Research Ideas
-          </CardTitle>
+          <div>
+            <p className="section-kicker">Active Ideas</p>
+            <CardTitle className="mt-2 font-display text-[1.45rem] text-foreground">
+              Active Research Ideas
+            </CardTitle>
+          </div>
           <Link
             href="/ideas"
-            className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+            className="text-xs font-medium text-primary hover:underline"
           >
             View all
           </Link>
@@ -60,7 +66,7 @@ export function ActiveIdeas({ ideas, loading }: ActiveIdeasProps) {
       <CardContent>
         {loading || !ideas ? (
           <div className="space-y-4">
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: 10 }).map((_, i) => (
               <div key={i} className="space-y-2">
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-1.5 w-full rounded-full" />
@@ -73,7 +79,7 @@ export function ActiveIdeas({ ideas, loading }: ActiveIdeasProps) {
             ))}
           </div>
         ) : ideas.length === 0 ? (
-          <p className="text-sm text-gray-500 py-4 text-center">
+          <p className="py-4 text-center text-sm text-muted-foreground">
             No active ideas yet.
           </p>
         ) : (
@@ -81,34 +87,42 @@ export function ActiveIdeas({ ideas, loading }: ActiveIdeasProps) {
             {ideas.slice(0, 10).map((idea) => (
               <Link
                 key={idea.id}
-                href="/ideas"
-                className="block py-2 px-2 -mx-2 rounded-md hover:bg-gray-50 transition-colors group"
+                href={`/ideas#idea-${idea.id}`}
+                className="group -mx-2 block rounded-[1rem] px-2 py-2 transition-colors hover:bg-[color:oklch(var(--accent)/0.4)]"
               >
                 <div className="flex items-start gap-2 mb-1.5">
-                  <span className="text-xs font-mono text-gray-400 shrink-0 pt-0.5">
+                  <span className="shrink-0 pt-0.5 font-mono text-xs text-muted-foreground">
                     #{idea.id}
                   </span>
-                  <span className="text-sm text-gray-800 flex-1 min-w-0 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                  <span className="min-w-0 flex-1 line-clamp-1 text-sm text-foreground transition-colors group-hover:text-primary">
                     {idea.title}
                   </span>
                 </div>
                 <div className="ml-7">
-                  <ScoreBar value={idea.composite} />
+                  <div className="flex items-center">
+                    <div className="flex-1">
+                      <ScoreBar value={idea.composite} />
+                    </div>
+                    <span className="ml-1.5 text-xs font-medium tabular-nums text-muted-foreground">{idea.composite?.toFixed(1) ?? '--'}</span>
+                  </div>
                   <div className="flex gap-3 mt-1.5">
                     <ScoreDot
                       value={idea.novelty}
                       color="bg-violet-400"
                       label="Novelty"
+                      shortLabel="N"
                     />
                     <ScoreDot
                       value={idea.feasibility}
                       color="bg-green-400"
                       label="Feasibility"
+                      shortLabel="F"
                     />
                     <ScoreDot
                       value={idea.impact}
                       color="bg-amber-400"
                       label="Impact"
+                      shortLabel="I"
                     />
                   </div>
                 </div>

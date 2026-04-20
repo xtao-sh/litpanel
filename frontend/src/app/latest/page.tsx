@@ -59,9 +59,10 @@ function TopicDiscoveryCard({
   creatingTopic: string | null;
 }) {
   return (
-    <Card className="rounded-xl shadow-sm">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold">{title}</CardTitle>
+    <Card className="paper-panel h-full rounded-[1.65rem] shadow-none">
+      <CardHeader className="pb-4">
+        <p className="section-kicker">Topic signal</p>
+        <CardTitle className="font-display text-[1.9rem] text-foreground">{title}</CardTitle>
         <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -69,22 +70,22 @@ function TopicDiscoveryCard({
           topics.map((topic) => (
             <div
               key={`${topic.category}-${topic.name}`}
-              className="rounded-lg border border-border bg-background px-3 py-3"
+              className="rounded-[1.15rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.36)] px-4 py-4"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">{topic.name}</p>
+                  <p className="font-display truncate text-[1.25rem] text-foreground">{topic.name}</p>
                   <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-muted-foreground">
-                    <span className="rounded-full bg-muted px-2 py-0.5">
+                    <span className="rounded-full bg-background/80 px-2 py-0.5">
                       {topic.category}
                     </span>
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800">
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">
                       {formatGrowthRate(topic.growthRate)}
                     </span>
-                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">
+                    <span className="rounded-full bg-background/80 px-2 py-0.5 text-foreground">
                       {topic.recentCount} recent
                     </span>
-                    <span className="rounded-full bg-muted px-2 py-0.5">
+                    <span className="rounded-full bg-background/80 px-2 py-0.5">
                       avg {topic.historicalAvg.toFixed(1)}
                     </span>
                   </div>
@@ -94,14 +95,14 @@ function TopicDiscoveryCard({
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
                   href={buildResearchHref({ query: topic.name })}
-                  className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                  className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
                 >
                   <Microscope className="h-3 w-3" />
                   Topic workspace
                 </Link>
                 <Link
                   href={buildExplorerPaperHref({ query: topic.name })}
-                  className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+                  className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-background"
                 >
                   <Compass className="h-3 w-3" />
                   Related papers
@@ -112,7 +113,7 @@ function TopicDiscoveryCard({
                   size="sm"
                   disabled={creatingTopic !== null}
                   onClick={() => onCreateDraft(topic)}
-                  className="h-8"
+                  className="h-8 rounded-full border-primary/15 bg-background/85"
                 >
                   {creatingTopic === topic.name ? (
                     <>
@@ -169,9 +170,10 @@ function LatestPaperBuckets({
   }, [papers]);
 
   return (
-    <Card className="rounded-xl shadow-sm">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold">Recent Deep-Read Papers</CardTitle>
+    <Card className="paper-panel rounded-[1.7rem] shadow-none">
+      <CardHeader className="pb-4">
+        <p className="section-kicker">Year batches</p>
+        <CardTitle className="font-display text-[2rem] text-foreground">Recent Deep-Read Papers</CardTitle>
         <p className="text-sm leading-relaxed text-muted-foreground">
           Newer papers with deep-read cards, grouped by publication year so you can spot which waves are active now.
         </p>
@@ -192,7 +194,7 @@ function LatestPaperBuckets({
             <div key={year} className="space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground">{year}</h3>
+                  <h3 className="font-display text-[1.35rem] text-foreground">{year}</h3>
                   <span className="text-xs text-muted-foreground">
                     {entries.length} paper{entries.length !== 1 ? "s" : ""} in this preview slice
                   </span>
@@ -208,7 +210,7 @@ function LatestPaperBuckets({
                           hasCard: true,
                         },
                       })}
-                      className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+                      className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-background"
                     >
                       <Compass className="h-3 w-3" />
                       Open year batch
@@ -221,7 +223,7 @@ function LatestPaperBuckets({
                           returnTo: LATEST_RETURN_TO,
                           context: `${year} recent batch`,
                         })}
-                        className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                        className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
                       >
                         Compare preview
                       </Link>
@@ -232,7 +234,7 @@ function LatestPaperBuckets({
                       size="sm"
                       disabled={creatingYear !== null}
                       onClick={() => onCreateYearDraft(Number(year))}
-                      className="h-8"
+                      className="h-8 rounded-full border-primary/15 bg-background/85"
                     >
                       {creatingYear === Number(year) ? (
                         <>
@@ -253,11 +255,11 @@ function LatestPaperBuckets({
                 {entries.slice(0, 4).map((paper) => (
                   <div
                     key={paper.paperId}
-                    className="rounded-lg border border-border bg-background px-3 py-3"
+                    className="rounded-[1.15rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.34)] px-4 py-4"
                   >
                     <Link
                       href={`/paper/${paper.paperId}`}
-                      className="text-sm font-medium text-foreground hover:text-blue-700 hover:underline"
+                      className="font-display text-[1.1rem] text-foreground transition-colors hover:text-primary"
                     >
                       {paper.title || paper.paperId}
                     </Link>
@@ -271,7 +273,8 @@ function LatestPaperBuckets({
                         <Link
                           key={field}
                           href={`/research?q=${encodeURIComponent(field)}`}
-                          className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-700 transition-colors hover:bg-blue-100"
+                          className="rounded-full bg-background/80 px-2 py-0.5 text-foreground transition-colors hover:bg-background"
+                          title={field}
                         >
                           {field}
                         </Link>
@@ -332,9 +335,10 @@ function TopicDossierPanel({
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_420px]">
-      <Card className="rounded-xl shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">Topic Dossier Preview</CardTitle>
+      <Card className="paper-panel rounded-[1.75rem] shadow-none">
+        <CardHeader className="pb-4">
+          <p className="section-kicker">Dossier preview</p>
+          <CardTitle className="font-display text-[2.1rem] text-foreground">Topic Dossier Preview</CardTitle>
           <p className="text-sm leading-relaxed text-muted-foreground">
             Pick a rising or cooling topic to see how mature it is, how quickly it is moving, and which papers anchor it.
           </p>
@@ -351,7 +355,7 @@ function TopicDossierPanel({
                   className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                     isActive
                       ? "bg-foreground text-background"
-                      : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
+                      : "bg-[color:oklch(var(--accent)/0.45)] text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.75)] hover:text-foreground"
                   }`}
                 >
                   {topic.name}
@@ -361,33 +365,33 @@ function TopicDossierPanel({
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-lg border border-border bg-muted/20 p-3">
+            <div className="rounded-[1.2rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.34)] p-4">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Momentum
               </p>
-              <p className="mt-1 text-lg font-semibold text-foreground">
+              <p className="font-display mt-2 text-[2rem] text-foreground">
                 {formatGrowthRate(selectedTopic.growthRate)}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 Recent output relative to historical average.
               </p>
             </div>
-            <div className="rounded-lg border border-border bg-muted/20 p-3">
+            <div className="rounded-[1.2rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.34)] p-4">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Recent Count
               </p>
-              <p className="mt-1 text-lg font-semibold text-foreground">
+              <p className="font-display mt-2 text-[2rem] text-foreground">
                 {selectedTopic.recentCount}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 Topic-labelled papers in the recent window.
               </p>
             </div>
-            <div className="rounded-lg border border-border bg-muted/20 p-3">
+            <div className="rounded-[1.2rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.34)] p-4">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Corpus Match
               </p>
-              <p className="mt-1 text-lg font-semibold text-foreground">
+              <p className="font-display mt-2 text-[2rem] text-foreground">
                 {loading ? "..." : totalPapers}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -399,14 +403,14 @@ function TopicDossierPanel({
           <div className="flex flex-wrap gap-2">
             <Link
               href={buildResearchHref({ query: selectedTopic.name })}
-              className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+              className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
             >
               <Microscope className="h-3.5 w-3.5" />
               Open topic workspace
             </Link>
             <Link
               href={buildExplorerPaperHref({ query: selectedTopic.name })}
-              className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+              className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
             >
               <Compass className="h-3.5 w-3.5" />
               Related papers
@@ -418,7 +422,7 @@ function TopicDossierPanel({
                 label: selectedTopic.name,
                 source: "latest",
               })}
-              className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+              className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
             >
               Open graph
             </Link>
@@ -430,7 +434,7 @@ function TopicDossierPanel({
                   returnTo: LATEST_RETURN_TO,
                   context: selectedTopic.name,
                 })}
-                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
               >
                 Compare preview
               </Link>
@@ -441,7 +445,7 @@ function TopicDossierPanel({
               size="sm"
               disabled={creatingTopic !== null}
               onClick={() => onCreateDraft(selectedTopic)}
-              className="h-9"
+              className="h-9 rounded-full border-primary/15 bg-background/85"
             >
               {creatingTopic === selectedTopic.name ? (
                 <>
@@ -475,10 +479,10 @@ function TopicDossierPanel({
               </div>
             ) : previewPapers.length > 0 ? (
               previewPapers.slice(0, 3).map((paper) => (
-                <div key={paper.paperId} className="rounded-lg border border-border bg-background px-3 py-3">
+                <div key={paper.paperId} className="rounded-[1.15rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.32)] px-4 py-4">
                   <Link
                     href={`/paper/${paper.paperId}?returnTo=${encodeURIComponent(LATEST_RETURN_TO)}`}
-                    className="text-sm font-medium text-foreground hover:text-blue-700 hover:underline"
+                    className="font-display text-[1.15rem] text-foreground transition-colors hover:text-primary"
                   >
                     {paper.title || paper.paperId}
                   </Link>
@@ -494,7 +498,7 @@ function TopicDossierPanel({
                       </span>
                     )}
                     {paper.fields.slice(0, 2).map((field) => (
-                      <span key={field} className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">
+                      <span key={field} className="rounded-full bg-background/80 px-2 py-0.5 text-foreground" title={field}>
                         {field}
                       </span>
                     ))}
@@ -733,20 +737,18 @@ function LatestResearchContent() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-border bg-gradient-to-br from-blue-50 via-white to-amber-50 p-6 shadow-sm">
+      <div className="paper-panel rounded-[2rem] px-6 py-7 md:px-8">
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
           <div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="rounded-full bg-blue-100 px-2.5 py-1 font-medium text-blue-700">
-                Latest Research
-              </span>
+              <span className="section-kicker">Recency-first discovery</span>
               {whatsNew && (
-                <span className="rounded-full bg-muted px-2.5 py-1 font-medium text-muted-foreground">
+                <span className="rounded-full bg-[color:oklch(var(--accent)/0.45)] px-2.5 py-1 font-medium text-muted-foreground">
                   {whatsNew.totalPapers.toLocaleString()} papers indexed
                 </span>
               )}
             </div>
-            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
+            <h2 className="font-display mt-3 max-w-4xl text-[clamp(2.9rem,5.3vw,4.9rem)] text-foreground">
               Start with what is new, then follow the topic into its evidence trail.
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
@@ -757,21 +759,21 @@ function LatestResearchContent() {
             <div className="mt-4 flex flex-wrap gap-2">
               <Link
                 href="/research"
-                className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
               >
                 <Microscope className="h-3.5 w-3.5" />
                 Open Research
               </Link>
               <Link
                 href="/explorer"
-                className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+                className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
               >
                 <Compass className="h-3.5 w-3.5" />
                 Open Explorer
               </Link>
               <Link
                 href="/projects"
-                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
               >
                 Open Projects
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -779,21 +781,22 @@ function LatestResearchContent() {
             </div>
           </div>
 
-          <Card className="rounded-xl shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">How To Use This Page</CardTitle>
+          <Card className="paper-panel rounded-[1.65rem] shadow-none">
+            <CardHeader className="pb-4">
+              <p className="section-kicker">Reading mode</p>
+              <CardTitle className="font-display text-[1.7rem] text-foreground">How To Use This Page</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               <div className="flex items-start gap-2">
-                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <p>Check the newest deep-read papers first to see what has just entered the corpus.</p>
               </div>
               <div className="flex items-start gap-2">
-                <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <p>Use rising topics to decide which research questions are gaining momentum.</p>
               </div>
               <div className="flex items-start gap-2">
-                <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" />
+                <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <p>Use the recent year trend to tell whether a topic is new, recurring, or already mature.</p>
               </div>
             </CardContent>
@@ -801,13 +804,16 @@ function LatestResearchContent() {
         </div>
       </div>
 
+      <div className="ink-rule my-8" />
+
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="rounded-xl shadow-sm">
+        <Card className="paper-panel rounded-[1.45rem] shadow-none">
           <CardHeader className="pb-2">
+            <p className="section-kicker">Live feed</p>
             <CardTitle className="text-sm font-medium text-muted-foreground">Newest batch</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-lg font-semibold text-foreground">
+            <p className="font-display text-[2.35rem] text-foreground">
               {whatsNewLoading ? "..." : whatsNew?.latestPapersCount ?? 0}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -815,12 +821,13 @@ function LatestResearchContent() {
             </p>
           </CardContent>
         </Card>
-        <Card className="rounded-xl shadow-sm">
+        <Card className="paper-panel rounded-[1.45rem] shadow-none">
           <CardHeader className="pb-2">
+            <p className="section-kicker">Topic watch</p>
             <CardTitle className="text-sm font-medium text-muted-foreground">Rising topics</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-lg font-semibold text-foreground">
+            <p className="font-display text-[2.35rem] text-foreground">
               {trendingLoading ? "..." : trendingTopics?.filter((topic) => topic.trend === "rising").length ?? 0}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -828,12 +835,13 @@ function LatestResearchContent() {
             </p>
           </CardContent>
         </Card>
-        <Card className="rounded-xl shadow-sm">
+        <Card className="paper-panel rounded-[1.45rem] shadow-none">
           <CardHeader className="pb-2">
+            <p className="section-kicker">Working corpus</p>
             <CardTitle className="text-sm font-medium text-muted-foreground">Deep-read recent set</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-lg font-semibold text-foreground">
+            <p className="font-display text-[2.35rem] text-foreground">
               {recentPapersLoading ? "..." : recentPapers?.length ?? 0}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -842,6 +850,8 @@ function LatestResearchContent() {
           </CardContent>
         </Card>
       </div>
+
+      <div className="ink-rule my-8" />
 
       <div className="grid gap-6 xl:grid-cols-3">
         <TopicDiscoveryCard
@@ -870,6 +880,8 @@ function LatestResearchContent() {
         />
       </div>
 
+      <div className="ink-rule my-8" />
+
       <TopicDossierPanel
         topics={dossierTopics}
         selectedTopicName={selectedDossierTopicName}
@@ -878,10 +890,13 @@ function LatestResearchContent() {
         creatingTopic={creatingTopic}
       />
 
+      <div className="ink-rule my-8" />
+
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">Latest In The Knowledge Base</CardTitle>
+        <Card className="paper-panel rounded-[1.8rem] shadow-none">
+          <CardHeader className="pb-4">
+            <p className="section-kicker">Newest entries</p>
+            <CardTitle className="font-display text-[2rem] text-foreground">Latest In The Knowledge Base</CardTitle>
             <p className="text-sm leading-relaxed text-muted-foreground">
               These are the newest papers currently surfaced by the corpus-level latest feed.
             </p>
@@ -896,12 +911,12 @@ function LatestResearchContent() {
               ))
             ) : whatsNew && whatsNew.latestPapers.length > 0 ? (
               whatsNew.latestPapers.map((paper) => (
-                <div key={paper.paperId} className="rounded-lg border border-border bg-background px-3 py-3">
+                <div key={paper.paperId} className="rounded-[1.2rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.34)] px-4 py-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <Link
                         href={`/paper/${paper.paperId}`}
-                        className="text-sm font-medium text-foreground hover:text-blue-700 hover:underline"
+                        className="font-display text-[1.2rem] text-foreground transition-colors hover:text-primary"
                       >
                         {paper.title || paper.paperId}
                       </Link>
@@ -915,7 +930,7 @@ function LatestResearchContent() {
                           <Link
                             key={field}
                             href={buildResearchHref({ query: field })}
-                            className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-700 transition-colors hover:bg-blue-100"
+                            className="rounded-full bg-background/80 px-2 py-0.5 text-foreground transition-colors hover:bg-background"
                           >
                             {field}
                           </Link>
@@ -931,7 +946,7 @@ function LatestResearchContent() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Link
                       href={`/paper/${paper.paperId}`}
-                      className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+                      className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-background"
                     >
                       Detail
                     </Link>
@@ -939,7 +954,7 @@ function LatestResearchContent() {
                       href={buildExplorerPaperHref({
                         query: paper.title ?? paper.paperId,
                       })}
-                      className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+                      className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-background"
                     >
                       Related papers
                     </Link>
@@ -950,7 +965,7 @@ function LatestResearchContent() {
                         returnTo: LATEST_RETURN_TO,
                         label: paper.title || paper.paperId,
                       })}
-                      className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                      className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
                     >
                       Open graph
                     </Link>
@@ -965,6 +980,8 @@ function LatestResearchContent() {
 
         <TrendingTopics data={trendingTopics} loading={trendingLoading} />
       </div>
+
+      <div className="ink-rule my-8" />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_420px]">
         <LatestPaperBuckets

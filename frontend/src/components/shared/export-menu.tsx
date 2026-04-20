@@ -35,7 +35,7 @@ export function ExportMenu({ paperIds, label = "Export", compact = false }: Expo
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8011";
   const idsParam = paperIds.join(",");
   const hasIds = paperIds.length > 0;
 
@@ -59,8 +59,8 @@ export function ExportMenu({ paperIds, label = "Export", compact = false }: Expo
   if (!hasIds) return null;
 
   const btnClass = compact
-    ? "inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-    : "inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50";
+    ? "inline-flex items-center gap-1 rounded-full border border-border/75 bg-background/85 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.5)] hover:text-foreground"
+    : "paper-panel inline-flex items-center gap-1.5 rounded-full border border-border/75 bg-background/88 px-3.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground";
 
   const iconSize = compact ? "h-2.5 w-2.5" : "h-3.5 w-3.5";
 
@@ -70,6 +70,9 @@ export function ExportMenu({ paperIds, label = "Export", compact = false }: Expo
         type="button"
         onClick={() => setOpen(!open)}
         className={btnClass}
+        aria-label="Export options"
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         <Download className={iconSize} />
         {label}
@@ -77,47 +80,56 @@ export function ExportMenu({ paperIds, label = "Export", compact = false }: Expo
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-border bg-card shadow-lg py-1">
+        <div
+          role="menu"
+          aria-label="Export formats"
+          className="paper-panel absolute right-0 top-full z-50 mt-2 w-52 rounded-[1.2rem] border border-border/75 bg-background/95 p-1.5 shadow-[0_22px_50px_rgba(44,51,71,0.14)]"
+        >
           <button
             type="button"
+            role="menuitem"
             onClick={() => handleExport("bibtex")}
-            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-muted/50 transition-colors"
+            className="flex w-full items-center gap-2 rounded-[0.95rem] px-3 py-2.5 text-left text-xs text-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] focus:bg-[color:oklch(var(--accent)/0.45)] focus:outline-none"
           >
             <FileText className="h-3.5 w-3.5 text-muted-foreground" />
             Download BibTeX
           </button>
           <button
             type="button"
+            role="menuitem"
             onClick={() => handleExport("ris")}
-            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-muted/50 transition-colors"
+            className="flex w-full items-center gap-2 rounded-[0.95rem] px-3 py-2.5 text-left text-xs text-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] focus:bg-[color:oklch(var(--accent)/0.45)] focus:outline-none"
           >
             <FileText className="h-3.5 w-3.5 text-muted-foreground" />
             Download RIS
           </button>
           <button
             type="button"
+            role="menuitem"
             onClick={() => handleExport("csv")}
-            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-muted/50 transition-colors"
+            className="flex w-full items-center gap-2 rounded-[0.95rem] px-3 py-2.5 text-left text-xs text-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] focus:bg-[color:oklch(var(--accent)/0.45)] focus:outline-none"
           >
             <Table2 className="h-3.5 w-3.5 text-muted-foreground" />
             Download CSV
           </button>
           <button
             type="button"
+            role="menuitem"
             onClick={() => handleExport("markdown")}
-            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-muted/50 transition-colors"
+            className="flex w-full items-center gap-2 rounded-[0.95rem] px-3 py-2.5 text-left text-xs text-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] focus:bg-[color:oklch(var(--accent)/0.45)] focus:outline-none"
           >
             <FileText className="h-3.5 w-3.5 text-muted-foreground" />
             Download Markdown
           </button>
-          <div className="border-t border-border my-1" />
+          <div className="my-1.5 border-t border-border/75" role="separator" />
           <button
             type="button"
+            role="menuitem"
             onClick={handleCopyIds}
-            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-muted/50 transition-colors"
+            className="flex w-full items-center gap-2 rounded-[0.95rem] px-3 py-2.5 text-left text-xs text-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] focus:bg-[color:oklch(var(--accent)/0.45)] focus:outline-none"
           >
             {copied ? (
-              <Check className="h-3.5 w-3.5 text-green-500" />
+              <Check className="h-3.5 w-3.5 text-emerald-600" />
             ) : (
               <Copy className="h-3.5 w-3.5 text-muted-foreground" />
             )}

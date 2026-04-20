@@ -17,15 +17,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 // ---------------------------------------------------------------------------
 
 function levelColor(level: string) {
-  if (level === "high") return "bg-green-100 text-green-800 border-green-200";
-  if (level === "moderate") return "bg-yellow-100 text-yellow-800 border-yellow-200";
-  return "bg-gray-100 text-gray-600 border-border";
+  if (level === "high") return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (level === "moderate") return "border-amber-200 bg-amber-50 text-amber-800";
+  return "border-border bg-muted/60 text-muted-foreground";
 }
 
 function statColor(level: string) {
-  if (level === "high") return "bg-green-50 border-green-200 text-green-700";
-  if (level === "moderate") return "bg-yellow-50 border-yellow-200 text-yellow-700";
-  return "bg-gray-50 border-border text-gray-500";
+  if (level === "high") return "bg-emerald-50 border-emerald-200 text-emerald-700";
+  if (level === "moderate") return "bg-amber-50 border-amber-200 text-amber-700";
+  return "bg-muted/45 border-border text-muted-foreground";
 }
 
 // scrollToSection is now defined inside ChinaDashboardPage to access state setters
@@ -43,7 +43,7 @@ function ChinaPaperRow({ paper }: { paper: ChinaPaper }) {
         <div className="min-w-0 flex-1">
           <Link
             href={`/paper/${paper.paperId}`}
-            className="text-sm font-medium text-foreground hover:text-blue-600 transition-colors"
+            className="text-sm font-medium text-foreground transition-colors hover:text-primary"
           >
             {paper.title || paper.paperId}
           </Link>
@@ -51,7 +51,7 @@ function ChinaPaperRow({ paper }: { paper: ChinaPaper }) {
             <span className="text-xs text-muted-foreground font-mono">{paper.paperId}</span>
             {paper.year && <span className="text-xs text-muted-foreground">{paper.year}</span>}
             {paper.fields.slice(0, 3).map((f) => (
-              <Badge key={f} variant="outline" className="text-[10px] py-0">
+              <Badge key={f} variant="outline" className="text-[10px] py-0" title={f}>
                 {f}
               </Badge>
             ))}
@@ -137,7 +137,7 @@ function DataSourceChip({
     <div className="flex flex-col">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 transition-colors hover:bg-blue-50 hover:border-blue-200 cursor-pointer text-left"
+        className="flex cursor-pointer items-center gap-2 rounded-2xl border border-border/70 bg-background/80 px-3 py-2 text-left transition-colors hover:bg-accent/45"
       >
         <span className="text-sm font-medium text-muted-foreground">{dm.field}</span>
         <Badge variant="secondary" className="text-xs">
@@ -148,23 +148,23 @@ function DataSourceChip({
         )}
       </button>
       {expanded && dm.paperIds.length > 0 && (
-        <div className="mt-1 ml-2 rounded-lg border border-border bg-card p-2 space-y-1">
+        <div className="mt-1 ml-2 space-y-1 rounded-2xl border border-border/70 bg-background/85 p-2">
           {dm.paperIds.map((pid) => {
             const title = titleMap.get(pid);
             return (
               <Link
                 key={pid}
                 href={`/paper/${pid}`}
-                className="flex items-center gap-1.5 rounded px-2 py-1 text-xs hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                className="flex items-center gap-1.5 rounded-xl px-2 py-1 text-xs transition-colors hover:bg-accent/50 hover:text-primary"
               >
                 <span className="flex-1 min-w-0">
                   {title ? (
                     <>
-                      <span className="text-blue-600 font-medium">&ldquo;{title}&rdquo;</span>
+                      <span className="font-medium text-primary">&ldquo;{title}&rdquo;</span>
                       <span className="ml-1.5 text-muted-foreground font-mono text-[10px]">{pid}</span>
                     </>
                   ) : (
-                    <span className="text-blue-600 font-mono">{pid}</span>
+                    <span className="font-mono text-primary">{pid}</span>
                   )}
                 </span>
                 <ExternalLink className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
@@ -173,7 +173,7 @@ function DataSourceChip({
           })}
           <Link
             href={`/explorer?search=${encodeURIComponent(dm.field)}`}
-            className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            className="flex items-center gap-1.5 rounded-xl px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent/50 hover:text-primary"
           >
             <Search className="h-2.5 w-2.5" />
             Search in Explorer
@@ -193,12 +193,12 @@ function DashboardSkeleton() {
     <div className="space-y-6">
       <div className="grid grid-cols-3 gap-4">
         {[1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-24 rounded-lg" />
+          <Skeleton key={i} className="h-24 rounded-[1.5rem]" />
         ))}
       </div>
       <div className="grid grid-cols-2 gap-6">
-        <Skeleton className="h-96 rounded-lg" />
-        <Skeleton className="h-96 rounded-lg" />
+        <Skeleton className="h-96 rounded-[1.5rem]" />
+        <Skeleton className="h-96 rounded-[1.5rem]" />
       </div>
     </div>
   );
@@ -266,30 +266,48 @@ export default function ChinaDashboardPage() {
         }
       ` }} />
       {/* Header */}
-      <div>
-        <div className="flex items-center gap-2">
-          <Globe className="h-6 w-6 text-red-600" />
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-            China Research Opportunities
-          </h2>
+      <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-[1.2rem] border border-border/70 bg-accent/55 text-primary">
+              <Globe className="h-5 w-5" />
+            </div>
+            <p className="section-kicker">Applicability Lens</p>
+          </div>
+          <div>
+            <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+              China Research Opportunities
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+              Papers applicable to the Chinese context, organized by transferability
+              and supporting evidence.
+            </p>
+          </div>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Papers applicable to the Chinese context, organized by relevance level
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button asChild variant="outline" size="sm" className="gap-1.5">
+        <div className="rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
+          <p className="section-kicker">Use This View</p>
+          <p className="mt-2 text-sm leading-6 text-foreground/80">
+            Start here when you want to separate directly portable findings from
+            ideas that require local adaptation.
+          </p>
+        </div>
+      </div>
+      <div className="paper-panel flex flex-wrap gap-2 px-5 py-4">
+        <p className="section-kicker w-full">Jump To</p>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-1.5 rounded-full">
             <Link href="/explorer?field=Health+Economics">
               <Compass className="h-3.5 w-3.5" />
               Browse in Explorer
             </Link>
           </Button>
-          <Button asChild variant="outline" size="sm" className="gap-1.5">
+          <Button asChild variant="outline" size="sm" className="gap-1.5 rounded-full">
             <Link href="/research?q=China">
               <Search className="h-3.5 w-3.5" />
               Research China-applicable Topics
             </Link>
           </Button>
-          <Button asChild variant="outline" size="sm" className="gap-1.5">
+          <Button asChild variant="outline" size="sm" className="gap-1.5 rounded-full">
             <Link href="/ideas">
               <Lightbulb className="h-3.5 w-3.5" />
               View Research Ideas
@@ -299,7 +317,7 @@ export default function ChinaDashboardPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+        <div className="paper-panel border-red-200/80 bg-red-50/80 p-4 shadow-none">
           <p className="text-sm text-red-700">
             Failed to load China dashboard. Please try again later.
           </p>

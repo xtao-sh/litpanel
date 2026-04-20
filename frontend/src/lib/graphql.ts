@@ -2,7 +2,7 @@ import { ApolloClient, InMemoryCache, HttpLink } from "@apollo/client";
 
 const client = new ApolloClient({
   link: new HttpLink({
-    uri: process.env.NEXT_PUBLIC_GRAPHQL_URL || "http://localhost:8001/graphql",
+    uri: process.env.NEXT_PUBLIC_GRAPHQL_URL || "http://127.0.0.1:8011/graphql",
   }),
   cache: new InMemoryCache({
     typePolicies: {

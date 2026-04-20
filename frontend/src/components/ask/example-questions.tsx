@@ -19,16 +19,16 @@ interface ExampleQuestionsProps {
 export function ExampleQuestions({ onSelect }: ExampleQuestionsProps) {
   return (
     <div className="space-y-3">
-      <p className="text-sm font-medium text-gray-500">Example questions</p>
+      <p className="section-kicker">Example questions</p>
       <div className="grid gap-2">
         {EXAMPLES.map(({ question, icon: Icon }) => (
           <Card
             key={question}
-            className="cursor-pointer rounded-xl border p-3 text-sm text-gray-700 transition-all duration-200 hover:border-primary/50 hover:bg-blue-50/50 hover:shadow-sm hover:text-blue-700"
+            className="paper-panel cursor-pointer rounded-[1.1rem] border border-border/75 p-3 text-sm text-foreground transition-all duration-200 hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-primary"
             onClick={() => onSelect(question)}
           >
             <div className="flex items-start gap-2.5">
-              <Icon className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+              <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary/55" />
               <span>{question}</span>
             </div>
           </Card>

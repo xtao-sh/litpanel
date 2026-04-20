@@ -109,11 +109,11 @@ export function ResearchQueryBar({
   );
 
   return (
-    <div className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-sm">
+    <div className="sticky top-0 z-20 border-b border-border/70 bg-background/85 backdrop-blur-md">
       {/* Main query row */}
       <div className="flex items-center gap-3 px-4 py-3 lg:px-6">
         <form onSubmit={handleSubmit} className="flex flex-1 items-center gap-3">
-          <div className="relative flex-1">
+          <div className="paper-panel relative flex-1 rounded-[1.35rem] p-1.5">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               ref={inputRef}
@@ -121,10 +121,10 @@ export function ResearchQueryBar({
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
               placeholder="Search a research topic..."
-              className="flex h-11 w-full rounded-xl border border-input bg-muted/30 pl-10 pr-4 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex h-11 w-full rounded-[1rem] border border-input bg-background/75 pl-10 pr-4 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
           </div>
-          <Button type="submit" size="default" className="h-11 rounded-xl px-6">
+          <Button type="submit" size="default" className="h-11 rounded-full px-6">
             Search
           </Button>
         </form>
@@ -141,7 +141,7 @@ export function ResearchQueryBar({
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5 text-xs"
+            className="gap-1.5 rounded-full text-xs"
             onClick={() => setSortOpen(!sortOpen)}
           >
             {SORT_OPTIONS.find((s) => s.value === sort)?.label ?? "Sort"}
@@ -150,14 +150,14 @@ export function ResearchQueryBar({
           {sortOpen && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setSortOpen(false)} />
-              <div className="absolute right-0 top-full z-40 mt-1 w-44 rounded-lg border border-border bg-background p-1 shadow-lg">
+              <div className="paper-panel absolute right-0 top-full z-40 mt-2 w-44 rounded-[1rem] p-1 shadow-none">
                 {SORT_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
-                    className={`flex w-full items-center rounded-md px-3 py-1.5 text-sm transition-colors ${
+                    className={`flex w-full items-center rounded-[0.8rem] px-3 py-1.5 text-sm transition-colors ${
                       sort === opt.value
-                        ? "bg-accent font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        ? "bg-[color:oklch(var(--accent)/0.58)] font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
                     }`}
                     onClick={() => {
                       onSortChange(opt.value);
@@ -176,7 +176,7 @@ export function ResearchQueryBar({
         <Button
           variant={filtersOpen ? "default" : "outline"}
           size="sm"
-          className="gap-1.5 text-xs"
+          className="gap-1.5 rounded-full text-xs"
           onClick={() => setFiltersOpen(!filtersOpen)}
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -187,6 +187,9 @@ export function ResearchQueryBar({
             </span>
           )}
         </Button>
+        {!filtersOpen && activeFilterCount === 0 && (
+          <span className="hidden sm:inline text-[11px] text-muted-foreground/70 ml-1">Tip: filter by field, year, or score</span>
+        )}
 
         {/* Extra action buttons (e.g., Save Session) */}
         {extraActions}
@@ -200,7 +203,7 @@ export function ResearchQueryBar({
             <Badge
               key={slug}
               variant="secondary"
-              className="cursor-pointer gap-1 text-xs hover:bg-destructive/10"
+              className="cursor-pointer gap-1 rounded-full text-xs hover:bg-destructive/10"
               onClick={() => clearAtomFilter(slug)}
             >
               {slug}
@@ -212,10 +215,10 @@ export function ResearchQueryBar({
 
       {/* Filter popover */}
       {filtersOpen && (
-        <div className="border-t border-border bg-muted/30 px-4 py-4 lg:px-6">
+        <div className="border-t border-border/70 bg-[color:oklch(var(--accent)/0.18)] px-4 py-4 lg:px-6">
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {/* Fields */}
-            <div className="space-y-2">
+            <div className="paper-panel rounded-[1.25rem] p-4 space-y-2">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Fields
               </h4>
@@ -245,7 +248,7 @@ export function ResearchQueryBar({
             </div>
 
             {/* Year range */}
-            <div className="space-y-3">
+            <div className="paper-panel rounded-[1.25rem] p-4 space-y-3">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Year Range
               </h4>
@@ -269,7 +272,7 @@ export function ResearchQueryBar({
             </div>
 
             {/* Score range */}
-            <div className="space-y-3">
+            <div className="paper-panel rounded-[1.25rem] p-4 space-y-3">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Score Range
               </h4>
@@ -293,7 +296,7 @@ export function ResearchQueryBar({
             </div>
 
             {/* Has Card */}
-            <div className="space-y-3">
+            <div className="paper-panel rounded-[1.25rem] p-4 space-y-3">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Options
               </h4>
@@ -318,6 +321,7 @@ export function ResearchQueryBar({
               <Button
                 variant="outline"
                 size="sm"
+                className="rounded-full"
                 onClick={() =>
                   onFiltersChange({})
                 }

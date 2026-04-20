@@ -32,11 +32,11 @@ const entityIcons: Record<string, React.ElementType> = {
 };
 
 const entityDotColor: Record<string, string> = {
-  paper: "bg-blue-500",
-  mechanism: "bg-orange-500",
-  method: "bg-green-500",
-  dataset: "bg-purple-500",
-  puzzle: "bg-red-500",
+  paper: "bg-sky-500",
+  mechanism: "bg-amber-500",
+  method: "bg-emerald-500",
+  dataset: "bg-violet-500",
+  puzzle: "bg-rose-500",
 };
 
 const entityBadgeVariant: Record<
@@ -165,16 +165,16 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
   const hasResults = hits.length > 0;
 
   return (
-    <CommandDialog open={open} onOpenChange={handleOpenChange}>
+    <CommandDialog open={open} onOpenChange={handleOpenChange} aria-label="Search the knowledge base">
       <CommandInput
         placeholder="Search papers, mechanisms, methods, datasets..."
         value={inputValue}
         onValueChange={handleInputChange}
       />
-      <CommandList className="max-h-[400px]">
+      <CommandList className="max-h-[400px]" aria-live="polite" aria-atomic="false">
         {/* Loading state */}
         {loading && hasQuery && (
-          <div className="flex items-center justify-center gap-2 py-6 text-sm text-gray-500">
+          <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             <span>Searching...</span>
           </div>
@@ -182,19 +182,30 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
 
         {/* Error state */}
         {error && hasQuery && !loading && (
-          <div className="py-6 text-center text-sm text-red-500">
+          <div className="py-8 text-center text-sm text-destructive">
             Search unavailable. Please try again later.
           </div>
         )}
 
         {/* Empty state when no query */}
         {!hasQuery && !loading && (
-          <CommandEmpty>Type to search across all entities...</CommandEmpty>
+          <CommandEmpty>
+            <div className="mx-auto max-w-sm space-y-2 px-4">
+              <p className="section-kicker">Quick lookup</p>
+              <p className="font-display text-[1.35rem] text-foreground">Start with a paper, method, dataset, or mechanism.</p>
+              <p>Type to search across the research graph and jump directly into the right evidence trail.</p>
+            </div>
+          </CommandEmpty>
         )}
 
         {/* No results state */}
         {hasQuery && !loading && !error && !hasResults && (
-          <CommandEmpty>No results found.</CommandEmpty>
+          <CommandEmpty>
+            <div className="space-y-1 px-4">
+              <p className="section-kicker">No matches</p>
+              <p className="text-sm text-foreground">No results found for this query.</p>
+            </div>
+          </CommandEmpty>
         )}
 
         {/* Results */}
@@ -209,15 +220,15 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
                     key={`${hit.entityType}-${hit.entityId}-${hit.rank}`}
                     value={`${hit.title} ${hit.entityId}`}
                     onSelect={() => navigateTo(hit.entityType, hit.entityId)}
-                    className="flex items-start gap-2"
+                    className="flex items-start gap-3"
                   >
                     <div className="relative mt-0.5 shrink-0">
                       <Icon className="h-4 w-4 text-muted-foreground" />
-                      <span className={`absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full ${entityDotColor[hit.entityType] || "bg-gray-400"}`} />
+                      <span className={`absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full ${entityDotColor[hit.entityType] || "bg-muted-foreground"}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate font-medium text-foreground">
+                      <div className="flex items-start gap-2">
+                        <span className="truncate font-medium text-foreground" title={hit.title}>
                           {hit.title}
                         </span>
                         <Badge
@@ -229,7 +240,7 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
                       </div>
                       {hit.snippet && (
                         <div
-                          className="mt-0.5 truncate text-xs text-muted-foreground [&_mark]:bg-yellow-200 [&_mark]:text-foreground [&_mark]:rounded-sm [&_mark]:px-0.5"
+                          className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground [&_mark]:rounded-full [&_mark]:bg-[color:oklch(var(--accent)/0.65)] [&_mark]:px-1 [&_mark]:py-0.5 [&_mark]:text-foreground"
                           dangerouslySetInnerHTML={{ __html: hit.snippet }}
                         />
                       )}
@@ -242,18 +253,18 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
       </CommandList>
 
       {/* Footer with result count + keyboard hints */}
-      <div className="flex items-center justify-between border-t border-border px-3 py-2">
+      <div className="flex items-center justify-between border-t border-border/75 bg-[color:oklch(var(--accent)/0.24)] px-4 py-3">
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1">
-            <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px]">&uarr;&darr;</kbd>
+            <kbd className="rounded-full border border-border/75 bg-background/85 px-1.5 py-0.5 font-mono text-[10px]">&uarr;&darr;</kbd>
             <span>Navigate</span>
           </span>
           <span className="inline-flex items-center gap-1">
-            <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px]">&crarr;</kbd>
+            <kbd className="rounded-full border border-border/75 bg-background/85 px-1.5 py-0.5 font-mono text-[10px]">&crarr;</kbd>
             <span>Open</span>
           </span>
           <span className="inline-flex items-center gap-1">
-            <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px]">esc</kbd>
+            <kbd className="rounded-full border border-border/75 bg-background/85 px-1.5 py-0.5 font-mono text-[10px]">esc</kbd>
             <span>Close</span>
           </span>
         </div>

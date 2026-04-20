@@ -388,7 +388,7 @@ function PaperSkeleton({ paperId }: { paperId: string }) {
   return (
     <div className="space-y-8">
       <div>
-        <span className="text-xs text-muted-foreground">Paper</span>
+        <span className="section-kicker">Paper</span>
         <p className="mt-1 font-mono text-sm text-muted-foreground">{paperId}</p>
       </div>
 
@@ -404,7 +404,7 @@ function PaperSkeleton({ paperId }: { paperId: string }) {
             </div>
           </div>
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="border-border shadow-none">
+            <Card key={i} className="paper-panel rounded-[1.4rem] shadow-none">
               <CardHeader className="p-4">
                 <Skeleton className="h-4 w-40" />
               </CardHeader>
@@ -418,7 +418,7 @@ function PaperSkeleton({ paperId }: { paperId: string }) {
         </div>
 
         <div className="w-full space-y-6 lg:w-[35%]">
-          <Card className="border-border shadow-none">
+          <Card className="paper-panel rounded-[1.4rem] shadow-none">
             <CardHeader className="p-4">
               <Skeleton className="h-4 w-28" />
             </CardHeader>
@@ -426,7 +426,7 @@ function PaperSkeleton({ paperId }: { paperId: string }) {
               <Skeleton className="mx-auto h-64 w-full rounded" />
             </CardContent>
           </Card>
-          <Card className="border-border shadow-none">
+          <Card className="paper-panel rounded-[1.4rem] shadow-none">
             <CardHeader className="p-4">
               <Skeleton className="h-4 w-32" />
             </CardHeader>
@@ -461,7 +461,7 @@ function PaperNotFound({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-24">
-      <h2 className="text-xl font-semibold text-foreground">
+      <h2 className="font-display text-[2.1rem] text-foreground">
         Paper {paperId} not found
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">
@@ -470,7 +470,7 @@ function PaperNotFound({
       </p>
       <Link
         href={backHref}
-        className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
+        className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/90"
       >
         <ArrowLeft className="h-4 w-4" />
         {backLabel}
@@ -561,7 +561,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
   }, []);
 
   // --- Scroll-spy observer for section TOC ---
-  const sections_ = data?.paper?.sections ?? [];
+  const sections_ = useMemo(() => data?.paper?.sections ?? [], [data?.paper?.sections]);
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -734,7 +734,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
   return (
     <div className="space-y-8">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <nav className="paper-panel flex items-center gap-1.5 rounded-[1rem] px-3 py-2 text-xs text-muted-foreground">
         <Link href={backHref} className="hover:text-foreground transition-colors">{breadcrumbRootLabel}</Link>
         <span>/</span>
         <Link href={explorerHref} className="hover:text-foreground transition-colors">Papers</Link>
@@ -748,10 +748,13 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
         {/* ============================================================= */}
         <div className="flex-1 space-y-6 lg:max-w-[65%]">
           {/* --- Header --- */}
-          <div className="space-y-3">
-            <p className="font-mono text-xs text-muted-foreground">{paper.paperId}</p>
+          <div className="paper-panel space-y-4 rounded-[1.8rem] px-5 py-5">
+            <div>
+              <p className="section-kicker">Paper dossier</p>
+              <p className="mt-2 font-mono text-xs text-muted-foreground">{paper.paperId}</p>
+            </div>
             <div className="flex items-start gap-3">
-              <h1 className="text-2xl font-semibold tracking-tight leading-tight text-foreground flex-1">
+              <h1 className="font-display flex-1 text-[clamp(2.5rem,4.5vw,4rem)] leading-[0.98] text-foreground">
                 {paper.title ?? "Untitled Paper"}
               </h1>
               {paper.nberUrl && (
@@ -759,7 +762,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                   href={paper.nberUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="shrink-0 mt-1 inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="shrink-0 mt-1 inline-flex items-center gap-1.5 rounded-full border border-foreground/10 bg-background/85 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
                 >
                   View on NBER
                   <ExternalLink className="h-3 w-3" />
@@ -773,7 +776,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                   <span key={author}>
                     <Link
                       href={`/author/${encodeURIComponent(author)}`}
-                      className="hover:text-blue-600 hover:underline transition-colors"
+                      className="hover:text-primary hover:underline transition-colors"
                     >
                       {author}
                     </Link>
@@ -798,7 +801,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               )}
 
               {paper.fields.map((f) => (
-                <Badge key={f} variant="paper">
+                <Badge key={f} variant="paper" title={f}>
                   {f}
                 </Badge>
               ))}
@@ -830,9 +833,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
           {/* --- Abstract --- */}
           {paper.abstract && (
-            <Card className="border-border bg-muted/50 shadow-none">
+            <Card className="paper-panel rounded-[1.45rem] bg-muted/35 shadow-none">
               <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm font-semibold text-muted-foreground">
+                <CardTitle className="section-kicker text-muted-foreground">
                   Abstract
                 </CardTitle>
               </CardHeader>
@@ -846,21 +849,21 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
           {/* --- TL;DR --- */}
           {paper.tldr && (
-            <div className="rounded-xl border-l-4 border-blue-400 bg-blue-50/50 p-4">
-              <p className="text-sm font-semibold text-blue-800 mb-1">TL;DR</p>
+            <div className="paper-panel rounded-[1.45rem] p-4">
+              <p className="section-kicker mb-1">TL;DR</p>
               <p className="text-base text-foreground leading-relaxed">{paper.tldr}</p>
             </div>
           )}
 
           {/* --- Average Score + Action Bar --- */}
-          <div className="flex flex-wrap items-center gap-3 pt-1">
+          <div className="paper-panel flex flex-wrap items-center gap-3 rounded-[1.45rem] px-4 py-4">
             {/* Average score */}
             {paper.averageScore !== null && (
               <div
-                className={`inline-flex items-center gap-3 rounded-xl border px-4 py-2.5 ${scoreBg(paper.averageScore)} ${paper.averageScore >= 4.5 ? "border-green-200" : paper.averageScore >= 3.5 ? "border-blue-200" : "border-border"}`}
+                className={`inline-flex items-center gap-3 rounded-[1.2rem] border px-4 py-2.5 ${scoreBg(paper.averageScore)} ${paper.averageScore >= 4.5 ? "border-green-200" : paper.averageScore >= 3.5 ? "border-blue-200" : "border-border"}`}
               >
                 <span
-                  className={`text-3xl font-bold tabular-nums ${scoreColor(paper.averageScore)}`}
+                  className={`font-display text-[2.2rem] tabular-nums ${scoreColor(paper.averageScore)}`}
                 >
                   {paper.averageScore.toFixed(1)}
                 </span>
@@ -879,8 +882,8 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               onClick={handleToggleBookmark}
               className={
                 isBookmarked
-                  ? "gap-1.5 bg-amber-500 hover:bg-amber-600 text-white border-amber-500"
-                  : "gap-1.5"
+                  ? "gap-1.5 rounded-full bg-amber-500 hover:bg-amber-600 text-white border-amber-500"
+                  : "gap-1.5 rounded-full"
               }
             >
               {isBookmarked ? (
@@ -899,9 +902,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                 value={displayStatus ?? "not_set"}
                 onValueChange={handleStatusChange}
               >
-                <SelectTrigger className="h-8 w-[160px] text-xs">
-                  <SelectValue placeholder="Reading status" />
-                </SelectTrigger>
+              <SelectTrigger className="h-8 w-[160px] rounded-full text-xs">
+                <SelectValue placeholder="Reading status" />
+              </SelectTrigger>
                 <SelectContent>
                   {READING_STATUS_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
@@ -928,7 +931,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                 label: paper.title || paper.paperId,
               })}
             >
-              <Button variant="outline" size="sm" className="gap-1.5">
+              <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
                 <GitBranch className="h-4 w-4" />
                 View Network
               </Button>
@@ -942,7 +945,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                 context: paper.title || paper.paperId,
               })}
             >
-              <Button variant="outline" size="sm" className="gap-1.5">
+              <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
                 <Scale className="h-4 w-4" />
                 Compare
               </Button>
@@ -950,7 +953,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
             <button
               onClick={() => setIdeaGenOpen(true)}
-              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 rounded-full border border-foreground/10 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-background/85 hover:text-foreground transition-colors"
             >
               <Lightbulb className="h-4 w-4" />
               Generate Ideas
@@ -958,7 +961,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
             <Link
               href={`/ask?paperId=${paper.paperId}`}
-              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/15 transition-colors"
             >
               <MessageCircle className="h-4 w-4" />
               Ask AI
@@ -967,7 +970,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
           {/* --- Section Navigation --- */}
           {paper.hasCard && orderedSections.filter((s) => s.content && s.content.trim().length > 0).length > 0 && (
-            <nav className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-4 py-2 flex gap-2 overflow-x-auto rounded-lg">
+            <nav className="paper-panel sticky top-0 z-10 flex gap-2 overflow-x-auto rounded-[1.2rem] px-4 py-2 backdrop-blur">
               {orderedSections
                 .filter((s) => s.content && s.content.trim().length > 0)
                 .map((s) => {
@@ -981,8 +984,8 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                       className={cn(
                         "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors",
                         activeSection === sectionId
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          ? "bg-foreground text-background"
+                          : "text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
                       )}
                     >
                       {s.section.replace(/_/g, ' ')}
@@ -1314,6 +1317,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               </CardHeader>
               <CardContent className="p-4 pt-2">
                 {showRadar ? <ScoreRadar scores={scores} /> : <ScoreBars scores={scores} />}
+                <p className="text-[10px] text-muted-foreground mt-1">Scores on 1–5 scale</p>
               </CardContent>
             </Card>
           )}
@@ -1474,7 +1478,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                   setIdeaGenResult("");
                   const controller = new AbortController();
                   try {
-                    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8011";
                     const res = await fetch(`${apiUrl}/api/generate-ideas`, {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },

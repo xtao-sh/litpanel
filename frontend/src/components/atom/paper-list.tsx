@@ -15,54 +15,54 @@ export function PaperList({ papers, getPaperHref }: PaperListProps) {
 
   if (sorted.length === 0) {
     return (
-      <p className="text-sm text-gray-500">No connected papers found.</p>
+      <p className="text-sm text-muted-foreground">No connected papers found.</p>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="paper-panel overflow-x-auto rounded-[1.25rem] border border-border/75">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-            <th className="pb-3 pr-4">Paper ID</th>
-            <th className="pb-3 pr-4">Title</th>
-            <th className="pb-3 pr-4">Year</th>
-            <th className="pb-3 pr-4">Score</th>
-            <th className="pb-3">Fields</th>
+          <tr className="border-b border-border/75 bg-[color:oklch(var(--accent)/0.22)] text-left text-[0.68rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            <th className="px-4 py-3 pr-4">Paper ID</th>
+            <th className="px-4 py-3 pr-4">Title</th>
+            <th className="px-4 py-3 pr-4">Year</th>
+            <th className="px-4 py-3 pr-4">Score</th>
+            <th className="px-4 py-3">Fields</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-border/60">
           {sorted.map((paper) => (
-            <tr key={paper.paperId} className="hover:bg-gray-50">
-              <td className="py-3 pr-4">
+            <tr key={paper.paperId} className="hover:bg-[color:oklch(var(--accent)/0.32)]">
+              <td className="px-4 py-3 pr-4">
                 <Link
                   href={getPaperHref ? getPaperHref(paper.paperId) : `/paper/${paper.paperId}`}
-                  className="font-mono text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                  className="font-mono text-xs text-primary hover:underline"
                 >
                   {paper.paperId}
                 </Link>
               </td>
-              <td className="py-3 pr-4 max-w-md">
+              <td className="px-4 py-3 pr-4 max-w-md">
                 <Link
                   href={getPaperHref ? getPaperHref(paper.paperId) : `/paper/${paper.paperId}`}
-                  className="text-gray-900 hover:text-blue-600 hover:underline"
+                  className="text-foreground hover:text-primary hover:underline"
                 >
                   {paper.title || "Untitled"}
                 </Link>
               </td>
-              <td className="py-3 pr-4 text-gray-600 tabular-nums">
+              <td className="px-4 py-3 pr-4 text-muted-foreground tabular-nums">
                 {paper.year ?? "--"}
               </td>
-              <td className="py-3 pr-4 tabular-nums">
+              <td className="px-4 py-3 pr-4 tabular-nums">
                 {paper.averageScore != null ? (
-                  <span className="font-medium text-gray-900">
+                  <span className="font-medium text-foreground">
                     {paper.averageScore.toFixed(1)}
                   </span>
                 ) : (
-                  <span className="text-gray-400">--</span>
+                  <span className="text-muted-foreground">--</span>
                 )}
               </td>
-              <td className="py-3">
+              <td className="px-4 py-3">
                 <div className="flex flex-wrap gap-1">
                   {paper.fields?.map((field) => (
                     <Badge

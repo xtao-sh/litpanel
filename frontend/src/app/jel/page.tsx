@@ -70,7 +70,7 @@ function JelList({
                   onClick={() => onSelect(cat.code)}
                   className={`flex-1 flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors ${
                     isActive
-                      ? "bg-blue-50 text-blue-800 font-medium border-l-2 border-blue-500"
+                      ? "paper-panel border border-border/70 bg-accent/60 font-medium text-foreground shadow-none"
                       : "text-foreground/80 hover:bg-accent/60"
                   }`}
                 >
@@ -81,7 +81,7 @@ function JelList({
                   </span>
                   <span
                     className={`ml-2 shrink-0 text-xs tabular-nums ${
-                      isActive ? "text-blue-600" : "text-muted-foreground"
+                      isActive ? "text-primary" : "text-muted-foreground"
                     }`}
                   >
                     {cat.count.toLocaleString()}
@@ -100,7 +100,7 @@ function JelList({
                         onClick={() => onSelect(sc.code)}
                         className={`w-full flex items-center justify-between rounded-md px-2 py-1 text-xs transition-colors ${
                           scActive
-                            ? "bg-blue-50 text-blue-800 font-medium"
+                            ? "bg-accent/60 text-foreground font-medium"
                             : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                         }`}
                       >
@@ -133,7 +133,7 @@ function JelDetailPanel({
   const [page, setPage] = useState(0);
   const pageSize = 25;
 
-  const { data, loading, error: papersError } = useQuery<{
+  const { data, loading } = useQuery<{
     papersByJel: { items: Paper[]; total: number };
   }>(GET_PAPERS_BY_JEL, {
     variables: {
@@ -156,16 +156,17 @@ function JelDetailPanel({
 
   return (
     <ScrollArea className="h-full">
-      <div className="p-6 space-y-6 max-w-5xl">
+      <div className="max-w-5xl space-y-6 p-6">
         {/* Header */}
-        <div>
+        <div className="paper-panel p-5">
+          <p className="section-kicker">Classification Dossier</p>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-700 font-mono font-bold text-lg">
+            <div className="flex h-12 w-12 items-center justify-center rounded-[1.1rem] border border-border/70 bg-accent/55 font-mono text-lg font-bold text-primary">
               {code}
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-foreground">{heading}</h2>
-              <p className="text-sm text-muted-foreground mt-0.5">
+              <h2 className="font-display text-4xl tracking-tight text-foreground">{heading}</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {total.toLocaleString()} papers with JEL code {code}
               </p>
             </div>
@@ -174,7 +175,7 @@ function JelDetailPanel({
 
         {/* Subcodes summary for first-level codes */}
         {isFirstLevel && category && category.subcodes.length > 0 && (
-          <div className="rounded-lg border border-border p-4 space-y-2">
+          <div className="paper-panel space-y-2 p-4 shadow-none">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Subcodes in this category
             </h3>
@@ -218,11 +219,11 @@ function JelDetailPanel({
                 <Link
                   key={p.paperId}
                   href={`/paper/${p.paperId}`}
-                  className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-accent/40 transition-colors group"
+                  className="flex items-start gap-3 rounded-2xl border border-border/70 p-3 transition-colors group hover:bg-accent/40"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground group-hover:text-blue-700 transition-colors line-clamp-1">
+                      <span className="line-clamp-1 text-sm font-medium text-foreground transition-colors group-hover:text-primary">
                         {p.title || p.paperId}
                       </span>
                       {p.hasCard && (
@@ -304,9 +305,12 @@ function JelDetailPanel({
 function EmptyDetail() {
   return (
     <div className="flex h-full items-center justify-center text-muted-foreground">
-      <div className="text-center space-y-2">
-        <Hash className="h-10 w-10 mx-auto opacity-40" />
-        <p className="text-sm">Select a JEL code to explore papers in that category</p>
+      <div className="paper-panel space-y-2 px-8 py-10 text-center">
+        <Hash className="mx-auto h-10 w-10 opacity-40" />
+        <p className="font-display text-2xl tracking-tight text-foreground">Select a JEL code</p>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Open a classification bucket to inspect the papers and subcodes grouped under it.
+        </p>
       </div>
     </div>
   );
@@ -341,27 +345,32 @@ export default function JelPage() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col gap-5">
       {error && (
-        <div className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950 p-3 text-sm text-red-800 dark:text-red-200">
+        <div className="mx-6 paper-panel border-red-200/80 bg-red-50/80 p-3 text-sm text-red-800 shadow-none">
           Failed to load JEL taxonomy. Please refresh the page.
         </div>
       )}
       {/* Page header */}
-      <div className="shrink-0 border-b border-border px-6 py-4">
-        <div className="flex items-center gap-2">
-          <Hash className="h-5 w-5 text-blue-600" />
-          <h1 className="text-xl font-bold text-foreground">JEL Codes</h1>
+      <div className="mx-6 shrink-0 paper-panel p-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-[1.2rem] border border-border/70 bg-accent/55 text-primary">
+            <Hash className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="section-kicker">Reference Shelf</p>
+            <h1 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">JEL Codes</h1>
+          </div>
         </div>
-        <p className="text-sm text-muted-foreground mt-0.5">
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
           Browse papers by Journal of Economic Literature classification codes
         </p>
       </div>
 
       {/* Two-panel layout */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="mx-6 flex flex-1 overflow-hidden rounded-[1.75rem] border border-border/75 bg-background/92 shadow-[0_24px_60px_rgba(44,51,71,0.08)]">
         {/* Left panel: JEL code list */}
-        <div className="w-[300px] shrink-0 border-r border-border bg-background">
+        <div className="w-[300px] shrink-0 border-r border-border/70 bg-background/85">
           <JelList
             categories={categories}
             selected={selectedCode}
@@ -373,7 +382,7 @@ export default function JelPage() {
         </div>
 
         {/* Right panel: detail */}
-        <div className="flex-1 bg-background overflow-hidden">
+        <div className="flex-1 overflow-hidden bg-background/70">
           {selectedCode ? (
             <JelDetailPanel code={selectedCode} category={selectedCategory} />
           ) : (

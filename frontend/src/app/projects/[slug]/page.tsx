@@ -49,6 +49,63 @@ function gapSignalCount(project: Project): number {
   );
 }
 
+function summarizeTopTitles(items: { title: string }[] | undefined, limit = 2): string | null {
+  if (!items || items.length === 0) return null;
+  const titles = items
+    .map((item) => item.title?.trim())
+    .filter((title): title is string => Boolean(title))
+    .slice(0, limit);
+  return titles.length > 0 ? titles.join(", ") : null;
+}
+
+function buildProjectNarrativeFallback(project: Project): string[] {
+  const landscape = project.landscape;
+  if (!landscape) {
+    return [
+      "This project has a saved paper set and source context, but the synthesis layer has not been generated yet.",
+      "Use Dossier, Chronology, and Matrix to inspect the corpus while the project narrative is still being filled in.",
+    ];
+  }
+
+  const paperCount = project.paperCount.toLocaleString();
+  const topField = landscape.fieldDistribution[0]?.field;
+  const yearValues = landscape.yearDistribution.map((item) => item.year);
+  const minYear = yearValues.length > 0 ? Math.min(...yearValues) : null;
+  const maxYear = yearValues.length > 0 ? Math.max(...yearValues) : null;
+  const yearSpan =
+    minYear == null || maxYear == null
+      ? "an unclear publication window"
+      : minYear === maxYear
+        ? `${minYear}`
+        : `${minYear} to ${maxYear}`;
+
+  const topMethods = summarizeTopTitles(landscape.methods);
+  const topDatasets = summarizeTopTitles(landscape.datasets);
+  const topMechanisms = summarizeTopTitles(landscape.mechanisms);
+  const gapCount = gapSignalCount(project);
+
+  const intro = project.originQuery
+    ? `This draft tracks ${paperCount} papers around "${project.originQuery}"${topField ? `, anchored mainly in ${topField}` : ""}.`
+    : `This draft tracks ${paperCount} papers${topField ? `, anchored mainly in ${topField}` : ""}.`;
+
+  const chronology =
+    yearSpan === "an unclear publication window"
+      ? "The publication timeline still needs to be mapped more clearly."
+      : `The current corpus spans ${yearSpan}, which gives you enough coverage to read it as a coherent research thread rather than a loose paper list.`;
+
+  const methodsLine =
+    topMethods || topDatasets || topMechanisms
+      ? `The current synthesis points first to ${topMethods ? `methods such as ${topMethods}` : "a consistent method layer"}${topDatasets ? `, datasets such as ${topDatasets}` : ""}${topMechanisms ? `, and mechanisms such as ${topMechanisms}` : ""}.`
+      : "The current synthesis still needs explicit method, dataset, and mechanism labeling.";
+
+  const gapsLine =
+    gapCount > 0
+      ? `There are already ${gapCount} visible gap signals across limitations, open questions, and underused methods or datasets, so the next useful step is to turn this draft into a more explicit thematic review.`
+      : "Gap signals have not been surfaced yet, so the next useful step is to inspect the dossier and chronology views before writing a stronger review narrative.";
+
+  return [intro, chronology, methodsLine, gapsLine];
+}
+
 export default function ProjectDetailPage({ params }: ProjectPageProps) {
   const { slug } = use(params);
 
@@ -67,9 +124,10 @@ export default function ProjectDetailPage({ params }: ProjectPageProps) {
                     <MarkdownRenderer content={project.overviewContent} />
                   </div>
                 ) : (
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <p>This draft already preserves the project paper set, source query, and scope metadata.</p>
-                    <p>The next step is to replace this placeholder with a concise thematic narrative: what this literature studies, how it is structured, and what the main open questions are.</p>
+                  <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+                    {buildProjectNarrativeFallback(project).map((paragraph) => (
+                      <p key={paragraph}>{paragraph}</p>
+                    ))}
                   </div>
                 )}
               </CardContent>

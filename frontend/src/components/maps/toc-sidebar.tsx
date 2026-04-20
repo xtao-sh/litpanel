@@ -122,32 +122,36 @@ export function TocSidebar({ content }: TocSidebarProps) {
   if (headings.length === 0) return null;
 
   return (
-    <nav className="sticky top-6 max-h-[calc(100vh-6rem)] overflow-y-auto pr-2">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+    <nav className="paper-panel sticky top-6 max-h-[calc(100vh-6rem)] p-5">
+      <p className="section-kicker mb-4">
         On this page
       </p>
-      <ul className="space-y-0.5 border-l border-gray-200">
-        {headings.map((h) => {
-          const isActive = activeId === h.id;
-          return (
-            <li key={h.id}>
-              <a
-                href={`#${h.id}`}
-                onClick={(e) => handleClick(e, h.id)}
-                className={`block border-l-2 py-1.5 text-sm leading-snug transition-colors ${
-                  h.level === 3 ? "pl-6 text-muted-foreground" : "pl-3"
-                } ${
-                  isActive
-                    ? "border-primary font-medium text-primary"
-                    : "border-transparent text-gray-500 hover:border-gray-300 hover:text-foreground"
-                }`}
-              >
-                {h.text}
-              </a>
-            </li>
-          );
-        })}
-      </ul>
+      <div className="relative">
+        <div className="pointer-events-none absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-background/80 to-transparent z-10" />
+        <ul className="space-y-1 overflow-y-auto max-h-[calc(100vh-12rem)] pr-1">
+          {headings.map((h) => {
+            const isActive = activeId === h.id;
+            return (
+              <li key={h.id}>
+                <a
+                  href={`#${h.id}`}
+                  onClick={(e) => handleClick(e, h.id)}
+                  className={`block rounded-2xl border px-3 py-2 text-sm leading-snug transition-all duration-200 ${
+                    h.level === 3 ? "ml-3 text-muted-foreground" : ""
+                  } ${
+                    isActive
+                      ? "border-primary/30 bg-primary/10 font-medium text-primary shadow-sm"
+                      : "border-transparent text-muted-foreground hover:border-border/70 hover:bg-accent/45 hover:text-foreground"
+                  }`}
+                >
+                  {h.text}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-background/80 to-transparent z-10" />
+      </div>
     </nav>
   );
 }

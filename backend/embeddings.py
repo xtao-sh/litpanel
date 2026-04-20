@@ -23,6 +23,7 @@ logger = logging.getLogger("embeddings")
 # ---------------------------------------------------------------------------
 
 _model = None
+_model_warmed = False
 EMBEDDING_DIM = 384
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
@@ -36,6 +37,18 @@ def get_model():
         _model = SentenceTransformer(MODEL_NAME)
         logger.info("Model loaded")
     return _model
+
+
+def _warm_model_sync() -> None:
+    global _model_warmed
+    model = get_model()
+    # One tiny encode removes the first-request cold start on search/novelty flows.
+    model.encode("startup warmup", normalize_embeddings=True)
+    _model_warmed = True
+
+
+async def warm_model() -> None:
+    await asyncio.to_thread(_warm_model_sync)
 
 
 def embed_text(text: str) -> np.ndarray:
@@ -224,6 +237,11 @@ def is_loaded() -> bool:
     return _paper_index is not None
 
 
+def is_model_warmed() -> bool:
+    """Check if the embedding model has already been loaded and warmed."""
+    return _model_warmed
+
+
 def _cosine_scores(matrix: np.ndarray, query: np.ndarray) -> np.ndarray:
     """Compute cosine similarity scores (matrix @ query), suppressing MPS numpy warnings."""
     with warnings.catch_warnings():
@@ -240,39 +258,48 @@ def _top_k_indices(scores: np.ndarray, k: int) -> np.ndarray:
     return top[np.argsort(-scores[top])]
 
 
+def _semantic_search_sync(query_vec: np.ndarray, entity_type: str, limit: int) -> list[dict]:
+    """Run the matrix scoring path off the event loop."""
+    results: list[dict] = []
+
+    if entity_type in ("all", "paper") and _paper_index is not None:
+        scores = _cosine_scores(_paper_index["vectors"], query_vec)
+        for i in _top_k_indices(scores, limit):
+            score = float(scores[i])
+            if not np.isfinite(score):
+                continue
+            results.append({
+                "entity_type": "paper",
+                "entity_id": _paper_index["ids"][i],
+                "score": score,
+            })
+
+    if entity_type in ("all", "atom") and _atom_index is not None:
+        scores = _cosine_scores(_atom_index["vectors"], query_vec)
+        for i in _top_k_indices(scores, limit):
+            score = float(scores[i])
+            if not np.isfinite(score):
+                continue
+            results.append({
+                "entity_type": "atom",
+                "entity_id": _atom_index["ids"][i],
+                "score": score,
+            })
+
+    results.sort(key=lambda x: -x["score"])
+    return results[:limit]
+
+
 async def semantic_search(query: str, entity_type: str = "all", limit: int = 20) -> list[dict]:
     """Search by semantic similarity. Returns [{entity_type, entity_id, score}]."""
     if not is_loaded():
         return []
 
     query_vec = await asyncio.to_thread(embed_text, query)
-    results = []
-
-    if entity_type in ("all", "paper") and _paper_index is not None:
-        scores = _cosine_scores(_paper_index["vectors"], query_vec)
-        for i in _top_k_indices(scores, limit):
-            results.append({
-                "entity_type": "paper",
-                "entity_id": _paper_index["ids"][i],
-                "score": float(scores[i]),
-            })
-
-    if entity_type in ("all", "atom") and _atom_index is not None:
-        scores = _cosine_scores(_atom_index["vectors"], query_vec)
-        for i in _top_k_indices(scores, limit):
-            results.append({
-                "entity_type": "atom",
-                "entity_id": _atom_index["ids"][i],
-                "score": float(scores[i]),
-            })
-
-    # Sort combined results by score, take top limit
-    results.sort(key=lambda x: -x["score"])
-    return results[:limit]
+    return await asyncio.to_thread(_semantic_search_sync, query_vec, entity_type, limit)
 
 
-async def find_similar_papers(paper_id: str, limit: int = 20) -> list[dict]:
-    """Find papers most similar to a given paper. Returns [{paper_id, score}]."""
+def _find_similar_papers_sync(paper_id: str, limit: int) -> list[dict]:
     if _paper_index is None:
         return []
 
@@ -284,14 +311,21 @@ async def find_similar_papers(paper_id: str, limit: int = 20) -> list[dict]:
     scores = _cosine_scores(_paper_index["vectors"], query_vec)
     scores[idx] = -1  # exclude self
 
-    return [
-        {"paper_id": _paper_index["ids"][i], "score": float(scores[i])}
-        for i in _top_k_indices(scores, limit)
-    ]
+    results: list[dict] = []
+    for i in _top_k_indices(scores, limit):
+        score = float(scores[i])
+        if not np.isfinite(score):
+            continue
+        results.append({"paper_id": _paper_index["ids"][i], "score": score})
+    return results
 
 
-async def find_similar_atoms(atom_slug: str, limit: int = 20) -> list[dict]:
-    """Find atoms most similar to a given atom."""
+async def find_similar_papers(paper_id: str, limit: int = 20) -> list[dict]:
+    """Find papers most similar to a given paper. Returns [{paper_id, score}]."""
+    return await asyncio.to_thread(_find_similar_papers_sync, paper_id, limit)
+
+
+def _find_similar_atoms_sync(atom_slug: str, limit: int) -> list[dict]:
     if _atom_index is None:
         return []
 
@@ -303,7 +337,15 @@ async def find_similar_atoms(atom_slug: str, limit: int = 20) -> list[dict]:
     scores = _cosine_scores(_atom_index["vectors"], query_vec)
     scores[idx] = -1
 
-    return [
-        {"slug": _atom_index["ids"][i], "score": float(scores[i])}
-        for i in _top_k_indices(scores, limit)
-    ]
+    results: list[dict] = []
+    for i in _top_k_indices(scores, limit):
+        score = float(scores[i])
+        if not np.isfinite(score):
+            continue
+        results.append({"slug": _atom_index["ids"][i], "score": score})
+    return results
+
+
+async def find_similar_atoms(atom_slug: str, limit: int = 20) -> list[dict]:
+    """Find atoms most similar to a given atom."""
+    return await asyncio.to_thread(_find_similar_atoms_sync, atom_slug, limit)

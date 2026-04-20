@@ -20,19 +20,19 @@ const COLUMN_LABELS: Record<string, string> = {
 };
 
 const ROW_COLORS: Record<string, string> = {
-  research_question: "bg-blue-50/40",
-  method: "bg-green-50/40",
-  data: "bg-white",
-  key_finding: "bg-amber-50/40",
-  limitation: "bg-red-50/30",
+  research_question: "bg-[color:oklch(97%_0.025_248/_0.55)]",
+  method: "bg-[color:oklch(97%_0.028_156/_0.55)]",
+  data: "bg-background/80",
+  key_finding: "bg-[color:oklch(97%_0.03_82/_0.55)]",
+  limitation: "bg-[color:oklch(97%_0.026_20/_0.45)]",
 };
 
 const ROW_BORDER_COLORS: Record<string, string> = {
-  research_question: "border-l-blue-400",
-  method: "border-l-green-400",
-  data: "border-l-gray-300",
+  research_question: "border-l-sky-400",
+  method: "border-l-emerald-400",
+  data: "border-l-border",
   key_finding: "border-l-amber-400",
-  limitation: "border-l-red-300",
+  limitation: "border-l-rose-300",
 };
 
 function buildComparisonMarkdown(result: ComparisonResult): string {
@@ -75,7 +75,7 @@ function ComparisonCell({ content }: { content: string }) {
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
-          className="mt-1 flex items-center gap-0.5 text-xs font-medium text-blue-600 hover:text-blue-800"
+          className="mt-2 inline-flex items-center gap-1 rounded-full border border-border/75 bg-accent/45 px-2 py-1 text-[11px] font-medium text-primary hover:bg-accent/65"
         >
           {expanded ? (
             <>
@@ -101,9 +101,9 @@ export function ComparisonTableSkeleton() {
         <Skeleton className="h-6 w-40" />
         <Skeleton className="h-8 w-32" />
       </div>
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
+      <div className="paper-panel overflow-x-auto rounded-[1.55rem] border border-border/75">
         <div className="min-w-[800px]">
-          <div className="flex border-b border-gray-200 bg-gray-50">
+          <div className="flex border-b border-border/75 bg-[color:oklch(var(--accent)/0.24)]">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex-1 p-4">
                 <Skeleton className="mb-2 h-5 w-full" />
@@ -112,7 +112,7 @@ export function ComparisonTableSkeleton() {
             ))}
           </div>
           {Array.from({ length: 5 }).map((_, rowIndex) => (
-            <div key={rowIndex} className="flex border-b border-gray-100">
+            <div key={rowIndex} className="flex border-b border-border/60">
               <div className="w-40 shrink-0 p-4">
                 <Skeleton className="h-4 w-24" />
               </div>
@@ -182,23 +182,24 @@ export function ComparisonTableView({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
+      <div className="paper-panel flex flex-col gap-4 rounded-[1.7rem] p-5 md:flex-row md:items-start md:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900">{title}</h2>
-          <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
+          <p className="section-kicker">Comparison dossier</p>
+          <h2 className="font-display mt-2 text-[2rem] tracking-tight text-foreground">{title}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
           {context && (
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mt-3 text-xs text-muted-foreground">
               Source context: {context}
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <ExportMenu paperIds={paperIds} label="Export" />
           <CopyButton text={markdown} label="Copy Table" />
           <button
             type="button"
             onClick={() => setLitReviewOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
           >
             <FileText className="h-3.5 w-3.5" />
             Generate Lit Review
@@ -206,25 +207,41 @@ export function ComparisonTableView({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-        <table
-          className="w-full border-collapse text-left"
-          style={{ minWidth: 160 + paperCount * minCellWidth }}
-        >
+      <div className="paper-panel rounded-[1.7rem] border border-border/75 bg-background/92 shadow-none">
+        <div className="flex items-center justify-between gap-3 border-b border-border/60 px-5 py-3">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Comparison grid
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Scroll horizontally to inspect every paper column.
+          </p>
+        </div>
+        <div className="flex items-center gap-4 text-[10px] text-muted-foreground px-5 pt-3 mb-0">
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-400" /> High agreement</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400" /> Partial agreement</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-400" /> Low agreement</span>
+        </div>
+        <div className="relative overflow-x-auto">
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-6 bg-gradient-to-r from-[color:oklch(var(--card)/0.98)] to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-8 bg-gradient-to-l from-[color:oklch(var(--card)/0.98)] to-transparent" />
+          <table
+            className="w-full border-collapse text-left"
+            style={{ minWidth: 160 + paperCount * minCellWidth }}
+          >
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50/80">
-              <th className="sticky left-0 z-10 w-40 min-w-[160px] border-r border-gray-200 bg-gray-50 p-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <tr className="border-b border-border/75 bg-[color:oklch(var(--accent)/0.24)]">
+              <th className="sticky left-0 z-10 w-40 min-w-[160px] border-r border-border/75 bg-[color:oklch(var(--accent)/0.24)] p-4 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Dimension
               </th>
               {papers.map((paper) => (
                 <th
                   key={paper.paper_id}
-                  className="border-r border-gray-100 p-4 align-top last:border-r-0"
+                  className="border-r border-border/60 p-4 align-top last:border-r-0"
                   style={{ minWidth: minCellWidth }}
                 >
                   <Link
                     href={`/paper/${paper.paper_id}`}
-                    className="text-sm font-semibold text-blue-700 hover:underline"
+                    className="font-display text-[1.1rem] text-foreground hover:text-primary"
                   >
                     {paper.title || paper.paper_id}
                   </Link>
@@ -232,7 +249,7 @@ export function ComparisonTableView({
                     <span className="font-mono">{paper.paper_id}</span>
                     {paper.year && (
                       <>
-                        <span className="text-gray-300">|</span>
+                        <span className="text-muted-foreground/45">|</span>
                         <span>{paper.year}</span>
                       </>
                     )}
@@ -254,10 +271,10 @@ export function ComparisonTableView({
               return (
               <tr
                 key={column}
-                className={`border-b border-gray-100 last:border-b-0 ${idx % 2 === 0 ? ROW_COLORS[column] || "bg-white" : "bg-white"}`}
+                className={`border-b border-border/60 last:border-b-0 ${idx % 2 === 0 ? ROW_COLORS[column] || "bg-background/80" : "bg-background/72"}`}
               >
                 <td
-                  className={`sticky left-0 z-10 w-40 min-w-[160px] border-l-[3px] border-r border-gray-200 bg-inherit p-4 align-top text-sm font-semibold text-gray-900 ${ROW_BORDER_COLORS[column] || "border-l-gray-300"}`}
+                  className={`sticky left-0 z-10 w-40 min-w-[160px] border-l-[3px] border-r border-border/75 bg-inherit p-4 align-top text-sm font-semibold text-foreground ${ROW_BORDER_COLORS[column] || "border-l-border"}`}
                 >
                   <div className="flex items-center gap-2">
                     <span className={`inline-block h-2 w-2 rounded-full ${indicatorColor}`} title={indicatorLabel} />
@@ -267,7 +284,7 @@ export function ComparisonTableView({
                 {papers.map((paper) => (
                   <td
                     key={`${paper.paper_id}-${column}`}
-                    className="border-r border-gray-100 p-4 align-top last:border-r-0"
+                    className="border-r border-border/60 p-4 align-top last:border-r-0"
                   >
                     <ComparisonCell content={paper.cells[column] || ""} />
                   </td>
@@ -276,7 +293,8 @@ export function ComparisonTableView({
               );
             })}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
 
       {litReviewOpen && (

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ChatMessage, type Message } from "@/components/ask/chat-message";
 import type { ResearchLandscape } from "@/lib/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8011";
 
 // ---------------------------------------------------------------------------
 // Landscape summary generator (compressed for context window)
@@ -385,19 +385,24 @@ export function ResearchChat({
   }
 
   return (
-    <div className="flex h-full w-full flex-col border-l border-border bg-background/95 backdrop-blur-md">
+    <div className="paper-panel flex h-full w-full flex-col rounded-[1.45rem] bg-background/95 backdrop-blur-md">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">Research Assistant</h3>
+          <div>
+            <p className="section-kicker">Assistant</p>
+            <div className="mt-1 flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h3 className="font-display text-[1.35rem] text-foreground">Research Assistant</h3>
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-1">
           {messages.length > 0 && (
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 gap-1 text-xs"
+              className="h-8 gap-1 rounded-full px-3 text-xs"
               onClick={handleNewConversation}
             >
               <RotateCcw className="h-3 w-3" />
@@ -407,7 +412,7 @@ export function ResearchChat({
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-8 w-8 rounded-full"
             onClick={onToggle}
           >
             <X className="h-4 w-4" />
@@ -417,8 +422,8 @@ export function ResearchChat({
 
       {/* Context banner */}
       {searchQuery && (
-        <div className="flex items-center gap-2 border-b border-border/50 bg-muted/30 px-4 py-2">
-          <MessageSquare className="h-3 w-3 shrink-0 text-muted-foreground" />
+        <div className="flex items-center gap-2 border-b border-border/50 bg-[color:oklch(var(--accent)/0.24)] px-4 py-2">
+          <MessageSquare className="h-3 w-3 shrink-0 text-primary/70" />
           <p className="truncate text-xs text-muted-foreground">
             Context: {totalPapers} papers on &ldquo;{searchQuery}&rdquo;
           </p>
@@ -429,8 +434,8 @@ export function ResearchChat({
       <div className="flex-1 overflow-y-auto px-3 py-3">
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-2">
-            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50">
-              <Sparkles className="h-5 w-5 text-blue-500" />
+            <div className="paper-panel mb-4 flex h-12 w-12 items-center justify-center rounded-[1rem]">
+              <Sparkles className="h-5 w-5 text-primary" />
             </div>
             <p className="mb-4 text-center text-xs text-muted-foreground">
               Ask questions about the papers in your search results.
@@ -441,7 +446,7 @@ export function ResearchChat({
                 <button
                   key={q}
                   type="button"
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-left text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-blue-50/50"
+                  className="paper-panel w-full rounded-[1rem] px-3 py-2 text-left text-xs text-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)]"
                   onClick={() => submitQuestion(q)}
                 >
                   {q}
@@ -460,22 +465,24 @@ export function ResearchChat({
       </div>
 
       {/* Input */}
-      <div className="shrink-0 border-t border-border bg-background px-3 py-2">
+      <div className="shrink-0 border-t border-border bg-background/80 px-3 py-2">
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about these papers..."
-            disabled={isStreaming}
-            className="flex h-9 flex-1 rounded-lg border border-input bg-muted/30 px-3 text-sm placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-          />
+          <div className="paper-panel flex flex-1 rounded-[1rem] p-1">
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask about these papers..."
+              disabled={isStreaming}
+              className="flex h-9 flex-1 rounded-[0.8rem] border border-input bg-background/75 px-3 text-sm placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
           <Button
             type="submit"
             size="icon"
             disabled={!input.trim() || isStreaming}
-            className="h-9 w-9 shrink-0 rounded-lg"
+            className="h-9 w-9 shrink-0 rounded-full"
           >
             <Send className="h-3.5 w-3.5" />
           </Button>

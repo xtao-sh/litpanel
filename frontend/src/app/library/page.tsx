@@ -97,9 +97,10 @@ function TableSkeleton() {
 
 function EmptyState({ icon: Icon, message }: { icon: React.ElementType; message: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <Icon className="h-10 w-10 text-muted-foreground mb-3" />
-      <p className="text-sm text-muted-foreground">{message}</p>
+    <div className="paper-panel flex flex-col items-center justify-center py-16 text-center">
+      <Icon className="mb-3 h-10 w-10 text-muted-foreground" />
+      <p className="font-display text-2xl tracking-tight text-foreground">Nothing here yet</p>
+      <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">{message}</p>
     </div>
   );
 }
@@ -165,10 +166,13 @@ function Pagination({
   const totalPages = Math.ceil(total / pageSize);
   if (totalPages <= 1) return null;
 
+  const rangeStart = (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, total);
+
   return (
     <div className="flex items-center justify-between border-t border-border px-4 py-3">
       <span className="text-xs text-muted-foreground">
-        {total} item{total !== 1 ? "s" : ""}
+        Showing {rangeStart}&ndash;{rangeEnd} of {total} item{total !== 1 ? "s" : ""}
       </span>
       <div className="flex items-center gap-1">
         <Button
@@ -252,7 +256,7 @@ function BookmarksTab() {
             checked={selectedPapers.size === filteredPapers.length && filteredPapers.length > 0}
             onChange={(e) => {
               if (e.target.checked) {
-                setSelectedPapers(new Set(filteredPapers.map((b: any) => b.paperId)));
+                setSelectedPapers(new Set(filteredPapers.map((b: Paper) => b.paperId)));
               } else {
                 setSelectedPapers(new Set());
               }
@@ -487,7 +491,7 @@ function NotesTab() {
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                   {note.entityType}
                 </Badge>
-                <span className="font-mono text-xs text-muted-foreground">
+                <span className="font-mono text-xs text-muted-foreground" title={note.entityId}>
                   {note.entityId}
                 </span>
                 {(() => {
@@ -884,14 +888,27 @@ function LibraryContent() {
   const [activeTab, setActiveTab] = useState("bookmarks");
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-          Library
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your bookmarks, reading list, notes, and collections.
-        </p>
+    <div className="space-y-5">
+      <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="space-y-3">
+          <p className="section-kicker">Personal Archive</p>
+          <div>
+            <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+              Library
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+              Keep bookmarks, reading states, notes, and collections in one
+              place while you move from paper-level inspection to working corpora.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
+          <p className="section-kicker">Workflow</p>
+          <p className="mt-2 text-sm leading-6 text-foreground/80">
+            Bookmark in Paper Detail, annotate in Notes, then convert stable
+            sets into Collections or Research Drafts.
+          </p>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -915,7 +932,7 @@ function LibraryContent() {
         </TabsList>
       </Tabs>
 
-      <Card className="border-border shadow-none overflow-hidden">
+      <Card className="paper-panel overflow-hidden p-0">
         <CardContent className="p-0">
           {activeTab === "bookmarks" && <BookmarksTab />}
           {activeTab === "reading" && <ReadingListTab />}
@@ -935,16 +952,17 @@ export default function LibraryPage() {
   return (
     <Suspense
       fallback={
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+        <div className="space-y-5">
+          <div className="paper-panel space-y-3 px-6 py-6">
+            <p className="section-kicker">Personal Archive</p>
+            <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
               Library
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
               Your bookmarks, reading list, notes, and collections.
             </p>
           </div>
-          <div className="h-96 animate-pulse rounded-lg border border-border bg-muted" />
+          <div className="paper-panel h-96 animate-pulse bg-muted/40" />
         </div>
       }
     >

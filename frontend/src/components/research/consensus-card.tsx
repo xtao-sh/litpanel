@@ -22,11 +22,11 @@ interface ConsensusCardProps {
 function stanceBadge(stance: string) {
   switch (stance) {
     case "SUPPORTS":
-      return "bg-green-100 text-green-700 border-green-200";
+      return "bg-emerald-100 text-emerald-700 border-emerald-200";
     case "CONTRADICTS":
-      return "bg-red-100 text-red-700 border-red-200";
+      return "bg-rose-100 text-rose-700 border-rose-200";
     default:
-      return "bg-gray-100 text-gray-600 border-gray-200";
+      return "bg-muted text-muted-foreground border-border";
   }
 }
 
@@ -59,7 +59,7 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
     setResult(null);
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8011";
       const res = await fetch(`${apiBase}/api/analyze/consensus`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -93,12 +93,19 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
   const visibleItems = showAll ? displayItems : displayItems.slice(0, 5);
 
   return (
-    <Card className="rounded-xl shadow-sm">
+    <Card className="paper-panel rounded-[1.45rem] border-border/75 shadow-none">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <Scale className="h-4 w-4 text-blue-500" />
-          Literature Consensus
-        </CardTitle>
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[1rem] bg-primary/10">
+            <Scale className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="section-kicker">Synthesis</p>
+            <CardTitle className="mt-2 font-display text-[1.45rem] text-foreground">
+              Literature Consensus
+            </CardTitle>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Trigger button or results */}
@@ -123,7 +130,7 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
         {/* Loading */}
         {loading && (
           <div className="flex flex-col items-center gap-2 py-6">
-            <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
             <p className="text-xs text-muted-foreground">
               Classifying {Math.min(allPaperIds.length, 50)} papers...
             </p>
@@ -132,8 +139,8 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
 
         {/* Error */}
         {error && !loading && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-            <p className="text-xs text-red-700">{error}</p>
+          <div className="rounded-[1rem] border border-rose-200 bg-rose-50 p-3">
+            <p className="text-xs text-rose-700">{error}</p>
             <Button
               variant="ghost"
               size="sm"
@@ -154,7 +161,7 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
                 <div className="flex h-6 w-full overflow-hidden rounded-full">
                   {result.supports_count > 0 && (
                     <div
-                      className="flex items-center justify-center bg-green-500 text-[10px] font-semibold text-white transition-all"
+                      className="flex items-center justify-center bg-emerald-500 text-[10px] font-semibold text-white transition-all"
                       style={{
                         width: `${(result.supports_count / total) * 100}%`,
                       }}
@@ -164,7 +171,7 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
                   )}
                   {result.neutral_count > 0 && (
                     <div
-                      className="flex items-center justify-center bg-gray-300 text-[10px] font-semibold text-gray-700 transition-all"
+                      className="flex items-center justify-center bg-muted-foreground/30 text-[10px] font-semibold text-foreground transition-all"
                       style={{
                         width: `${(result.neutral_count / total) * 100}%`,
                       }}
@@ -174,7 +181,7 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
                   )}
                   {result.contradicts_count > 0 && (
                     <div
-                      className="flex items-center justify-center bg-red-500 text-[10px] font-semibold text-white transition-all"
+                      className="flex items-center justify-center bg-rose-500 text-[10px] font-semibold text-white transition-all"
                       style={{
                         width: `${(result.contradicts_count / total) * 100}%`,
                       }}
@@ -185,15 +192,15 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
                 </div>
                 <div className="flex justify-between text-[10px] text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
                     Supports ({result.supports_count})
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="inline-block h-2 w-2 rounded-full bg-gray-300" />
+                    <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/30" />
                     Neutral ({result.neutral_count})
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+                    <span className="inline-block h-2 w-2 rounded-full bg-rose-500" />
                     Contradicts ({result.contradicts_count})
                   </span>
                 </div>
@@ -228,7 +235,7 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
 
                 {displayItems.length > 5 && (
                   <button
-                    className="flex w-full items-center justify-center gap-1 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                    className="flex w-full items-center justify-center gap-1 py-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
                     onClick={() => setShowAll(!showAll)}
                   >
                     {showAll ? (

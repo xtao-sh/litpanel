@@ -141,14 +141,17 @@ export function GraphControls({
   const selectedLayout = LAYOUT_OPTIONS.find((l) => l.value === layout);
 
   return (
-    <Card className="w-72 bg-background/90 backdrop-blur-md rounded-xl shadow-lg border">
+    <Card className="paper-panel w-72 rounded-[1.55rem] bg-background/92 shadow-none backdrop-blur-md">
       <div className="p-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Controls</h3>
+          <div>
+            <p className="section-kicker">Research map</p>
+            <h3 className="font-display text-[1.45rem] text-foreground">Controls</h3>
+          </div>
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
+            className="rounded-full p-1.5 text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
             aria-label={collapsed ? "Expand controls" : "Collapse controls"}
           >
             {collapsed ? (
@@ -159,7 +162,7 @@ export function GraphControls({
           </button>
         </div>
 
-        {!collapsed && (
+        <div className={`overflow-hidden transition-all duration-200 ${collapsed ? "max-h-0 opacity-0" : "max-h-[600px] opacity-100"}`}>
           <div className="mt-3 space-y-4">
             {/* Search */}
             <div>
@@ -181,20 +184,20 @@ export function GraphControls({
                   onFocus={() => setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                   placeholder="ID, atom, or keywords..."
-                  className="h-9 pl-9 text-sm"
+                  className="h-10 rounded-[1rem] pl-9 text-sm"
                 />
                 {showSuggestions && (localSuggestions.length > 0 || topicSuggestions.length > 0) && (
-                  <div className="absolute top-full z-50 mt-1 w-[320px] rounded-lg border border-border bg-card py-1.5 shadow-xl max-h-72 overflow-y-auto ring-1 ring-black/5">
+                  <div className="paper-panel absolute top-full z-50 mt-2 max-h-72 w-[320px] overflow-y-auto rounded-[1.1rem] py-1.5 shadow-none ring-1 ring-black/5">
                     {/* Local graph node suggestions */}
                     {localSuggestions.length > 0 && (
                       <>
-                        <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-blue-600 bg-blue-50/60 border-b border-border">
+                        <div className="border-b border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary bg-[color:oklch(var(--accent)/0.45)]">
                           In current graph
                         </div>
                         {localSuggestions.map((node) => (
                           <button
                             key={node.id}
-                            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-blue-50 transition-colors"
+                            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-[color:oklch(var(--accent)/0.45)] transition-colors"
                             onMouseDown={() => handleSuggestionClick(node)}
                           >
                             <span
@@ -219,13 +222,13 @@ export function GraphControls({
                     {/* Backend search suggestions for topic keywords */}
                     {topicSuggestions.length > 0 && (
                       <>
-                        <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-purple-600 bg-purple-50/60 border-b border-border">
+                        <div className="border-b border-border bg-[color:oklch(var(--accent)/0.45)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
                           Search results
                         </div>
                         {topicSuggestions.map((hit) => (
                           <button
                             key={`${hit.entityType}-${hit.entityId}`}
-                            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-blue-50 transition-colors"
+                            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-[color:oklch(var(--accent)/0.45)] transition-colors"
                             onMouseDown={() => handleTopicSuggestionClick(hit)}
                           >
                             <span
@@ -263,7 +266,7 @@ export function GraphControls({
                     key={d}
                     variant={depth === d ? "default" : "outline"}
                     size="sm"
-                    className="h-8 w-8 p-0 text-xs"
+                    className="h-9 w-9 rounded-full p-0 text-xs"
                     onClick={() => onDepthChange(d)}
                     disabled={disabledDepths?.has(d)}
                   >
@@ -293,6 +296,7 @@ export function GraphControls({
                       checked={visibleTypes.has(type)}
                       onCheckedChange={() => onToggleType(type)}
                       className="h-3.5 w-3.5"
+                      aria-label={`Toggle ${label.toLowerCase()} nodes`}
                       style={
                         {
                           borderColor: color,
@@ -318,19 +322,19 @@ export function GraphControls({
               <div className="relative">
                 <button
                   onClick={() => setLayoutOpen(!layoutOpen)}
-                  className="flex h-9 w-full items-center justify-between rounded-md border border-border bg-card px-3 text-sm text-muted-foreground hover:bg-muted/50"
+                  className="flex h-10 w-full items-center justify-between rounded-[1rem] border border-border bg-background/80 px-3 text-sm text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)]"
                 >
                   <span>{selectedLayout?.label ?? "Force-directed"}</span>
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 </button>
                 {layoutOpen && (
-                  <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-border bg-card py-1 shadow-lg">
+                  <div className="paper-panel absolute top-full z-50 mt-2 w-full rounded-[1rem] py-1 shadow-none">
                     {LAYOUT_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
-                        className={`w-full px-3 py-1.5 text-left text-xs hover:bg-muted/50 ${
+                        className={`w-full px-3 py-1.5 text-left text-xs hover:bg-[color:oklch(var(--accent)/0.45)] ${
                           layout === opt.value
-                            ? "bg-blue-50 font-medium text-blue-700"
+                            ? "bg-[color:oklch(var(--accent)/0.55)] font-medium text-primary"
                             : "text-muted-foreground"
                         }`}
                         onClick={() => {
@@ -354,7 +358,7 @@ export function GraphControls({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 gap-1 text-xs text-muted-foreground"
+                className="h-8 gap-1 rounded-full px-3 text-xs text-muted-foreground"
                 onClick={onReset}
               >
                 <RotateCcw className="h-3 w-3" />
@@ -362,7 +366,7 @@ export function GraphControls({
               </Button>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </Card>
   );

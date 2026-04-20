@@ -140,33 +140,36 @@ export function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-border bg-muted/50 transition-transform duration-200 lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-[color:color-mix(in_oklch,oklch(var(--foreground))_8%,transparent)] bg-[color:oklch(var(--background)/0.9)] backdrop-blur-xl transition-transform duration-200 lg:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Logo / Title */}
-        <div className="flex h-16 items-center gap-2.5 border-b border-border px-6">
-          <BookOpen className="h-6 w-6 text-primary" />
+        <div className="flex h-20 items-center gap-3 border-b border-[color:color-mix(in_oklch,oklch(var(--foreground))_8%,transparent)] px-6">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[color:color-mix(in_oklch,oklch(var(--primary))_28%,white)] bg-[color:oklch(var(--accent)/0.6)]">
+            <BookOpen className="h-5 w-5 text-primary" />
+          </div>
           <div className="flex flex-col">
-            <span className="text-lg font-semibold text-foreground leading-tight">NBER</span>
-            <span className="text-xs text-muted-foreground">Research Knowledge Base</span>
+            <span className="section-kicker">Research Desk</span>
+            <span className="font-display text-[1.45rem] text-foreground leading-none">NBER</span>
+            <span className="text-xs text-muted-foreground">Question-led literature navigation</span>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
-          <div className="space-y-5">
+        <nav className="flex-1 overflow-y-auto px-4 py-5">
+          <div className="space-y-6">
             {navSections.map((section) => (
               <div key={section.label}>
                 <div className="px-3">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     {section.label}
                   </p>
                   <p className="mb-2 text-[11px] leading-4 text-muted-foreground/80">
                     {section.description}
                   </p>
                 </div>
-                <div className="space-y-0.5">
+                <div className="space-y-1">
                   {section.items.map((item) => {
                     const isActive =
                       item.href === "/"
@@ -179,14 +182,23 @@ export function Sidebar() {
                         href={item.href}
                         onClick={() => setMobileOpen(false)}
                         className={cn(
-                          "flex h-9 items-center gap-3 rounded-md px-3 text-sm transition-colors duration-150",
+                          "flex min-h-11 items-center gap-3 rounded-2xl px-3.5 py-2.5 text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                           isActive
-                            ? "border-l-2 border-primary bg-accent font-medium text-foreground"
-                            : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
+                            ? "paper-panel text-foreground"
+                            : "text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.48)] hover:text-foreground"
                         )}
                       >
-                        <item.icon className="h-4 w-4" style={{ strokeWidth: 1.75 }} />
-                        <span>{item.label}</span>
+                        <span
+                          className={cn(
+                            "flex h-8 w-8 items-center justify-center rounded-xl border",
+                            isActive
+                              ? "border-[color:color-mix(in_oklch,oklch(var(--primary))_22%,white)] bg-[color:oklch(var(--accent)/0.7)] text-primary"
+                              : "border-transparent bg-transparent text-muted-foreground"
+                          )}
+                        >
+                          <item.icon className="h-4 w-4" style={{ strokeWidth: 1.75 }} />
+                        </span>
+                        <span className={cn(isActive ? "font-semibold" : "font-medium")}>{item.label}</span>
                       </Link>
                     );
                   })}
@@ -198,8 +210,8 @@ export function Sidebar() {
 
         {/* Footer */}
         <div className="border-t border-border px-6 py-4">
-          <div className="rounded-lg border border-dashed border-border bg-background/80 px-3 py-2.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="paper-panel rounded-2xl border border-dashed px-3 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Internal
             </p>
             <div className="mt-2 space-y-1">
@@ -211,7 +223,7 @@ export function Sidebar() {
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
                     className={cn(
-                      "flex h-8 items-center gap-2 rounded-md px-2.5 text-xs transition-colors duration-150",
+                      "flex h-8 items-center gap-2 rounded-xl px-2.5 text-xs transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                       isActive
                         ? "bg-accent font-medium text-foreground"
                         : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
@@ -224,13 +236,13 @@ export function Sidebar() {
               })}
             </div>
           </div>
-          <div className="mt-3 rounded-lg bg-blue-50 px-3 py-2.5 text-xs text-blue-900">
-            <div className="flex items-center gap-2 font-medium">
+          <div className="mt-3 rounded-2xl border border-[color:color-mix(in_oklch,oklch(var(--primary))_12%,white)] bg-[color:oklch(var(--accent)/0.68)] px-3 py-3 text-xs text-foreground">
+            <div className="flex items-center gap-2 font-semibold">
               <Sparkles className="h-3.5 w-3.5" />
-              Suggested flow
+              Workflow Guide
             </div>
-            <p className="mt-1 leading-5 text-blue-800">
-              Start in Research, inspect evidence in Explorer, then organize stable paper sets in Projects.
+            <p className="mt-1 leading-5 text-muted-foreground">
+              Start with a live question in Research, inspect evidence in Explorer, then promote a stable corpus into Projects.
             </p>
           </div>
         </div>

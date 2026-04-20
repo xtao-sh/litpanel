@@ -50,9 +50,9 @@ function KeyAuthorsCard({ papers }: { papers: ResearchPaperItem[] }) {
   if (authorCounts.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+    <div className="paper-panel rounded-[1.5rem] p-5">
       <div className="mb-3 flex items-center gap-2">
-        <Users className="h-4 w-4 text-indigo-500" />
+        <Users className="h-4 w-4 text-primary" />
         <h3 className="text-sm font-semibold text-foreground">Visible Authors</h3>
         <span className="ml-auto text-[11px] text-muted-foreground">
           from current results page
@@ -63,12 +63,12 @@ function KeyAuthorsCard({ papers }: { papers: ResearchPaperItem[] }) {
           <Link
             key={name}
             href={`/author/${encodeURIComponent(name)}`}
-            className="group flex items-center gap-2 rounded-md px-2 py-1.5 -mx-2 transition-colors hover:bg-indigo-50/60"
+            className="group -mx-2 flex items-center gap-2 rounded-[0.9rem] px-2 py-1.5 transition-colors hover:bg-[color:oklch(var(--accent)/0.45)]"
           >
-            <span className="text-sm text-foreground group-hover:text-indigo-700 truncate flex-1 min-w-0">
+            <span className="text-sm text-foreground group-hover:text-primary truncate flex-1 min-w-0">
               {name}
             </span>
-            <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-indigo-100 px-1.5 text-[11px] font-semibold text-indigo-700 tabular-nums shrink-0">
+            <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[11px] font-semibold text-primary tabular-nums shrink-0">
               {count}
             </span>
           </Link>
@@ -88,7 +88,7 @@ function LandscapeSkeleton() {
       {Array.from({ length: 4 }).map((_, i) => (
         <div
           key={i}
-          className="rounded-xl border border-border bg-card p-6 shadow-sm"
+          className="paper-panel rounded-[1.5rem] p-6"
         >
           <Skeleton className="mb-4 h-5 w-48" />
           <div className="space-y-2">
@@ -151,14 +151,14 @@ export function ResearchLandscapePanel({
   return (
     <div className="space-y-4">
       {/* Section anchor nav */}
-      <nav className="flex gap-1.5 overflow-x-auto pb-3 mb-3 border-b border-border">
+      <nav className="paper-panel mb-3 flex gap-1.5 overflow-x-auto rounded-[1.2rem] p-2">
         {anchorItems.map(item => (
           <button
             key={item.id}
             onClick={() => {
               document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }}
-            className="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground transition-colors"
           >
             {item.label}
           </button>
@@ -166,7 +166,8 @@ export function ResearchLandscapePanel({
       </nav>
 
       {allPaperIds.length > 0 && (
-        <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+        <div className="paper-panel rounded-[1.5rem] p-4 text-sm text-muted-foreground">
+          <p className="section-kicker">Evidence scope</p>
           <p className="font-medium text-foreground">
             Landscape scope
           </p>
@@ -187,13 +188,13 @@ export function ResearchLandscapePanel({
           {searchQuery && (
             <>
               <Link href={graphHref ?? `/graph?q=${encodeURIComponent(searchQuery)}`}>
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                <Button variant="outline" size="sm" className="gap-1.5 rounded-full text-xs">
                   <GitBranch className="h-3.5 w-3.5" />
                   View Research Graph
                 </Button>
               </Link>
               <Link href={`/ask?q=${encodeURIComponent(searchQuery)}`}>
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                <Button variant="outline" size="sm" className="gap-1.5 rounded-full text-xs">
                   <MessageSquare className="h-3.5 w-3.5" />
                   Ask AI
                 </Button>
@@ -205,7 +206,7 @@ export function ResearchLandscapePanel({
             variant="outline"
             size="sm"
             onClick={() => setMethodAdvisorOpen(!methodAdvisorOpen)}
-            className="gap-1.5 text-xs"
+            className="gap-1.5 rounded-full text-xs"
           >
             <FlaskConical className="h-3.5 w-3.5" />
             {methodAdvisorOpen ? "Hide" : "Method"} Advisor
@@ -214,7 +215,7 @@ export function ResearchLandscapePanel({
             variant="outline"
             size="sm"
             onClick={() => setLitReviewOpen(true)}
-            className="gap-1.5 text-xs"
+            className="gap-1.5 rounded-full text-xs"
           >
             <FileText className="h-3.5 w-3.5" />
             Generate Lit Review

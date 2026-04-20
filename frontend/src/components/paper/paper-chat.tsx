@@ -5,7 +5,7 @@ import { Send, Sparkles, RotateCcw, X, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChatMessage, type Message } from "@/components/ask/chat-message";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8011";
 
 // ---------------------------------------------------------------------------
 // Suggested questions for a single paper
@@ -303,19 +303,22 @@ export function PaperChat({ paperId, paperTitle }: PaperChatProps) {
       />
 
       {/* Panel */}
-      <div className="fixed bottom-0 right-0 z-50 flex h-[70vh] w-full flex-col border-l border-t border-border bg-background/95 shadow-2xl backdrop-blur-md lg:bottom-6 lg:right-6 lg:h-[600px] lg:w-[400px] lg:rounded-xl lg:border">
+      <div className="paper-panel fixed bottom-0 right-0 z-50 flex h-[70vh] w-full flex-col bg-background/95 shadow-2xl backdrop-blur-md lg:bottom-6 lg:right-6 lg:h-[600px] lg:w-[400px] lg:rounded-[1.5rem]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3 lg:rounded-t-xl">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Paper Assistant</h3>
+        <div className="flex items-center justify-between border-b border-border px-4 py-3 lg:rounded-t-[1.5rem]">
+          <div>
+            <p className="section-kicker">Paper assistant</p>
+            <div className="mt-1 flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h3 className="font-display text-[1.3rem] text-foreground">Paper Assistant</h3>
+            </div>
           </div>
           <div className="flex items-center gap-1">
             {messages.length > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 gap-1 text-xs"
+                className="h-8 gap-1 rounded-full px-3 text-xs"
                 onClick={handleNewConversation}
               >
                 <RotateCcw className="h-3 w-3" />
@@ -325,7 +328,7 @@ export function PaperChat({ paperId, paperTitle }: PaperChatProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="h-8 w-8 rounded-full"
               onClick={() => setOpen(false)}
             >
               <X className="h-4 w-4" />
@@ -334,8 +337,8 @@ export function PaperChat({ paperId, paperTitle }: PaperChatProps) {
         </div>
 
         {/* Context banner */}
-        <div className="flex items-center gap-2 border-b border-border/50 bg-muted/30 px-4 py-2">
-          <MessageSquare className="h-3 w-3 shrink-0 text-muted-foreground" />
+        <div className="flex items-center gap-2 border-b border-border/50 bg-[color:oklch(var(--accent)/0.24)] px-4 py-2">
+          <MessageSquare className="h-3 w-3 shrink-0 text-primary/70" />
           <p className="truncate text-xs text-muted-foreground">
             {paperId} &mdash; {paperTitle}
           </p>
@@ -345,8 +348,8 @@ export function PaperChat({ paperId, paperTitle }: PaperChatProps) {
         <div className="flex-1 overflow-y-auto px-3 py-3">
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center px-2">
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50">
-                <Sparkles className="h-5 w-5 text-blue-500" />
+              <div className="paper-panel mb-4 flex h-12 w-12 items-center justify-center rounded-[1rem]">
+                <Sparkles className="h-5 w-5 text-primary" />
               </div>
               <p className="mb-4 text-center text-xs text-muted-foreground">
                 Ask questions about this paper. The AI has read the full analysis.
@@ -355,11 +358,11 @@ export function PaperChat({ paperId, paperTitle }: PaperChatProps) {
               <div className="w-full space-y-1.5">
                 {PAPER_QUESTIONS.map((q) => (
                   <button
-                    key={q}
-                    type="button"
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-left text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-blue-50/50"
-                    onClick={() => submitQuestion(q)}
-                  >
+                  key={q}
+                  type="button"
+                  className="paper-panel w-full rounded-[1rem] px-3 py-2 text-left text-xs text-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)]"
+                  onClick={() => submitQuestion(q)}
+                >
                     {q}
                   </button>
                 ))}
@@ -376,22 +379,24 @@ export function PaperChat({ paperId, paperTitle }: PaperChatProps) {
         </div>
 
         {/* Input */}
-        <div className="shrink-0 border-t border-border bg-background px-3 py-2 lg:rounded-b-xl">
+        <div className="shrink-0 border-t border-border bg-background/80 px-3 py-2 lg:rounded-b-[1.5rem]">
           <form onSubmit={handleSubmit} className="flex items-center gap-2">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about this paper..."
-              disabled={isStreaming}
-              className="flex h-9 flex-1 rounded-lg border border-input bg-muted/30 px-3 text-sm placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            />
+            <div className="paper-panel flex flex-1 rounded-[1rem] p-1">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask about this paper..."
+                disabled={isStreaming}
+                className="flex h-9 flex-1 rounded-[0.8rem] border border-input bg-background/75 px-3 text-sm placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </div>
             <Button
               type="submit"
               size="icon"
               disabled={!input.trim() || isStreaming}
-              className="h-9 w-9 shrink-0 rounded-lg"
+              className="h-9 w-9 shrink-0 rounded-full"
             >
               <Send className="h-3.5 w-3.5" />
             </Button>

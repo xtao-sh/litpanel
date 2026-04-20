@@ -40,14 +40,14 @@ export interface AtomSearchPickerProps {
 function evidenceColor(strength: string | null): string {
   switch (strength?.toLowerCase()) {
     case "strong":
-      return "text-green-700 bg-green-50";
+      return "text-emerald-700 bg-emerald-50";
     case "moderate":
       return "text-amber-700 bg-amber-50";
     case "emerging":
     case "weak":
-      return "text-red-700 bg-red-50";
+      return "text-rose-700 bg-rose-50";
     default:
-      return "text-gray-600 bg-gray-50";
+      return "text-muted-foreground bg-muted";
   }
 }
 
@@ -110,9 +110,9 @@ export function AtomSearchPicker({
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <input
-          className="w-full rounded-md border border-gray-200 py-1.5 pl-8 pr-3 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="paper-panel w-full rounded-[0.95rem] border border-border/75 bg-background/88 py-2 pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/35"
           placeholder={placeholder}
           value={query}
           onChange={(e) => {
@@ -124,21 +124,21 @@ export function AtomSearchPicker({
           }}
         />
         {loading && (
-          <Loader2 className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-gray-400" />
+          <Loader2 className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
         )}
       </div>
 
       {/* Dropdown results */}
       {open && query.trim().length >= 2 && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg">
+        <div className="paper-panel absolute z-50 mt-2 w-full rounded-[1rem] border border-border/75 bg-background/96 p-1.5 shadow-[0_18px_44px_rgba(44,51,71,0.16)]">
           {loading && hits.length === 0 && (
-            <div className="flex items-center gap-2 px-3 py-3 text-xs text-gray-400">
+            <div className="flex items-center gap-2 px-3 py-3 text-xs text-muted-foreground">
               <Loader2 className="h-3 w-3 animate-spin" />
               Searching...
             </div>
           )}
           {!loading && hits.length === 0 && (
-            <div className="px-3 py-3 text-xs text-gray-400">
+            <div className="px-3 py-3 text-xs text-muted-foreground">
               No {atomType ? atomType + "s" : "atoms"} found
             </div>
           )}
@@ -148,26 +148,26 @@ export function AtomSearchPicker({
                 <li key={item.slug}>
                   <button
                     type="button"
-                    className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-blue-50 transition-colors"
+                    className="flex w-full items-start gap-2.5 rounded-[0.9rem] px-3 py-2.5 text-left transition-colors hover:bg-[color:oklch(var(--accent)/0.45)]"
                     onClick={() => handleSelect(item)}
                   >
-                    <Atom className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
+                    <Atom className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-medium text-gray-800 line-clamp-1">
+                      <div className="text-xs font-medium text-foreground line-clamp-1">
                         {item.title}
                       </div>
                       <div className="mt-0.5 flex items-center gap-1.5">
-                        <span className="rounded bg-gray-100 px-1 py-0 text-[10px] text-gray-500 capitalize">
+                        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground capitalize">
                           {item.type}
                         </span>
                         {item.evidenceStrength && (
                           <span
-                            className={`rounded px-1 py-0 text-[10px] capitalize ${evidenceColor(item.evidenceStrength)}`}
+                            className={`rounded-full px-1.5 py-0.5 text-[10px] capitalize ${evidenceColor(item.evidenceStrength)}`}
                           >
                             {item.evidenceStrength}
                           </span>
                         )}
-                        <span className="text-[10px] text-gray-400">
+                        <span className="text-[10px] text-muted-foreground">
                           {item.paperCount} papers
                         </span>
                       </div>

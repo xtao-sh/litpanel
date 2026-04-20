@@ -64,6 +64,22 @@ def _parse_json_list(raw: str | None) -> list[str]:
     return []
 
 
+def _first_sentence(text: str) -> str:
+    """Extract the first sentence, capped at ~150 chars."""
+    text = (text or "").strip()
+    if not text:
+        return ""
+    match = re.match(r"(.+?[.!?])\s", text)
+    if match:
+        sent = match.group(1).strip()
+        if len(sent) <= 150:
+            return sent
+        return sent[:147] + "..."
+    if len(text) <= 150:
+        return text
+    return text[:147] + "..."
+
+
 _db_lock = asyncio.Lock()
 _db_conn: aiosqlite.Connection | None = None
 
@@ -97,7 +113,10 @@ def _projects_exist() -> bool:
 
 MAX_GRAPH_SEED_PAPERS = 60
 MAX_GRAPH_CONTEXT_PAPERS = 20
-MAX_GRAPH_CANDIDATE_PAPERS = 200
+MAX_GRAPH_CANDIDATE_PAPERS = 120
+PAPER_SET_NETWORK_CACHE_TTL = 180
+PAPER_SET_NETWORK_CACHE_MAX = 64
+_paper_set_network_cache: dict[tuple[tuple[str, ...], int], tuple[float, dict[str, Any]]] = {}
 
 
 def _graph_edge_relation(atom_type: str) -> str:
@@ -107,6 +126,34 @@ def _graph_edge_relation(atom_type: str) -> str:
         "mechanism": "engages_mechanism",
         "puzzle": "addresses_puzzle",
     }.get(atom_type, "references_atom")
+
+
+def _get_paper_set_network_cache(
+    cache_key: tuple[tuple[str, ...], int],
+) -> dict[str, Any] | None:
+    entry = _paper_set_network_cache.get(cache_key)
+    if entry is None:
+        return None
+
+    created_at, value = entry
+    if _time.time() - created_at >= PAPER_SET_NETWORK_CACHE_TTL:
+        _paper_set_network_cache.pop(cache_key, None)
+        return None
+    return value
+
+
+def _set_paper_set_network_cache(
+    cache_key: tuple[tuple[str, ...], int],
+    value: dict[str, Any],
+) -> None:
+    now = _time.time()
+    if len(_paper_set_network_cache) >= PAPER_SET_NETWORK_CACHE_MAX:
+        oldest_key = min(
+            _paper_set_network_cache.items(),
+            key=lambda item: item[1][0],
+        )[0]
+        _paper_set_network_cache.pop(oldest_key, None)
+    _paper_set_network_cache[cache_key] = (now, value)
 
 
 def _paper_row_to_graph_node(
@@ -477,6 +524,10 @@ def _row_to_paper(row: aiosqlite.Row) -> dict[str, Any]:
         d["nber_url"] = row["nber_url"]
     except (IndexError, KeyError):
         d["nber_url"] = None
+    try:
+        d["triage_summary"] = row["triage_summary"]
+    except (IndexError, KeyError):
+        d["triage_summary"] = None
     return d
 
 
@@ -604,8 +655,16 @@ async def get_papers(
             binds + [limit, offset],
         )
         rows = await cursor.fetchall()
+        items = [_row_to_paper(r) for r in rows]
+        tldrs = await _prefetch_paper_tldrs(
+            db,
+            [item["paper_id"] for item in items],
+            paper_rows=items,
+        )
+        for item in items:
+            item["tldr"] = tldrs.get(item["paper_id"])
 
-        return {"items": [_row_to_paper(r) for r in rows], "total": total}
+        return {"items": items, "total": total}
     except Exception:
         logger.exception("get_papers failed")
         return empty
@@ -741,21 +800,6 @@ async def get_paper_tldr(paper_id: str) -> str | None:
     if not _db_exists():
         return None
 
-    def _first_sentence(text: str) -> str:
-        """Extract the first sentence, capped at ~150 chars."""
-        text = text.strip()
-        # Try splitting on sentence-ending punctuation
-        match = re.match(r"(.+?[.!?])\s", text)
-        if match:
-            sent = match.group(1).strip()
-            if len(sent) <= 150:
-                return sent
-            return sent[:147] + "..."
-        # No sentence boundary found — just truncate
-        if len(text) <= 150:
-            return text
-        return text[:147] + "..."
-
     try:
         db = await _get_db()
         # Try Research Question section first
@@ -780,6 +824,65 @@ async def get_paper_tldr(paper_id: str) -> str | None:
     except Exception:
         logger.exception("get_paper_tldr failed for %s", paper_id)
         return None
+
+
+async def _prefetch_paper_tldrs(
+    db: aiosqlite.Connection,
+    paper_ids: list[str],
+    *,
+    paper_rows: list[dict[str, Any]] | None = None,
+) -> dict[str, str | None]:
+    """Batch-load TLDRs for a paper list to avoid GraphQL field-level N+1 queries."""
+    if not paper_ids:
+        return {}
+
+    placeholders = ", ".join("?" for _ in paper_ids)
+    result: dict[str, str | None] = {paper_id: None for paper_id in paper_ids}
+
+    try:
+        cursor = await db.execute(
+            f"""
+            SELECT paper_id, content
+            FROM card_sections
+            WHERE section = 'Research Question' AND paper_id IN ({placeholders})
+            """,
+            paper_ids,
+        )
+        for row in await cursor.fetchall():
+            content = row["content"]
+            if content:
+                result[row["paper_id"]] = _first_sentence(content)
+    except Exception:
+        logger.exception("_prefetch_paper_tldrs failed loading card sections")
+
+    triage_summaries: dict[str, str | None] = {}
+    if paper_rows is not None:
+        triage_summaries = {
+            row["paper_id"]: row.get("triage_summary")
+            for row in paper_rows
+            if row.get("paper_id")
+        }
+    else:
+        try:
+            cursor = await db.execute(
+                f"SELECT paper_id, triage_summary FROM papers WHERE paper_id IN ({placeholders})",
+                paper_ids,
+            )
+            triage_summaries = {
+                row["paper_id"]: row["triage_summary"]
+                for row in await cursor.fetchall()
+            }
+        except Exception:
+            logger.exception("_prefetch_paper_tldrs failed loading triage summaries")
+
+    for paper_id in paper_ids:
+        if result.get(paper_id):
+            continue
+        summary = triage_summaries.get(paper_id)
+        if summary:
+            result[paper_id] = _first_sentence(summary)
+
+    return result
 
 
 async def get_idea_count_for_paper(paper_id: str) -> int:
@@ -1450,7 +1553,7 @@ def _parse_source_papers(raw: str | None) -> list[str]:
 
 
 def _row_to_idea(row: aiosqlite.Row) -> dict[str, Any]:
-    return {
+    data = {
         "id": row["id"],
         "title": row["title"],
         "status": row["status"],
@@ -1463,6 +1566,11 @@ def _row_to_idea(row: aiosqlite.Row) -> dict[str, Any]:
         "impact": row["impact"],
         "composite": row["composite"],
     }
+    try:
+        data["evaluation"] = row["evaluation"]
+    except (IndexError, KeyError):
+        pass
+    return data
 
 
 async def get_idea(idea_id: str) -> dict[str, Any] | None:
@@ -1493,10 +1601,51 @@ async def get_ideas(status: str | None = None) -> list[dict[str, Any]]:
             )
         else:
             cursor = await db.execute("SELECT * FROM ideas ORDER BY composite DESC")
-        return [_row_to_idea(r) for r in await cursor.fetchall()]
+        rows = await cursor.fetchall()
+        ideas = [_row_to_idea(r) for r in rows]
+        evaluations = await _prefetch_idea_evaluations(db, [idea["id"] for idea in ideas])
+        for idea in ideas:
+            idea["evaluation"] = evaluations.get(idea["id"])
+        return ideas
     except Exception:
         logger.exception("get_ideas failed")
         return []
+
+
+async def _prefetch_idea_evaluations(
+    db: aiosqlite.Connection,
+    idea_ids: list[str],
+) -> dict[str, dict[str, Any] | None]:
+    if not idea_ids:
+        return {}
+
+    placeholders = ", ".join("?" for _ in idea_ids)
+    result: dict[str, dict[str, Any] | None] = {idea_id: None for idea_id in idea_ids}
+
+    try:
+        cursor = await db.execute(
+            f"SELECT * FROM idea_evaluations WHERE idea_id IN ({placeholders})",
+            idea_ids,
+        )
+        for row in await cursor.fetchall():
+            result[row["idea_id"]] = {
+                "idea_id": row["idea_id"],
+                "verdict": row["verdict"],
+                "novelty_score": row["novelty_score"],
+                "identification_score": row["identification_score"],
+                "data_score": row["data_score"],
+                "contribution_score": row["contribution_score"],
+                "feasibility_score": row["feasibility_score"],
+                "overall_score": row["overall_score"],
+                "key_risk": row["key_risk"],
+                "next_steps": row["next_steps"],
+                "death_reason": row["death_reason"],
+                "evaluation_text": row["evaluation_text"],
+            }
+    except Exception:
+        logger.exception("_prefetch_idea_evaluations failed")
+
+    return result
 
 
 VALID_IDEA_STATUSES = {"new", "exploring", "developing", "promoted", "killed"}
@@ -1899,6 +2048,10 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
 
     source_paper_count = len(deduped_ids)
     candidate_ids = deduped_ids[:MAX_GRAPH_CANDIDATE_PAPERS]
+    cache_key = (tuple(candidate_ids), depth)
+    cached = _get_paper_set_network_cache(cache_key)
+    if cached is not None:
+        return cached
 
     try:
         db = await _get_db()
@@ -1984,7 +2137,7 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
             atom_seed_papers.setdefault(row["slug"], set()).add(row["paper_id"])
 
         if not atom_info:
-            return _finalize_network_graph(
+            result = _finalize_network_graph(
                 nodes=nodes,
                 edges=edges,
                 mode="paper_set",
@@ -1992,6 +2145,8 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
                 seed_count=len(nodes),
                 truncated=truncated,
             )
+            _set_paper_set_network_cache(cache_key, result)
+            return result
 
         atom_slugs = list(atom_info.keys())
         atom_placeholders = ", ".join("?" for _ in atom_slugs)
@@ -2090,7 +2245,7 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
                 if node_id in connected_node_ids
             }
 
-        return _finalize_network_graph(
+        result = _finalize_network_graph(
             nodes=nodes,
             edges=edges,
             mode="paper_set",
@@ -2098,6 +2253,8 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
             seed_count=len(seed_ids),
             truncated=truncated,
         )
+        _set_paper_set_network_cache(cache_key, result)
+        return result
     except Exception:
         logger.exception("paper_set_network failed")
         return empty
@@ -2578,6 +2735,13 @@ async def get_whats_new(limit: int = 10) -> dict[str, Any]:
         )
         rows = await cursor.fetchall()
         latest_papers = [_row_to_paper(r) for r in rows]
+        tldrs = await _prefetch_paper_tldrs(
+            db,
+            [paper["paper_id"] for paper in latest_papers],
+            paper_rows=latest_papers,
+        )
+        for paper in latest_papers:
+            paper["tldr"] = tldrs.get(paper["paper_id"])
 
         # Recent ideas count (ideas generated in the last 30 days)
         recent_ideas_count = 0
@@ -4162,6 +4326,38 @@ async def get_top_authors(limit: int = 20) -> list[dict[str, Any]]:
 # Personalized feed resolver
 # ---------------------------------------------------------------------------
 
+
+def _score_personalized_feed_candidates(
+    vectors: Any,
+    ids: list[str],
+    user_indices: list[int],
+    limit: int,
+) -> list[tuple[str, float]]:
+    import numpy as np
+
+    user_vec = np.mean(vectors[user_indices], axis=0)
+    norm = np.linalg.norm(user_vec)
+    if not np.isfinite(norm) or norm <= 0:
+        return []
+
+    user_vec = user_vec / norm
+    with np.errstate(over="ignore", divide="ignore", invalid="ignore"):
+        scores = vectors @ user_vec
+
+    for idx in user_indices:
+        scores[idx] = -1
+
+    safe_scores = np.nan_to_num(scores, nan=-1.0, posinf=-1.0, neginf=-1.0)
+    top_indices = np.argsort(-safe_scores)[:limit]
+
+    ranked: list[tuple[str, float]] = []
+    for i in top_indices:
+        score = float(safe_scores[i])
+        if score <= 0 or not np.isfinite(score):
+            continue
+        ranked.append((ids[i], score))
+    return ranked
+
 async def get_personalized_feed(limit: int = 10) -> list[dict[str, Any]]:
     """Get papers the user hasn't seen, ranked by relevance to their interests.
 
@@ -4191,7 +4387,6 @@ async def get_personalized_feed(limit: int = 10) -> list[dict[str, Any]]:
 
         # 2. Try embedding-based recommendations
         from embeddings import _paper_index, is_loaded
-        import numpy as np
 
         if user_paper_ids and is_loaded() and _paper_index is not None:
             # Find indices of user's papers in the embedding index
@@ -4199,29 +4394,18 @@ async def get_personalized_feed(limit: int = 10) -> list[dict[str, Any]]:
             user_indices = [id_to_idx[pid] for pid in user_paper_ids if pid in id_to_idx]
 
             if user_indices:
-                # Compute user interest vector (average of their papers' embeddings)
-                user_vec = np.mean(_paper_index["vectors"][user_indices], axis=0)
-                norm = np.linalg.norm(user_vec)
-                if norm > 0:
-                    user_vec = user_vec / norm
-
-                # Score all papers
-                scores = _paper_index["vectors"] @ user_vec
-
-                # Exclude papers user has already interacted with
-                for pid in user_paper_ids:
-                    if pid in id_to_idx:
-                        scores[id_to_idx[pid]] = -1
-
-                # Top N
-                top_indices = np.argsort(-scores)[:limit]
+                ranked = await asyncio.to_thread(
+                    _score_personalized_feed_candidates,
+                    _paper_index["vectors"],
+                    _paper_index["ids"],
+                    user_indices,
+                    limit,
+                )
                 results = []
-                for i in top_indices:
-                    if scores[i] <= 0:
-                        continue
-                    paper = await get_paper(_paper_index["ids"][i])
+                for paper_id, score in ranked:
+                    paper = await get_paper(paper_id)
                     if paper:
-                        paper["relevance_score"] = float(scores[i])
+                        paper["relevance_score"] = score
                         results.append(paper)
                 if results:
                     return results

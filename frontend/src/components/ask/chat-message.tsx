@@ -53,7 +53,7 @@ function renderContent(text: string) {
           <Link
             key={`p-${lineIdx}-${match.index}`}
             href={`/paper/${match[4]}`}
-            className="inline-flex items-baseline rounded bg-blue-50 px-1.5 py-0.5 font-mono text-sm font-medium text-blue-700 no-underline hover:bg-blue-100"
+            className="inline-flex items-baseline rounded-full bg-primary/10 px-2 py-0.5 font-mono text-sm font-medium text-primary no-underline hover:bg-primary/15"
           >
             {match[4]}
           </Link>
@@ -124,20 +124,21 @@ export function ChatMessage({ message, userQuestion, defaultContextExpanded }: C
       {/* Bubble */}
       <div
         className={cn(
-          "max-w-[85%] px-4 py-3 shadow-sm relative group",
+          "relative group max-w-[85%] px-4 py-3 shadow-sm",
           isUser
-            ? "rounded-2xl rounded-br-sm bg-primary text-primary-foreground"
+            ? "rounded-[1.35rem] rounded-br-sm bg-foreground text-background"
             : message.error
-              ? "rounded-2xl rounded-bl-sm border border-red-200 bg-red-50 text-red-800"
-              : "rounded-2xl rounded-bl-sm bg-muted text-gray-900"
+              ? "rounded-[1.35rem] rounded-bl-sm border border-red-200 bg-red-50 text-red-800"
+              : "paper-panel rounded-[1.35rem] rounded-bl-sm text-foreground"
         )}
       >
         {/* Copy button for assistant messages */}
         {!isUser && !message.isStreaming && message.content && (
           <button
             onClick={handleCopy}
-            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 rounded p-1 text-muted-foreground hover:text-foreground hover:bg-gray-200 transition-all"
+            className="absolute top-2 right-2 rounded-full p-1 opacity-0 text-muted-foreground transition-all group-hover:opacity-100 hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
             title="Copy as text"
+            aria-label="Copy message"
           >
             {copied ? (
               <Check className="h-3.5 w-3.5 text-green-600" />
@@ -168,16 +169,19 @@ export function ChatMessage({ message, userQuestion, defaultContextExpanded }: C
         </div>
 
         {/* Citations */}
-        {!isUser && message.citations && message.citations.length > 0 && (
-          <CitationBadges citations={message.citations} />
+        {!isUser && !message.isStreaming && message.citations && message.citations.length > 0 && (
+          <>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-2 mb-1">Sources referenced:</p>
+            <CitationBadges citations={message.citations} />
+          </>
         )}
 
         {/* Explore further actions */}
         {!isUser && !message.isStreaming && !message.error && message.citations && message.citations.length > 0 && userQuestion && (
-          <div className="mt-2 flex flex-wrap gap-2 border-t border-gray-100 pt-2">
+          <div className="mt-2 flex flex-wrap gap-2 border-t border-border/70 pt-2">
             <Link
               href={`/research?q=${encodeURIComponent(userQuestion)}`}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200"
+              className="inline-flex items-center gap-1.5 rounded-full border border-foreground/10 bg-background/85 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
             >
               <Microscope className="h-3 w-3" />
               Explore in Research Mode
@@ -188,7 +192,7 @@ export function ChatMessage({ message, userQuestion, defaultContextExpanded }: C
                 source: "ask",
                 label: userQuestion,
               })}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200"
+              className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
             >
               <GitBranch className="h-3 w-3" />
               View on Graph

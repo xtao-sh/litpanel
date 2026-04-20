@@ -108,6 +108,96 @@ interface NodeConnectionSummary {
   count: number;
 }
 
+const GRAPH_NODE_LEGEND = [
+  { label: "Papers", shape: "circle", color: "#3b82f6" },
+  { label: "Methods", shape: "square", color: "#22c55e" },
+  { label: "Datasets", shape: "hexagon", color: "#a855f7" },
+  { label: "Mechanisms", shape: "diamond", color: "#f97316" },
+  { label: "Puzzles", shape: "triangle", color: "#ef4444" },
+] as const;
+
+function formatRelationLabel(relation: string): string {
+  return relation
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function GraphLegend({
+  relationSummaries,
+}: {
+  relationSummaries: NodeConnectionSummary[];
+}) {
+  return (
+    <div className="paper-panel absolute bottom-4 left-4 z-10 max-w-[280px] rounded-[1.35rem] px-4 py-3">
+      <p className="section-kicker">Reading key</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {GRAPH_NODE_LEGEND.map((item) => (
+          <div
+            key={item.label}
+            className="inline-flex items-center gap-2 rounded-full bg-background/80 px-2.5 py-1 text-[11px] text-muted-foreground"
+          >
+            <span
+              className="inline-block h-2.5 w-2.5 shrink-0"
+              style={{
+                backgroundColor: item.color,
+                borderRadius:
+                  item.shape === "circle"
+                    ? "999px"
+                    : item.shape === "square"
+                      ? "4px"
+                      : item.shape === "diamond"
+                        ? "2px"
+                        : "0",
+                clipPath:
+                  item.shape === "triangle"
+                    ? "polygon(50% 0%, 0% 100%, 100% 100%)"
+                    : item.shape === "hexagon"
+                      ? "polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%)"
+                      : item.shape === "diamond"
+                        ? "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)"
+                        : undefined,
+              }}
+            />
+            {item.label}
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 space-y-1.5">
+        <p className="text-xs font-medium text-foreground">Visible relations</p>
+        {relationSummaries.length > 0 ? (
+          relationSummaries.slice(0, 4).map((item) => (
+            <div key={item.relation} className="flex items-center justify-between text-[11px] text-muted-foreground">
+              <span>{formatRelationLabel(item.relation)}</span>
+              <span className="rounded-full bg-background/80 px-1.5 py-0.5 text-foreground">
+                {item.count}
+              </span>
+            </div>
+          ))
+        ) : (
+          <p className="text-[11px] text-muted-foreground">
+            Select a node to see which relation types are active around it.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GraphSummaryCard({ summary }: { summary: string }) {
+  return (
+    <div className="paper-panel max-w-[360px] rounded-[1.2rem] px-4 py-3">
+      <div className="flex items-start gap-2">
+        <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+        <div className="space-y-1">
+          <p className="section-kicker">Graph scope</p>
+          <p className="text-xs leading-relaxed text-foreground/90">{summary}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function GraphPage() {
   return (
     <Suspense>
@@ -630,26 +720,6 @@ function GraphPageInner() {
       <div className="relative flex-1">
         {graphData && graphData.nodes.length > 0 ? (
           <div className="h-full w-full">
-            {graphSummary && (
-              <div className="absolute left-1/2 top-4 z-20 -translate-x-1/2 px-4">
-                <div className="flex max-w-[820px] items-start gap-2 rounded-lg border border-blue-200 bg-blue-50/95 px-4 py-2 shadow-sm backdrop-blur-sm">
-                  <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" />
-                  <span className="text-xs leading-relaxed text-blue-900">
-                    {graphSummary}
-                  </span>
-                  {searchMessage && graphData.mode === "paper_set" ? (
-                    <button
-                      onClick={() => setSearchMessage(null)}
-                      className="ml-1 text-blue-400 hover:text-blue-600"
-                      aria-label="Dismiss"
-                    >
-                      &times;
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            )}
-
             <CytoscapeGraph
               nodes={graphData.nodes}
               edges={graphData.edges}
@@ -658,7 +728,8 @@ function GraphPageInner() {
               onNodeSelect={setSelectedNode}
               onNodeExpand={handleNodeExpand}
             />
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-muted-foreground bg-background/80 backdrop-blur px-3 py-1 rounded-full">
+            <GraphLegend relationSummaries={selectedNodeConnections} />
+            <div className="paper-panel absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-xs text-muted-foreground backdrop-blur">
               Click a node for details · Double-click to re-center
             </div>
           </div>
@@ -675,8 +746,8 @@ function GraphPageInner() {
 
         {loading && graphData && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 backdrop-blur-sm">
-            <div className="flex flex-col items-center gap-3 rounded-xl border bg-background/90 px-6 py-5 shadow-lg backdrop-blur-md">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <div className="paper-panel flex flex-col items-center gap-3 rounded-[1.4rem] bg-background/90 px-6 py-5 backdrop-blur-md">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
               <span className="text-sm font-medium text-muted-foreground">Loading graph...</span>
             </div>
           </div>
@@ -692,6 +763,8 @@ function GraphPageInner() {
                 </Link>
               </Button>
             ) : null}
+
+            {graphSummary ? <GraphSummaryCard summary={graphSummary} /> : null}
 
             <GraphControls
               searchQuery={searchQuery}
@@ -802,23 +875,24 @@ function EmptyState({
   };
 
   return (
-    <div className="flex h-full items-center justify-center bg-gray-50/50">
+    <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(126,87,65,0.07),transparent_28%),linear-gradient(180deg,rgba(248,244,236,0.7),rgba(248,244,236,0.28))]">
       <div className="mx-auto max-w-lg px-6">
-        <div className="rounded-xl border bg-background p-8 text-center shadow-sm">
+        <div className="paper-panel rounded-[2rem] p-8 text-center">
           {loading ? (
             <div className="flex flex-col items-center gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="text-sm text-muted-foreground">Loading network data...</p>
             </div>
           ) : (
             <>
-              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
-                <GitBranch className="h-8 w-8 text-blue-600" />
+              <div className="paper-panel mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[1.3rem]">
+                <GitBranch className="h-8 w-8 text-primary" />
               </div>
-              <h2 className="text-xl font-semibold tracking-tight text-gray-900">
+              <p className="section-kicker">Graph workspace</p>
+              <h2 className="font-display mt-3 text-[clamp(2.1rem,4vw,3.2rem)] text-foreground">
                 Explore the Knowledge Graph
               </h2>
-              <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
                 {errorMsg
                   ? errorMsg
                   : hasSearched
@@ -846,17 +920,17 @@ function EmptyState({
                       }}
                       onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                       placeholder='e.g., "medical device", w31161, or staggered_did'
-                      className="flex h-11 w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                      className="flex h-11 w-full rounded-[1rem] border border-input bg-background/80 px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                     />
                     {showSuggestions && suggestions.length > 0 && (
-                      <div className="absolute top-full z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white py-1.5 shadow-xl ring-1 ring-black/5">
-                        <div className="border-b border-gray-100 bg-blue-50/60 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-blue-600">
+                      <div className="paper-panel absolute top-full z-50 mt-2 w-full rounded-[1rem] py-1.5 ring-1 ring-black/5">
+                        <div className="border-b border-border bg-[color:oklch(var(--accent)/0.45)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
                           Search results, click to explore network
                         </div>
                         {suggestions.map((hit) => (
                           <button
                             key={`${hit.entityType}-${hit.entityId}`}
-                            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs transition-colors hover:bg-blue-50"
+                            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs transition-colors hover:bg-[color:oklch(var(--accent)/0.45)]"
                             onMouseDown={() => handleSuggestionClick(hit)}
                           >
                             <span
@@ -865,10 +939,10 @@ function EmptyState({
                                 backgroundColor: entityTypeColors[hit.entityType] ?? "#999",
                               }}
                             />
-                            <span className="min-w-0 flex-1 truncate font-medium text-gray-800">
+                            <span className="min-w-0 flex-1 truncate font-medium text-foreground">
                               {hit.title}
                             </span>
-                            <span className="flex-shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500">
+                            <span className="flex-shrink-0 rounded-full bg-background/85 px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
                               {hit.entityType}
                             </span>
                           </button>
@@ -877,7 +951,7 @@ function EmptyState({
                     )}
                     {suggestionsLoading && (
                       <div className="absolute right-3 top-3">
-                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                       </div>
                     )}
                   </div>

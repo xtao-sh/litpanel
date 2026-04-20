@@ -65,10 +65,10 @@ function ViewModeToggle({
   className = "",
 }: ViewModeToggleProps) {
   return (
-    <div className={`flex items-center gap-1 border-b border-border px-2 py-1.5 shrink-0 ${className}`}>
+    <div className={`paper-panel flex items-center gap-1 rounded-[1.2rem] px-2 py-1.5 shrink-0 ${className}`}>
       <button
         type="button"
-        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}
+        className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-medium transition-colors ${viewMode === "list" ? "bg-foreground text-background" : "text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"}`}
         onClick={() => onChange("list")}
       >
         <List className="h-3 w-3" />
@@ -76,7 +76,7 @@ function ViewModeToggle({
       </button>
       <button
         type="button"
-        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors ${viewMode === "cluster" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}
+        className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-medium transition-colors ${viewMode === "cluster" ? "bg-foreground text-background" : "text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"}`}
         onClick={() => onChange("cluster")}
       >
         <Layers className="h-3 w-3" />
@@ -84,7 +84,7 @@ function ViewModeToggle({
       </button>
       <button
         type="button"
-        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors ${viewMode === "timeline" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}
+        className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-medium transition-colors ${viewMode === "timeline" ? "bg-foreground text-background" : "text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"}`}
         onClick={() => onChange("timeline")}
       >
         <Clock className="h-3 w-3" />
@@ -645,22 +645,23 @@ function ResearchPageInner() {
 
   if (!hasSearched) {
     return (
-      <div className="mx-auto flex h-[calc(100vh-5rem)] max-w-2xl flex-col items-center justify-center px-4">
+      <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-4xl flex-col items-center px-4 py-10">
         <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50">
-            <Microscope className="h-7 w-7 text-blue-600" />
+          <div className="paper-panel flex h-16 w-16 items-center justify-center rounded-[1.4rem]">
+            <Microscope className="h-7 w-7 text-primary" />
           </div>
-          <Search className="h-8 w-8 text-blue-300" />
+          <Search className="h-8 w-8 text-primary/35" />
         </div>
 
-        <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground">
+        <p className="section-kicker mb-2">Topic workspace</p>
+        <h1 className="font-display mb-2 text-[clamp(2.8rem,5vw,4.5rem)] text-foreground">
           Research Mode
         </h1>
-        <p className="mb-8 text-center text-sm text-muted-foreground">
+        <p className="mb-8 max-w-2xl text-center text-sm text-muted-foreground">
           Explore a topic, map the literature, and discover what&apos;s missing.
         </p>
 
-        <div className="mb-6 w-full rounded-2xl border border-border bg-background/80 p-4 text-left">
+        <div className="paper-panel mb-6 w-full rounded-[1.8rem] p-5 text-left">
           <p className="text-sm font-medium text-foreground">
             Research is the first step in the workflow
           </p>
@@ -691,14 +692,14 @@ function ResearchPageInner() {
           }}
           className="mb-8 w-full"
         >
-          <div className="relative">
+          <div className="paper-panel relative rounded-[1.8rem] p-2">
             <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search a research topic..."
-              className="flex h-14 w-full rounded-2xl border border-input bg-muted/30 pl-12 pr-4 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex h-14 w-full rounded-[1.3rem] border border-input bg-background/75 pl-12 pr-4 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               autoFocus
             />
           </div>
@@ -715,7 +716,7 @@ function ResearchPageInner() {
                 <button
                   key={session.id}
                   type="button"
-                  className="group flex w-full items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-left transition-all hover:border-blue-300 hover:bg-blue-50/30 hover:shadow-sm"
+                  className="paper-panel group flex w-full items-center gap-3 rounded-[1.2rem] px-4 py-3 text-left transition-all hover:bg-[color:oklch(var(--accent)/0.45)]"
                   onClick={() => handleRestoreSession(session)}
                 >
                   <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -777,7 +778,7 @@ function ResearchPageInner() {
               <button
                 key={example}
                 type="button"
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-left text-sm text-foreground transition-all hover:border-primary/50 hover:bg-blue-50/50 hover:shadow-sm"
+                className="paper-panel w-full rounded-[1.2rem] px-4 py-3 text-left text-sm text-foreground transition-all hover:bg-[color:oklch(var(--accent)/0.45)]"
                 onClick={() => handleExampleClick(example)}
               >
                 &ldquo;{example}&rdquo;
@@ -794,10 +795,10 @@ function ResearchPageInner() {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="flex h-[calc(100vh-5rem)] flex-col">
+    <div className="flex h-[calc(100vh-5rem)] flex-col bg-[radial-gradient(circle_at_top_left,rgba(126,87,65,0.06),transparent_28%),linear-gradient(180deg,rgba(248,244,236,0.55),rgba(248,244,236,0.12))]">
       {/* Error banner */}
       {(papersError || landscapeError || projectError) && (
-        <div className="mx-4 mt-2 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
+        <div className="mx-4 mt-2 flex items-center gap-2 rounded-[1rem] border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>
             {papersError
@@ -810,7 +811,7 @@ function ResearchPageInner() {
       )}
 
       {showWorkflowCard && (
-        <div className="relative mx-4 mt-2 rounded-xl border border-border bg-background/80 px-4 py-3">
+        <div className="paper-panel relative mx-4 mt-2 rounded-[1.5rem] px-4 py-4">
           <button
             onClick={() => {
               setShowWorkflowCard(false);
@@ -861,13 +862,13 @@ function ResearchPageInner() {
       )}
 
       {compareCount > 0 && (
-        <div className="mx-4 mt-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+        <div className="mx-4 mt-2 rounded-[1.35rem] border border-primary/15 bg-primary/10 px-4 py-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-sm font-medium text-blue-900">
+              <p className="text-sm font-medium text-foreground">
                 {compareCount} paper{compareCount !== 1 ? "s" : ""} selected for comparison
               </p>
-              <p className="mt-1 text-sm text-blue-800/80">
+              <p className="mt-1 text-sm text-muted-foreground">
                 Selection stays available while you switch between list, cluster, and timeline views.
               </p>
             </div>
@@ -953,9 +954,10 @@ function ResearchPageInner() {
       />
 
       {/* Scope summary */}
-      <div className="border-b border-border bg-muted/20 px-4 py-3 lg:px-6">
+      <div className="paper-panel mx-4 mt-2 rounded-[1.35rem] px-4 py-3 lg:px-6">
         <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <div className="space-y-1">
+            <p className="section-kicker">Working scope</p>
             <p className="text-sm font-medium text-foreground">
               Analyzing <span className="font-semibold">{allPaperIds.length.toLocaleString()}</span> matched paper
               {allPaperIds.length !== 1 ? "s" : ""} for &ldquo;{submittedQuery}&rdquo;
@@ -967,15 +969,15 @@ function ResearchPageInner() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="rounded-full bg-background px-2.5 py-1 text-muted-foreground border border-border">
+            <span className="rounded-full bg-background/80 px-2.5 py-1 text-muted-foreground border border-border">
               Showing {visibleRangeStart}-{visibleRangeEnd} of {papersTotal.toLocaleString()}
             </span>
             {activeFilterCount > 0 && (
-              <span className="rounded-full bg-background px-2.5 py-1 text-muted-foreground border border-border">
+              <span className="rounded-full bg-background/80 px-2.5 py-1 text-muted-foreground border border-border">
                 {activeFilterCount} active filter{activeFilterCount !== 1 ? "s" : ""}
               </span>
             )}
-            <span className="rounded-full bg-background px-2.5 py-1 text-muted-foreground border border-border">
+            <span className="rounded-full bg-background/80 px-2.5 py-1 text-muted-foreground border border-border">
               View: {viewMode}
             </span>
           </div>
@@ -985,7 +987,7 @@ function ResearchPageInner() {
       {/* Mobile tabs */}
       <div className="block xl:hidden">
         <Tabs value={mobileTab} onValueChange={setMobileTab}>
-          <TabsList className="mx-4 mt-2 h-9 gap-1 p-1">
+          <TabsList className="paper-panel mx-4 mt-2 h-10 gap-1 rounded-[1.2rem] p-1">
             <TabsTrigger value="results" className="px-4 text-xs">
               Results
             </TabsTrigger>
@@ -1032,15 +1034,15 @@ function ResearchPageInner() {
       {/* Desktop three-column layout */}
       <div className="hidden flex-1 overflow-hidden xl:flex">
         {/* Left: Results list */}
-        <div className="w-[380px] shrink-0 overflow-hidden border-r border-border flex flex-col">
+        <div className="w-[380px] shrink-0 overflow-hidden border-r border-border/70 bg-background/35 px-3 pb-3 pt-3 flex flex-col">
           {allPaperIds.length >= 4 && (
-            <ViewModeToggle viewMode={viewMode} onChange={handleViewModeChange} />
+            <ViewModeToggle className="mb-3" viewMode={viewMode} onChange={handleViewModeChange} />
           )}
           {renderResultsContent()}
         </div>
 
         {/* Center: Landscape */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto px-4 py-3">
           <ResearchLandscapePanel
             landscape={landscape}
             loading={landscapeLoading && allPaperIds.length > 0}
@@ -1054,7 +1056,7 @@ function ResearchPageInner() {
 
         {/* Right: Chat (collapsible) */}
         {chatOpen ? (
-          <div className="w-[380px] shrink-0">
+          <div className="w-[380px] shrink-0 bg-background/30 px-3 py-3">
             <ResearchChat
               open={chatOpen}
               onToggle={handleChatToggle}

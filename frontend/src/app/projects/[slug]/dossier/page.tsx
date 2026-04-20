@@ -22,9 +22,10 @@ export default function ProjectDossierPage({ params }: ProjectDossierPageProps) 
     <ProjectPageShell slug={slug} activeTab="dossier">
       {(project) => (
         <div className="space-y-6">
-          <Card className="rounded-xl shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">How To Read This Dossier</CardTitle>
+          <Card className="paper-panel rounded-[1.8rem] shadow-none">
+            <CardHeader className="pb-4">
+              <p className="section-kicker">Reading guide</p>
+              <CardTitle className="font-display text-[1.95rem] text-foreground">How To Read This Dossier</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               <p>
@@ -38,7 +39,7 @@ export default function ProjectDossierPage({ params }: ProjectDossierPageProps) 
                     query: project.originQuery ?? project.title,
                     returnTo: `/projects/${project.slug}/dossier`,
                   })}
-                  className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+                  className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
                 >
                   <Compass className="h-3.5 w-3.5" />
                   Corpus In Explorer
@@ -51,21 +52,21 @@ export default function ProjectDossierPage({ params }: ProjectDossierPageProps) 
                     tab: "dossier",
                     label: `${project.title} dossier`,
                   })}
-                  className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                  className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
                 >
                   <GitBranch className="h-3.5 w-3.5" />
                   Dossier Graph
                 </Link>
                 <Link
                   href={`/projects/${project.slug}/matrix`}
-                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                  className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
                 >
                   <GitBranchPlus className="h-3.5 w-3.5" />
                   Compare In Matrix
                 </Link>
                 <Link
                   href={`/projects/${project.slug}/gaps`}
-                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                  className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   Review Gaps

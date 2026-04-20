@@ -55,7 +55,7 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
         <Link
           key={`${keyPrefix}-${match.index}`}
           href={`/paper/${paperId}`}
-          className="inline-flex items-baseline gap-0.5 rounded bg-blue-50 px-1 py-0.5 font-mono text-sm font-medium text-blue-700 no-underline hover:bg-blue-100 hover:text-blue-800"
+          className="inline-flex items-baseline gap-0.5 rounded-full border border-border/70 bg-accent/55 px-1.5 py-0.5 font-mono text-sm font-medium text-primary no-underline hover:bg-accent/80"
         >
           {display}
         </Link>
@@ -63,7 +63,7 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
     } else if (match[3]) {
       // **bold text** (non paper-id)
       nodes.push(
-        <strong key={`${keyPrefix}-${match.index}`} className="font-semibold text-gray-900">
+        <strong key={`${keyPrefix}-${match.index}`} className="font-semibold text-foreground">
           {match[4]}
         </strong>
       );
@@ -79,7 +79,7 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
         <Link
           key={`${keyPrefix}-${match.index}`}
           href={`/paper/${paperId}`}
-          className="inline-flex items-baseline gap-0.5 rounded bg-blue-50 px-1 py-0.5 font-mono text-sm font-medium text-blue-700 no-underline hover:bg-blue-100 hover:text-blue-800"
+          className="inline-flex items-baseline gap-0.5 rounded-full border border-border/70 bg-accent/55 px-1.5 py-0.5 font-mono text-sm font-medium text-primary no-underline hover:bg-accent/80"
         >
           {paperId}
         </Link>

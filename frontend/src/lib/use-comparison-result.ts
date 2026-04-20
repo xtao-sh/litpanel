@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { ComparisonResult } from "@/lib/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8011";
 
 interface UseComparisonResult {
   result: ComparisonResult | null;

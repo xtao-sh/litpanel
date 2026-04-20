@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileText, Atom, Lightbulb, Search, ArrowUpRight } from "lucide-react";
+import { FileText, Atom, Lightbulb, Layers, ArrowUpRight } from "lucide-react";
 import type { Stats } from "@/lib/types";
 
 function formatNumber(n: number): string {
@@ -39,22 +39,21 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
     <div className="stagger-children grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
       {/* Papers */}
       <Link href="/explorer" className="cursor-pointer">
-        <Card className="relative overflow-hidden rounded-xl border-l-4 border-l-blue-500 shadow-sm transition-all duration-200 hover:shadow-md h-full">
-          <div className="absolute inset-0 bg-blue-50/30" />
+        <Card className="paper-panel relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md h-full">
           <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Papers
             </CardTitle>
-            <div className="flex items-center gap-1">
-              <FileText className="h-4 w-4 text-blue-500" />
-              <ArrowUpRight className="h-3 w-3 text-gray-400" />
+            <div className="flex items-center gap-1 text-primary">
+              <FileText className="h-4 w-4" />
+              <ArrowUpRight className="h-3 w-3" />
             </div>
           </CardHeader>
           <CardContent className="relative">
-            <div className="text-3xl font-bold tracking-tight text-foreground">
+            <div className="font-display text-[2.3rem] text-foreground">
               {formatNumber(stats.totalPapers)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
               All indexed papers · {formatNumber(stats.totalCards)} with deep-read cards
             </p>
           </CardContent>
@@ -63,22 +62,21 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
 
       {/* Knowledge Atoms */}
       <Link href="/explorer?tab=atoms" className="cursor-pointer">
-        <Card className="relative overflow-hidden rounded-xl border-l-4 border-l-emerald-500 shadow-sm transition-all duration-200 hover:shadow-md h-full">
-          <div className="absolute inset-0 bg-emerald-50/30" />
+        <Card className="paper-panel relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md h-full">
           <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Knowledge Atoms
             </CardTitle>
-            <div className="flex items-center gap-1">
-              <Atom className="h-4 w-4 text-emerald-500" />
-              <ArrowUpRight className="h-3 w-3 text-gray-400" />
+            <div className="flex items-center gap-1 text-emerald-700">
+              <Atom className="h-4 w-4" />
+              <ArrowUpRight className="h-3 w-3" />
             </div>
           </CardHeader>
           <CardContent className="relative">
-            <div className="text-3xl font-bold tracking-tight text-foreground">
+            <div className="font-display text-[2.3rem] text-foreground">
               {formatNumber(stats.totalAtoms)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
               Extracted knowledge objects across the corpus.{" "}
               {formatNumber(stats.totalMechanisms)} mechanisms &middot;{" "}
               {formatNumber(stats.totalMethods)} methods &middot;{" "}
@@ -91,47 +89,45 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
 
       {/* Research Ideas */}
       <Link href="/ideas" className="cursor-pointer">
-        <Card className="relative overflow-hidden rounded-xl border-l-4 border-l-amber-500 shadow-sm transition-all duration-200 hover:shadow-md h-full">
-          <div className="absolute inset-0 bg-amber-50/30" />
+        <Card className="paper-panel relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md h-full">
           <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Research Ideas
             </CardTitle>
-            <div className="flex items-center gap-1">
-              <Lightbulb className="h-4 w-4 text-amber-500" />
-              <ArrowUpRight className="h-3 w-3 text-gray-400" />
+            <div className="flex items-center gap-1 text-amber-700">
+              <Lightbulb className="h-4 w-4" />
+              <ArrowUpRight className="h-3 w-3" />
             </div>
           </CardHeader>
           <CardContent className="relative">
-            <div className="text-3xl font-bold tracking-tight text-foreground">
+            <div className="font-display text-[2.3rem] text-foreground">
               {formatNumber(stats.totalIdeas)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
               AI-generated hypotheses from maps and gap synthesis
             </p>
           </CardContent>
         </Card>
       </Link>
 
-      {/* Search */}
-      <Link href="/explorer">
-        <Card className="relative overflow-hidden rounded-xl border-l-4 border-l-violet-500 shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md h-full">
-          <div className="absolute inset-0 bg-violet-50/30" />
+      {/* Fields */}
+      <Link href="/fields" className="cursor-pointer">
+        <Card className="paper-panel relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md h-full">
           <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Search
+            <CardTitle className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Fields Covered
             </CardTitle>
-            <div className="flex items-center gap-1">
-              <Search className="h-4 w-4 text-violet-500" />
-              <ArrowUpRight className="h-3 w-3 text-gray-400" />
+            <div className="flex items-center gap-1 text-violet-700">
+              <Layers className="h-4 w-4" />
+              <ArrowUpRight className="h-3 w-3" />
             </div>
           </CardHeader>
           <CardContent className="relative">
-            <div className="text-3xl font-bold tracking-tight text-foreground">
-              Explore
+            <div className="font-display text-[2.3rem] text-foreground">
+              {formatNumber((stats as Stats & { totalFields?: number }).totalFields ?? 0)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Search papers, atoms & ideas
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              Distinct research fields across the corpus
             </p>
           </CardContent>
         </Card>

@@ -54,19 +54,19 @@ function evidenceBadge(strength: string | null) {
   switch (strength?.toLowerCase()) {
     case "strong":
       return (
-        <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100">
+        <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
           Strong
         </Badge>
       );
     case "moderate":
       return (
-        <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">
+        <Badge className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50">
           Moderate
         </Badge>
       );
     case "emerging":
       return (
-        <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100">
+        <Badge className="border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-50">
           Emerging
         </Badge>
       );
@@ -96,10 +96,10 @@ function MethodColumn({
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-background p-4">
+      <div className="paper-panel flex flex-col gap-3 p-4 shadow-none">
         <div className="flex items-center justify-between">
           <Skeleton className="h-5 w-32" />
-          <button onClick={onRemove} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onRemove} className="text-muted-foreground transition-colors hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -112,7 +112,7 @@ function MethodColumn({
 
   if (error || !atom) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 p-6">
+      <div className="paper-panel flex flex-col items-center justify-center gap-2 border-red-200/80 bg-red-50/80 p-6 shadow-none">
         <p className="text-sm text-red-600">Failed to load {slot.title}</p>
         <button onClick={onRemove} className="text-xs text-red-500 underline">
           Remove
@@ -124,15 +124,16 @@ function MethodColumn({
   const topPapers = atom.papers.slice(0, 3);
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-background shadow-sm">
+    <div className="paper-panel flex flex-col overflow-hidden p-0">
       {/* Header */}
-      <div className="flex items-start justify-between border-b border-border p-4">
+      <div className="flex items-start justify-between border-b border-border/70 px-5 py-4">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="text-sm font-semibold text-foreground truncate">
+          <p className="section-kicker mb-2">Method Slot</p>
+          <div className="mb-1 flex items-center gap-2">
+            <h3 className="font-display text-2xl tracking-tight text-foreground">
               {atom.title}
             </h3>
-            <Badge variant="outline" className="text-[10px] shrink-0 capitalize">
+            <Badge variant="outline" className="shrink-0 rounded-full text-[10px] capitalize">
               {atom.type}
             </Badge>
           </div>
@@ -141,7 +142,7 @@ function MethodColumn({
               href={atom.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:underline"
+              className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
             >
               <ExternalLink className="h-2.5 w-2.5" /> Source
             </a>
@@ -149,49 +150,49 @@ function MethodColumn({
         </div>
         <button
           onClick={onRemove}
-          className="ml-2 shrink-0 rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+          className="ml-2 shrink-0 rounded-full border border-border/70 p-1.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
 
       {/* Body sections */}
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-border/70">
         {/* Description */}
-        <div className="p-4">
-          <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="px-5 py-4">
+          <h4 className="section-kicker mb-2">
             Description
           </h4>
-          <p className="text-xs text-foreground/80 leading-relaxed">
+          <p className="text-sm leading-6 text-foreground/80">
             {atom.description || "No description available."}
           </p>
         </div>
 
         {/* When to Use */}
-        <div className="p-4">
-          <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="px-5 py-4">
+          <h4 className="section-kicker mb-2">
             When to Use
           </h4>
-          <p className="text-xs text-foreground/80 leading-relaxed">
+          <p className="text-sm leading-6 text-foreground/80">
             {atom.whenToUse || "Not specified."}
           </p>
         </div>
 
         {/* Evidence & Paper Count */}
-        <div className="flex items-center justify-between p-4">
+        <div className="flex items-center justify-between px-5 py-4">
           <div>
-            <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <h4 className="section-kicker mb-2">
               Evidence
             </h4>
             {evidenceBadge(atom.evidenceStrength)}
           </div>
           <div className="text-right">
-            <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <h4 className="section-kicker mb-2">
               Papers
             </h4>
             <Link
               href={`/explorer?methods=${encodeURIComponent(atom.title)}`}
-              className="text-lg font-bold text-blue-600 hover:underline"
+              className="font-display text-3xl tracking-tight text-primary hover:underline"
             >
               {atom.paperCount}
             </Link>
@@ -200,8 +201,8 @@ function MethodColumn({
 
         {/* Key Papers */}
         {topPapers.length > 0 && (
-          <div className="p-4">
-            <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="px-5 py-4">
+            <h4 className="section-kicker mb-3">
               Key Papers
             </h4>
             <div className="space-y-1.5">
@@ -209,16 +210,16 @@ function MethodColumn({
                 <Link
                   key={paper.paperId}
                   href={`/paper/${paper.paperId}`}
-                  className="flex items-start gap-1.5 rounded-md p-1.5 text-xs transition-colors hover:bg-accent"
+                  className="flex items-start gap-1.5 rounded-2xl border border-transparent bg-background/70 p-3 text-xs transition-colors hover:border-border/70 hover:bg-accent/45"
                 >
                   <FileText className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-foreground/80 line-clamp-1 leading-tight">
+                    <p className="line-clamp-1 text-sm leading-5 text-foreground/85">
                       {paper.title || paper.paperId}
                     </p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="mt-1 flex items-center gap-1.5">
                       {paper.year && (
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                           {paper.year}
                         </span>
                       )}
@@ -275,35 +276,61 @@ export default function MethodComparisonPage() {
   const canAdd = slots.length < 3;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 lg:px-8">
       {/* Header */}
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50">
-          <GitCompare className="h-5 w-5 text-purple-600" />
+      <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-[1.25rem] border border-border/70 bg-background/85 text-primary">
+              <GitCompare className="h-5 w-5" />
+            </div>
+            <p className="section-kicker">Comparison Dossier</p>
+          </div>
+          <div>
+            <h1 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+              Compare Methods
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+              Place up to three methods side by side to compare description,
+              evidence strength, fit conditions, and representative papers.
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">
-            Compare Methods
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Add up to 3 methods to compare side by side
+        <div className="space-y-3 rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
+          <p className="section-kicker">Use This For</p>
+          <p className="text-sm leading-6 text-foreground/80">
+            Checking which identification strategy fits your question, and
+            which papers are most representative for each method family.
           </p>
         </div>
       </div>
 
       {/* Method selectors */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="paper-panel space-y-4 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="section-kicker">Comparison Tracks</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Fill the tracks below. Duplicate methods are ignored.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* Existing slots */}
         {slots.map((slot, idx) => (
-          <div key={slot.slug} className="space-y-1">
+          <div
+            key={slot.slug}
+            className="rounded-[1.25rem] border border-border/70 bg-background/80 p-3 shadow-sm"
+          >
             <div className="flex items-center gap-2">
-              <FlaskConical className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium text-foreground truncate">
+              <FlaskConical className="h-3.5 w-3.5 text-primary" />
+              <span className="truncate text-sm font-medium text-foreground">
                 {slot.title}
               </span>
               <button
                 onClick={handleRemove(idx)}
-                className="ml-auto text-gray-400 hover:text-gray-600"
+                className="ml-auto rounded-full border border-border/70 p-1 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -319,16 +346,17 @@ export default function MethodComparisonPage() {
             placeholder="Search methods to compare..."
           />
         )}
+        </div>
       </div>
 
       {/* Comparison grid */}
       {slots.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border py-16">
-          <GitCompare className="mb-3 h-10 w-10 text-muted-foreground/40" />
-          <p className="text-sm font-medium text-muted-foreground">
+        <div className="paper-panel flex flex-col items-center justify-center py-16 text-center">
+          <GitCompare className="mb-4 h-10 w-10 text-muted-foreground/45" />
+          <p className="font-display text-2xl tracking-tight text-foreground">
             Search and add methods above to start comparing
           </p>
-          <p className="mt-1 text-xs text-muted-foreground/70">
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
             Compare descriptions, evidence strength, and key papers
           </p>
         </div>

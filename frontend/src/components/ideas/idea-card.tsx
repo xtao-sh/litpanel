@@ -32,15 +32,15 @@ const IDEA_STATUSES = ["new", "exploring", "developing", "promoted", "killed"] a
 function statusClassName(status: string | null): string {
   switch (status?.toLowerCase()) {
     case "new":
-      return "bg-blue-100 text-blue-800 border-blue-200";
+      return "bg-sky-100 text-sky-800 border-sky-200";
     case "exploring":
-      return "bg-indigo-100 text-indigo-800 border-indigo-200";
+      return "bg-violet-100 text-violet-800 border-violet-200";
     case "developing":
-      return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      return "bg-amber-100 text-amber-800 border-amber-200";
     case "promoted":
-      return "bg-green-100 text-green-800 border-green-200";
+      return "bg-emerald-100 text-emerald-800 border-emerald-200";
     case "killed":
-      return "bg-red-100 text-red-800 border-red-200";
+      return "bg-rose-100 text-rose-800 border-rose-200";
     default:
       return "";
   }
@@ -49,26 +49,26 @@ function statusClassName(status: string | null): string {
 function statusSelectColor(status: string): string {
   switch (status) {
     case "new":
-      return "text-blue-700";
+      return "text-sky-700";
     case "exploring":
-      return "text-indigo-700";
+      return "text-violet-700";
     case "developing":
-      return "text-yellow-700";
+      return "text-amber-700";
     case "promoted":
-      return "text-green-700";
+      return "text-emerald-700";
     case "killed":
-      return "text-red-700";
+      return "text-rose-700";
     default:
-      return "text-gray-700";
+      return "text-foreground";
   }
 }
 
 function compositeColor(value: number | null): string {
-  if (value === null) return "text-gray-400 bg-gray-50";
-  if (value >= 4) return "text-green-700 bg-green-50";
-  if (value >= 3) return "text-blue-700 bg-blue-50";
-  if (value >= 2) return "text-yellow-700 bg-yellow-50";
-  return "text-gray-500 bg-gray-50";
+  if (value === null) return "text-muted-foreground bg-muted";
+  if (value >= 4) return "text-emerald-700 bg-emerald-50";
+  if (value >= 3) return "text-sky-700 bg-sky-50";
+  if (value >= 2) return "text-amber-700 bg-amber-50";
+  return "text-muted-foreground bg-muted";
 }
 
 // ---------------------------------------------------------------------------
@@ -222,15 +222,15 @@ export function IdeaCard({ idea }: IdeaCardProps) {
   );
 
   return (
-    <Card className="overflow-hidden rounded-xl border transition-all duration-200 hover:shadow-md hover:-translate-y-px">
+    <Card className="paper-panel overflow-hidden rounded-[1.45rem] border border-border/75 bg-background/92 shadow-none transition-all duration-200 hover:-translate-y-px">
       {/* Header */}
       <CardHeader className="space-y-2 pb-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-xs text-gray-400">{idea.id}</span>
+          <span className="font-mono text-xs text-muted-foreground">{idea.id}</span>
           {idea.status && (
             <Badge
               variant="outline"
-              className={`${statusClassName(idea.status)}${idea.status.toLowerCase() === "new" ? " animate-pulse" : ""}`}
+              className={statusClassName(idea.status)}
             >
               {idea.status}
             </Badge>
@@ -241,10 +241,10 @@ export function IdeaCard({ idea }: IdeaCardProps) {
             </Badge>
           )}
           {formattedDate && (
-            <span className="text-xs text-gray-400">{formattedDate}</span>
+            <span className="text-xs text-muted-foreground">{formattedDate}</span>
           )}
         </div>
-        <h3 className="text-base font-semibold leading-snug text-gray-900 break-words">
+        <h3 className="font-display text-[1.25rem] leading-snug text-foreground break-words">
           {idea.title}
         </h3>
       </CardHeader>
@@ -257,7 +257,7 @@ export function IdeaCard({ idea }: IdeaCardProps) {
               <SectionContent content={idea.content} />
             </div>
           ) : (
-            <p className="line-clamp-3 text-sm leading-relaxed text-gray-600 break-words" style={{ overflowWrap: "anywhere" }}>
+            <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground break-words" style={{ overflowWrap: "anywhere" }}>
               {plainPreview}
             </p>
           )}
@@ -266,7 +266,7 @@ export function IdeaCard({ idea }: IdeaCardProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="mt-2 h-7 px-2 text-xs text-gray-500"
+              className="mt-2 h-7 rounded-full px-2.5 text-xs text-muted-foreground hover:bg-accent/50 hover:text-primary"
               onClick={() => setExpanded(!expanded)}
             >
               {expanded ? (
@@ -284,22 +284,22 @@ export function IdeaCard({ idea }: IdeaCardProps) {
           {/* Source papers with descriptions */}
           {sourcePapers.length > 0 && (
             <div className="mt-3 space-y-1">
-              <span className="text-xs font-medium text-gray-400">
+              <span className="section-kicker">
                 Source Papers
               </span>
               <div className="space-y-0.5">
                 {sourcePapers.map((sp) => (
                   <div key={sp.id} className="flex items-baseline gap-1.5">
-                    <FileText className="mt-0.5 h-3 w-3 shrink-0 text-gray-400" />
+                    <FileText className="mt-0.5 h-3 w-3 shrink-0 text-primary/45" />
                     <Link
                       href={`/paper/${sp.id}`}
-                      className="inline-block break-all rounded bg-blue-50 px-1.5 py-0.5 font-mono text-xs font-semibold text-blue-600 hover:bg-blue-100"
+                      className="inline-block break-all rounded-full border border-border/70 bg-accent/55 px-1.5 py-0.5 font-mono text-xs font-semibold text-primary hover:bg-accent/80"
                     >
                       {sp.id}
                     </Link>
                     {sp.description && (
-                      <span className="text-xs text-gray-500">
-                        &mdash; {sp.description}
+                      <span className="text-xs text-muted-foreground">
+                        {sp.description}
                       </span>
                     )}
                   </div>
@@ -311,7 +311,7 @@ export function IdeaCard({ idea }: IdeaCardProps) {
       )}
 
       {/* Footer: Scores + Actions */}
-      <CardFooter className="flex-col items-stretch gap-2 border-t border-gray-100 pt-4">
+      <CardFooter className="flex-col items-stretch gap-2 border-t border-border/70 pt-4">
         <div className="flex items-center gap-4">
           <div className="flex-1 space-y-1.5">
             <ScoreBar label="Novelty" value={idea.novelty} />
@@ -324,6 +324,7 @@ export function IdeaCard({ idea }: IdeaCardProps) {
             <span className="text-lg font-bold leading-tight">
               {idea.composite !== null ? idea.composite.toFixed(1) : "--"}
             </span>
+            <span className="text-[9px] text-muted-foreground">/ 5</span>
             <span className="text-[10px] font-medium uppercase tracking-wide opacity-60">
               Score
             </span>
@@ -353,7 +354,7 @@ export function IdeaCard({ idea }: IdeaCardProps) {
           <Button
             variant="outline"
             size="sm"
-            className="h-7 gap-1.5 text-xs text-purple-600 border-purple-200 hover:bg-purple-50"
+            className="h-7 gap-1.5 rounded-full border-violet-200 text-xs text-violet-700 hover:bg-violet-50"
             onClick={() => setDebateOpen(true)}
           >
             <Scale className="h-3.5 w-3.5" />
@@ -364,7 +365,7 @@ export function IdeaCard({ idea }: IdeaCardProps) {
           <Button
             variant="outline"
             size="sm"
-            className="h-7 gap-1.5 text-xs text-blue-600 border-blue-200 hover:bg-blue-50"
+            className="h-7 gap-1.5 rounded-full border-primary/20 text-xs text-primary hover:bg-primary/10"
             disabled={forking}
             onClick={handleForkToWorkspace}
           >
@@ -380,13 +381,13 @@ export function IdeaCard({ idea }: IdeaCardProps) {
 
         {/* Show expand hint if evaluation exists but card is collapsed */}
         {!expanded && idea.evaluation && (
-          <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-400">
+          <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className={`inline-block h-2 w-2 rounded-full ${
               idea.evaluation.verdict === "PROMOTE"
-                ? "bg-green-400"
+                ? "bg-emerald-400"
                 : idea.evaluation.verdict === "KILL"
-                  ? "bg-red-400"
-                  : "bg-yellow-400"
+                  ? "bg-rose-400"
+                  : "bg-amber-400"
             }`} />
             Critic evaluation available
           </div>

@@ -21,7 +21,7 @@ function MapSkeleton() {
   return (
     <div className="flex gap-8">
       {/* Main content skeleton */}
-      <div className="min-w-0 flex-1 space-y-6">
+      <div className="paper-panel min-w-0 flex-1 space-y-6 p-6">
         <Skeleton className="h-8 w-72" />
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-5/6" />
@@ -39,16 +39,16 @@ function MapSkeleton() {
         <Skeleton className="h-4 w-3/4" />
       </div>
       {/* TOC sidebar skeleton */}
-      <div className="hidden w-56 shrink-0 space-y-3 lg:block">
+      <div className="paper-panel hidden w-64 shrink-0 space-y-3 p-5 lg:block">
         <Skeleton className="h-3 w-20" />
         <Skeleton className="h-3 w-full" />
-        <Skeleton className="ml-3 h-3 w-5/6" />
-        <Skeleton className="ml-3 h-3 w-4/6" />
+        <Skeleton className="h-3 w-5/6" />
+        <Skeleton className="h-3 w-4/6" />
         <Skeleton className="h-3 w-full" />
-        <Skeleton className="ml-3 h-3 w-3/4" />
-        <Skeleton className="ml-3 h-3 w-5/6" />
+        <Skeleton className="h-3 w-3/4" />
+        <Skeleton className="h-3 w-5/6" />
         <Skeleton className="h-3 w-full" />
-        <Skeleton className="ml-3 h-3 w-4/6" />
+        <Skeleton className="h-3 w-4/6" />
       </div>
     </div>
   );
@@ -60,14 +60,17 @@ function MapSkeleton() {
 
 function MapNotFound({ slug }: { slug: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-24">
-      <h2 className="text-xl font-semibold text-gray-900">Map not found</h2>
-      <p className="mt-2 text-sm text-gray-500">
+    <div className="paper-panel flex flex-col items-center justify-center py-24 text-center">
+      <p className="section-kicker">Missing Brief</p>
+      <h2 className="mt-3 font-display text-3xl tracking-tight text-foreground">
+        Map not found
+      </h2>
+      <p className="mt-3 text-sm leading-6 text-muted-foreground">
         No field map exists with the slug &ldquo;{slug}&rdquo;.
       </p>
       <Link
         href="/maps"
-        className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
+        className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-border/70 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-accent/50"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Field Maps
@@ -99,7 +102,7 @@ export default function FieldMapDetailPage({ params }: FieldMapDetailPageProps) 
       {/* Back nav */}
       <Link
         href="/maps"
-        className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
+        className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         All Field Maps
@@ -114,20 +117,37 @@ export default function FieldMapDetailPage({ params }: FieldMapDetailPageProps) 
       {/* Content */}
       {data?.fieldMap && (
         <>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-            {data.fieldMap.title}
-          </h1>
+          <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+            <div className="space-y-3">
+              <p className="section-kicker">Field Brief</p>
+              <h1 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+                {data.fieldMap.title}
+              </h1>
+              <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+                Read the synthesized map as a dossier: major sections, linked
+                papers, and recurring questions are all structured for long-form
+                navigation.
+              </p>
+            </div>
+            <div className="rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
+              <p className="section-kicker">Use This View</p>
+              <p className="mt-2 text-sm leading-6 text-foreground/80">
+                Maps are the atlas layer. They condense scattered paper-level
+                detail into field narratives, methods, debates, and gaps.
+              </p>
+            </div>
+          </div>
 
           {isFrontierGaps ? (
             /* Interactive frontier gaps view */
-            <div className="max-w-4xl">
+            <div className="paper-panel max-w-4xl p-6">
               <FrontierGapsInteractive />
             </div>
           ) : (
             /* Standard markdown rendering */
             <div className="flex gap-8">
               {/* Main content */}
-              <div className="min-w-0 flex-1 max-w-3xl">
+              <div className="paper-panel min-w-0 max-w-3xl flex-1 p-6">
                 <MarkdownRenderer content={data.fieldMap.content} />
               </div>
 

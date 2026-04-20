@@ -78,7 +78,7 @@ const graphStylesheet: any[] = [
       "text-margin-y": 10,
       // Font — large and readable
       "font-size": "18px",
-      "font-family": "Inter, system-ui, sans-serif",
+      "font-family": "\"Source Sans 3\", system-ui, sans-serif",
       "font-weight": "700",
       color: "#0f172a",
       // Constrain label width — single line with ellipsis, NOT wrapping
@@ -119,6 +119,7 @@ const graphStylesheet: any[] = [
       shape: "ellipse",
       "font-size": "20px",
       "font-weight": "700",
+      "font-family": "\"Fraunces\", Georgia, serif",
       "text-background-color": "#eff6ff",
       "text-background-opacity": 0.95,
     },
@@ -543,7 +544,7 @@ export function CytoscapeGraph({
       <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-1.5">
         <button
           onClick={handleFit}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white/90 text-gray-500 shadow-sm backdrop-blur-sm transition-colors hover:bg-gray-50 hover:text-gray-700"
+          className="paper-panel flex h-10 w-10 items-center justify-center rounded-[1rem] bg-background/90 text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background hover:text-foreground"
           title="Fit to view"
         >
           <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -552,14 +553,14 @@ export function CytoscapeGraph({
         </button>
         <button
           onClick={handleZoomIn}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white/90 text-lg font-medium text-gray-500 shadow-sm backdrop-blur-sm transition-colors hover:bg-gray-50 hover:text-gray-700"
+          className="paper-panel flex h-10 w-10 items-center justify-center rounded-[1rem] bg-background/90 text-lg font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background hover:text-foreground"
           title="Zoom in"
         >
           +
         </button>
         <button
           onClick={handleZoomOut}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white/90 text-lg font-medium text-gray-500 shadow-sm backdrop-blur-sm transition-colors hover:bg-gray-50 hover:text-gray-700"
+          className="paper-panel flex h-10 w-10 items-center justify-center rounded-[1rem] bg-background/90 text-lg font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background hover:text-foreground"
           title="Zoom out"
         >
           −
@@ -567,7 +568,7 @@ export function CytoscapeGraph({
       </div>
 
       {/* Legend — bottom-left */}
-      <div className="absolute bottom-4 left-4 z-10 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-white/90 px-3 py-2 text-sm font-medium text-gray-500 shadow-sm backdrop-blur-sm">
+      <div className="paper-panel absolute bottom-4 left-4 z-10 flex flex-wrap items-center gap-3 rounded-[1.1rem] border border-border/75 bg-background/92 px-3.5 py-2.5 text-sm font-medium text-muted-foreground shadow-none backdrop-blur-sm">
         {Object.entries(NODE_COLORS).map(([type, color]) => (
           <span key={type} className="flex items-center gap-1.5 capitalize">
             <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: color }} />

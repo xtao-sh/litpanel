@@ -80,7 +80,7 @@ function IdeasSkeleton() {
   return (
     <div className="space-y-4">
       {[1, 2, 3, 4].map((i) => (
-        <Card key={i}>
+        <Card key={i} className="paper-panel">
           <CardHeader className="space-y-2 pb-3">
             <div className="flex items-center gap-2">
               <Skeleton className="h-4 w-28" />
@@ -93,7 +93,7 @@ function IdeasSkeleton() {
             <Skeleton className="h-4 w-full" />
             <Skeleton className="mt-2 h-4 w-2/3" />
           </CardContent>
-          <div className="flex items-center gap-4 border-t border-gray-100 p-6 pt-4">
+          <div className="flex items-center gap-4 border-t border-border/70 p-6 pt-4">
             <div className="flex-1 space-y-2">
               <Skeleton className="h-2 w-full" />
               <Skeleton className="h-2 w-full" />
@@ -122,18 +122,18 @@ function GroupSection({ label, count, children, defaultOpen = true }: GroupSecti
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50/50">
+    <div className="paper-panel overflow-hidden p-0 shadow-none">
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-gray-100/50"
+        className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-accent/45"
       >
         {open ? (
-          <ChevronDown className="h-4 w-4 text-gray-500" />
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
         ) : (
-          <ChevronRight className="h-4 w-4 text-gray-500" />
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
         )}
-        <span className="text-sm font-semibold text-gray-800">{label}</span>
-        <Badge variant="secondary" className="ml-1 text-xs">
+        <span className="font-display text-xl tracking-tight text-foreground">{label}</span>
+        <Badge variant="secondary" className="ml-1 rounded-full text-xs">
           {count}
         </Badge>
       </button>
@@ -284,24 +284,35 @@ function IdeasPageInner() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-            Research Ideas
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            AI-generated research ideas from the knowledge base
-          </p>
+      <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="space-y-3">
+          <p className="section-kicker">Idea Ledger</p>
+          <div>
+            <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+              Research Ideas
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+              Review generated ideas, sort by novelty or feasibility, and move
+              promising candidates into your working workspace.
+            </p>
+          </div>
         </div>
-        <Link href="/ideas/workspace">
-          <Button variant="outline" size="sm">
-            <PenSquare className="mr-1.5 h-4 w-4" /> My Research Ideas
-          </Button>
-        </Link>
+        <div className="space-y-3 rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
+          <p className="section-kicker">Next Step</p>
+          <p className="text-sm leading-6 text-foreground/80">
+            Use this page to triage candidates. Use Workspace when an idea is
+            strong enough to turn into a research plan.
+          </p>
+          <Link href="/ideas/workspace">
+            <Button variant="outline" size="sm" className="mt-1 rounded-full">
+              <PenSquare className="mr-1.5 h-4 w-4" /> My Research Ideas
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Status tabs + sort + group */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="paper-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
         <Tabs
           value={statusFilter}
           onValueChange={(v) => setStatusFilter(v)}
@@ -331,15 +342,15 @@ function IdeasPageInner() {
           </Select>
 
           {/* Sort */}
-          <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-1 py-0.5">
+          <div className="rounded-full border border-border/70 bg-background/85 px-1 py-0.5 shadow-sm">
             {SORT_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => setSortField(opt.value)}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                   sortField === opt.value
-                    ? "bg-gray-100 text-gray-900"
-                    : "text-gray-500 hover:text-gray-700"
+                    ? "bg-accent/70 text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {opt.label}
@@ -350,10 +361,10 @@ function IdeasPageInner() {
       </div>
 
       {/* Filter row */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="paper-panel flex flex-wrap items-center gap-2 px-5 py-4">
         {/* Search */}
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search ideas..."
             value={searchQuery}
@@ -394,9 +405,9 @@ function IdeasPageInner() {
 
         {/* Source paper filter indicator */}
         {sourceFilter && (
-          <Badge variant="secondary" className="gap-1 text-xs">
+          <Badge variant="secondary" className="gap-1 rounded-full text-xs">
             Source: {sourceFilter}
-            <button onClick={() => setSourceFilter(null)} className="ml-1 hover:text-gray-900">
+            <button onClick={() => setSourceFilter(null)} className="ml-1 hover:text-foreground">
               <X className="h-3 w-3" />
             </button>
           </Badge>
@@ -407,7 +418,7 @@ function IdeasPageInner() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1 px-2 text-xs text-gray-500"
+            className="h-8 gap-1 rounded-full px-2 text-xs text-muted-foreground"
             onClick={clearFilters}
           >
             <X className="h-3 w-3" /> Clear filters
@@ -417,7 +428,7 @@ function IdeasPageInner() {
 
       {/* Error */}
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+        <div className="paper-panel border-red-200/80 bg-red-50/80 p-4 shadow-none">
           <p className="text-sm text-red-700">
             Failed to load ideas. Please try again later.
           </p>
@@ -429,8 +440,8 @@ function IdeasPageInner() {
 
       {/* Empty state */}
       {!loading && processedIdeas.length === 0 && !error && (
-        <div className="flex flex-col items-center justify-center py-16">
-          <p className="text-sm text-gray-500">
+        <div className="paper-panel flex flex-col items-center justify-center py-16 text-center">
+          <p className="font-display text-2xl tracking-tight text-foreground">
             {hasActiveFilters
               ? "No ideas match your filters."
               : statusFilter === "all"
@@ -448,7 +459,7 @@ function IdeasPageInner() {
       {/* Ideas list */}
       {!loading && processedIdeas.length > 0 && (
         <div className="space-y-4">
-          <p className="text-xs text-gray-400">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
             {processedIdeas.length} idea{processedIdeas.length !== 1 ? "s" : ""}
             {hasActiveFilters && ideaItems.length > 0 ? ` (of ${ideaItems.length} total)` : ""}
           </p>

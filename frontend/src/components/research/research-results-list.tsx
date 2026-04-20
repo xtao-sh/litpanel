@@ -88,7 +88,7 @@ export function ResearchResultsList({
       <div className="flex h-full flex-col">
         <div className="flex-1 space-y-0">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="space-y-2 border-b border-border/50 px-3 py-3">
+            <div key={i} className="space-y-2 border-b border-border/40 px-3 py-3">
               <Skeleton className="h-4 w-full" />
               <div className="flex gap-2">
                 <Skeleton className="h-3 w-16" />
@@ -104,7 +104,10 @@ export function ResearchResultsList({
   if (papers.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center px-4 py-12 text-center">
-        <p className="text-sm text-muted-foreground">No papers found.</p>
+        <div className="paper-panel rounded-[1.4rem] px-5 py-4">
+          <p className="section-kicker">Result set</p>
+          <p className="mt-2 text-sm text-muted-foreground">No papers found.</p>
+        </div>
       </div>
     );
   }
@@ -120,10 +123,10 @@ export function ResearchResultsList({
             <div
               key={paper.paperId}
               className={cn(
-                "flex w-full gap-2 border-b border-border/50 px-3 py-2.5 text-left transition-colors hover:bg-accent/50",
+                "mx-2 my-2 flex w-auto gap-2 rounded-[1.15rem] border border-transparent px-3 py-3 text-left transition-colors hover:bg-[color:oklch(var(--accent)/0.42)]",
                 selectedPaperId === paper.paperId &&
-                  "border-l-2 border-l-primary bg-primary/5",
-                isCompareSelected && "bg-blue-50/60"
+                  "border-[color:color-mix(in_oklch,oklch(var(--primary))_18%,transparent)] bg-primary/5",
+                isCompareSelected && "bg-[color:oklch(var(--accent)/0.55)]"
               )}
             >
               {/* Checkbox */}
@@ -139,7 +142,7 @@ export function ResearchResultsList({
                   checked={isCompareSelected}
                   disabled={isCompareDisabled}
                   readOnly
-                  className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="h-3.5 w-3.5 cursor-pointer rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-40"
                 />
               </div>
 
@@ -150,14 +153,14 @@ export function ResearchResultsList({
                 onClick={() => onSelectPaper(paper.paperId)}
               >
                 {/* Title */}
-                <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground">
+                <p className="font-display line-clamp-2 text-[1.05rem] leading-snug text-foreground">
                   {paper.title || paper.paperId}
                 </p>
 
                 {/* TLDR */}
                 {paper.tldr && (
-                  <p className="line-clamp-1 text-xs text-muted-foreground">
-                    {paper.tldr.length > 100 ? paper.tldr.slice(0, 97) + "..." : paper.tldr}
+                  <p className="line-clamp-2 text-xs text-muted-foreground">
+                    {paper.tldr}
                   </p>
                 )}
 
@@ -171,7 +174,7 @@ export function ResearchResultsList({
                     </>
                   )}
                   {paper.hasCard && (
-                    <FileText className="ml-auto h-3 w-3 shrink-0 text-blue-400" />
+                    <FileText className="ml-auto h-3 w-3 shrink-0 text-primary/60" />
                   )}
                 </div>
 
@@ -180,6 +183,7 @@ export function ResearchResultsList({
                   {paper.fields.slice(0, 2).map((f) => (
                     <span
                       key={f}
+                      title={f}
                       className={`inline-flex items-center rounded-full px-1.5 py-0 text-[10px] font-medium ${fieldBadgeClass(f)}`}
                     >
                       {f.length > 16 ? f.slice(0, 14) + ".." : f}
@@ -213,8 +217,8 @@ export function ResearchResultsList({
 
       {/* Compare action bar (when papers selected) */}
       {compareCount > 0 && (
-        <div className="flex items-center justify-between border-t border-blue-200 bg-blue-50 px-3 py-2">
-          <span className="text-[10px] font-medium text-blue-800">
+        <div className="paper-panel mx-2 mb-2 flex items-center justify-between rounded-[1.1rem] px-3 py-2">
+          <span className="text-[10px] font-medium text-foreground">
             {compareCount} selected
           </span>
           <div className="flex items-center gap-1.5">
@@ -225,7 +229,7 @@ export function ResearchResultsList({
                   router.push(compareHref);
                 }
               }}
-              className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1 rounded-full bg-foreground px-2.5 py-1 text-[10px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <GitCompareArrows className="h-2.5 w-2.5" />
               Compare
@@ -233,7 +237,7 @@ export function ResearchResultsList({
             <AddToCollectionInline paperIds={Array.from(compareIds)} />
             <button
               onClick={() => setLitReviewOpen(true)}
-              className="inline-flex items-center gap-1 rounded-md border border-blue-300 bg-white px-2 py-0.5 text-[10px] font-medium text-blue-700 transition-colors hover:bg-blue-100"
+              className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/85 px-2.5 py-1 text-[10px] font-medium text-foreground transition-colors hover:bg-background"
             >
               <BookOpen className="h-2.5 w-2.5" />
               Lit Review
@@ -241,7 +245,7 @@ export function ResearchResultsList({
             <ExportMenu paperIds={Array.from(compareIds)} label="Export" compact />
             <button
               onClick={onClearCompare}
-              className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-blue-600 transition-colors hover:bg-blue-100"
+              className="inline-flex items-center gap-0.5 rounded-full px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
             >
               <X className="h-2.5 w-2.5" />
               Clear
@@ -251,7 +255,7 @@ export function ResearchResultsList({
       )}
 
       {/* Footer: pagination + export */}
-      <div className="flex items-center justify-between border-t border-border px-3 py-2">
+      <div className="paper-panel mx-2 mb-2 flex items-center justify-between rounded-[1.1rem] px-3 py-2">
         <div className="flex items-center gap-2">
           <p className="text-xs text-muted-foreground">
             {total > 0
@@ -264,7 +268,7 @@ export function ResearchResultsList({
         </div>
         <div className="flex items-center gap-1">
           <button
-            className="rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-accent disabled:opacity-40"
+            className="rounded-full px-2.5 py-1 text-xs text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] disabled:opacity-40"
             disabled={page <= 1}
             onClick={() => onPageChange(page - 1)}
           >
@@ -274,7 +278,7 @@ export function ResearchResultsList({
             {page}/{totalPages}
           </span>
           <button
-            className="rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-accent disabled:opacity-40"
+            className="rounded-full px-2.5 py-1 text-xs text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] disabled:opacity-40"
             disabled={page >= totalPages}
             onClick={() => onPageChange(page + 1)}
           >
@@ -359,30 +363,30 @@ function AddToCollectionInline({ paperIds }: { paperIds: string[] }) {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1 rounded-md border border-blue-300 bg-white px-2 py-0.5 text-[10px] font-medium text-blue-700 transition-colors hover:bg-blue-100"
+        className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/85 px-2.5 py-1 text-[10px] font-medium text-foreground transition-colors hover:bg-background"
       >
         <FolderPlus className="h-2.5 w-2.5" />
         {added ? "Added!" : "Collection"}
       </button>
 
       {open && (
-        <div className="absolute right-0 bottom-full mb-1 z-50 w-56 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+        <div className="paper-panel absolute right-0 bottom-full z-50 mb-2 w-56 rounded-[1rem] py-1">
           {collections.length === 0 && !creating && (
-            <p className="px-3 py-2 text-xs text-gray-500">No collections yet.</p>
+            <p className="px-3 py-2 text-xs text-muted-foreground">No collections yet.</p>
           )}
           {collections.map((col) => (
             <button
               key={col.id}
               type="button"
               onClick={() => handleAdd(col.id)}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-gray-50 transition-colors"
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-[color:oklch(var(--accent)/0.45)]"
             >
-              <FolderPlus className="h-3 w-3 text-gray-400" />
+              <FolderPlus className="h-3 w-3 text-muted-foreground" />
               <span className="truncate flex-1">{col.name}</span>
-              <span className="text-[10px] text-gray-400">{col.paperCount}</span>
+              <span className="text-[10px] text-muted-foreground">{col.paperCount}</span>
             </button>
           ))}
-          <div className="border-t border-gray-100 mt-1 pt-1">
+          <div className="mt-1 border-t border-border pt-1">
             {creating ? (
               <div className="px-3 py-1.5">
                 <input
@@ -390,7 +394,7 @@ function AddToCollectionInline({ paperIds }: { paperIds: string[] }) {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="New collection"
-                  className="w-full rounded border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-[0.8rem] border border-input bg-background/85 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleCreate();
@@ -402,7 +406,7 @@ function AddToCollectionInline({ paperIds }: { paperIds: string[] }) {
               <button
                 type="button"
                 onClick={() => setCreating(true)}
-                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-blue-600 hover:bg-blue-50"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-primary hover:bg-[color:oklch(var(--accent)/0.45)]"
               >
                 <Plus className="h-3 w-3" />
                 New Collection

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@apollo/client/react";
 import { Badge } from "@/components/ui/badge";
@@ -46,24 +46,19 @@ export function TimelineView({
     skip: !query,
   });
 
-  const years = data?.topicTimeline?.years ?? [];
-
-  // Track which years are expanded - expand all by default for first 10
-  const [expanded, setExpanded] = useState<Set<number>>(() => {
-    return new Set<number>();
-  });
-
-  // On first load, expand the most recent years
-  const [initialized, setInitialized] = useState(false);
-  if (!initialized && years.length > 0) {
-    const recentYears = years.slice(-8).map((y) => y.year);
-    setExpanded(new Set(recentYears));
-    setInitialized(true);
-  }
+  const years = useMemo(() => data?.topicTimeline?.years ?? [], [data?.topicTimeline?.years]);
+  const defaultExpanded = useMemo(
+    () => new Set(years.slice(-8).map((y) => y.year)),
+    [years]
+  );
+  const [expanded, setExpanded] = useState<Set<number>>(() => new Set<number>());
+  const [hasManualExpansionState, setHasManualExpansionState] = useState(false);
+  const visibleExpanded = hasManualExpansionState ? expanded : defaultExpanded;
 
   const toggleYear = (year: number) => {
+    setHasManualExpansionState(true);
     setExpanded((prev) => {
-      const next = new Set(prev);
+      const next = new Set(hasManualExpansionState ? prev : visibleExpanded);
       if (next.has(year)) {
         next.delete(year);
       } else {
@@ -78,7 +73,7 @@ export function TimelineView({
     return (
       <div className="space-y-4 p-4">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex items-start gap-4">
+          <div key={i} className="paper-panel flex items-start gap-4 rounded-[1.35rem] p-4">
             <Skeleton className="h-6 w-16 rounded" />
             <div className="flex-1 space-y-2">
               <Skeleton className="h-4 w-full rounded" />
@@ -94,7 +89,9 @@ export function TimelineView({
   if (error) {
     return (
       <div className="flex items-center justify-center p-8 text-sm text-red-500">
-        Failed to load timeline: {error.message}
+        <div className="paper-panel rounded-[1.35rem] px-5 py-4">
+          Failed to load timeline: {error.message}
+        </div>
       </div>
     );
   }
@@ -103,8 +100,11 @@ export function TimelineView({
   if (years.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-sm text-muted-foreground">
-        <Clock className="mb-2 h-8 w-8 text-muted-foreground/50" />
-        <p>No timeline data available for this query.</p>
+        <div className="paper-panel rounded-[1.35rem] px-5 py-4 text-center">
+          <Clock className="mx-auto mb-2 h-8 w-8 text-primary/45" />
+          <p className="section-kicker">Timeline view</p>
+          <p className="mt-2">No timeline data available for this query.</p>
+        </div>
       </div>
     );
   }
@@ -115,9 +115,9 @@ export function TimelineView({
   return (
     <div className="overflow-y-auto p-2">
       {/* Timeline */}
-      <div className="relative">
+      <div className="paper-panel relative rounded-[1.5rem] p-4">
         {sortedYears.map((yearData, idx) => {
-          const isExpanded = expanded.has(yearData.year);
+          const isExpanded = visibleExpanded.has(yearData.year);
           const isLast = idx === sortedYears.length - 1;
 
           return (
@@ -131,15 +131,15 @@ export function TimelineView({
                   className={cn(
                     "z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors",
                     isExpanded
-                      ? "border-blue-500 bg-blue-50 text-blue-700"
-                      : "border-gray-300 bg-white text-gray-500 hover:border-blue-400"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-background/85 text-muted-foreground hover:border-primary/40"
                   )}
                 >
                   {yearData.count}
                 </button>
                 {/* Line */}
                 {!isLast && (
-                  <div className="w-0.5 flex-1 bg-gray-200" />
+                  <div className="w-0.5 flex-1 bg-border/80" />
                 )}
               </div>
 
@@ -156,10 +156,10 @@ export function TimelineView({
                   ) : (
                     <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                   )}
-                  <span className="text-sm font-semibold text-foreground">
+                  <span className="font-display text-[1.25rem] text-foreground">
                     {yearData.year}
                   </span>
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  <Badge variant="secondary" className="rounded-full text-[10px] px-1.5 py-0">
                     {yearData.count} paper{yearData.count !== 1 ? "s" : ""}
                   </Badge>
                 </button>
@@ -208,8 +208,8 @@ function TimelinePaperCard({
   return (
     <div
       className={cn(
-        "flex items-start gap-2 rounded-lg border border-border bg-background p-2.5 transition-colors hover:border-blue-200 hover:bg-blue-50/30",
-        compareIds.has(paper.paperId) && "border-blue-200 bg-blue-50/50"
+        "paper-panel flex items-start gap-2 rounded-[1.15rem] p-3 transition-colors hover:bg-[color:oklch(var(--accent)/0.45)]",
+        compareIds.has(paper.paperId) && "bg-[color:oklch(var(--accent)/0.55)]"
       )}
     >
       <div className="flex shrink-0 items-start pt-0.5" onClick={(e) => onToggleCompare(paper.paperId, e)}>
@@ -224,9 +224,9 @@ function TimelinePaperCard({
         href={`/paper/${paper.paperId}`}
         className="flex min-w-0 flex-1 items-start gap-2"
       >
-        <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/60" />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-foreground line-clamp-2 leading-relaxed">
+          <p className="font-display text-[1rem] text-foreground line-clamp-2 leading-relaxed">
             {paper.title || paper.paperId}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -237,12 +237,12 @@ function TimelinePaperCard({
               </span>
             )}
             {paper.hasCard && (
-              <Badge variant="outline" className="text-[9px] px-1 py-0 border-green-300 text-green-700">
+              <Badge variant="outline" className="rounded-full text-[9px] px-1 py-0 border-green-300 text-green-700">
                 Card
               </Badge>
             )}
             {paper.fields.slice(0, 2).map((f) => (
-              <Badge key={f} variant="secondary" className="text-[9px] px-1 py-0">
+              <Badge key={f} variant="secondary" className="rounded-full text-[9px] px-1 py-0">
                 {f}
               </Badge>
             ))}

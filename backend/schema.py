@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 import strawberry
 
@@ -87,6 +87,8 @@ class Paper:
     has_card: bool
     abstract: Optional[str] = None
     nber_url: Optional[str] = None
+    _prefetched_tldr: strawberry.Private[Optional[str]] = None
+    _tldr_loaded: strawberry.Private[bool] = False
 
     @strawberry.field
     async def scores(self) -> list[PaperScore]:
@@ -156,6 +158,8 @@ class Paper:
 
     @strawberry.field
     async def tldr(self) -> Optional[str]:
+        if self._tldr_loaded:
+            return self._prefetched_tldr
         return await resolvers.get_paper_tldr(self.paper_id)
 
     @strawberry.field
@@ -295,10 +299,16 @@ class Idea:
     feasibility: Optional[int]
     impact: Optional[int]
     composite: Optional[float]
+    _prefetched_evaluation: strawberry.Private[Optional[dict[str, Any]]] = None
+    _evaluation_loaded: strawberry.Private[bool] = False
 
     @strawberry.field
     async def evaluation(self) -> Optional[IdeaEvaluation]:
-        data = await resolvers.get_idea_evaluation(self.id)
+        data = (
+            self._prefetched_evaluation
+            if self._evaluation_loaded
+            else await resolvers.get_idea_evaluation(self.id)
+        )
         if data is None:
             return None
         return IdeaEvaluation(
@@ -1040,6 +1050,8 @@ def _dict_to_paper(d: dict) -> Paper:
         has_card=d.get("has_card", False),
         abstract=d.get("abstract"),
         nber_url=d.get("nber_url"),
+        _prefetched_tldr=d.get("tldr"),
+        _tldr_loaded="tldr" in d,
     )
 
 
@@ -1311,6 +1323,8 @@ class Query:
                 feasibility=r.get("feasibility"),
                 impact=r.get("impact"),
                 composite=r.get("composite"),
+                _prefetched_evaluation=r.get("evaluation"),
+                _evaluation_loaded="evaluation" in r,
             )
             for r in rows
         ]

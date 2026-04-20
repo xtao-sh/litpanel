@@ -62,6 +62,13 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Failed to load embedding index — semantic search disabled")
 
+    try:
+        from embeddings import warm_model
+        await warm_model()
+        logger.info("Embedding model warmed")
+    except Exception:
+        logger.exception("Failed to warm embedding model — first semantic request may be slow")
+
     yield  # app runs
     logger.info("Shutting down")
     await resolvers._close_db()
@@ -136,9 +143,19 @@ async def health():
         "KB_DB_PATH",
         os.path.join(os.path.dirname(__file__), "kb.db"),
     )
+    embedding_index_loaded = False
+    embedding_model_warmed = False
+    try:
+        from embeddings import is_loaded, is_model_warmed
+        embedding_index_loaded = is_loaded()
+        embedding_model_warmed = is_model_warmed()
+    except Exception:
+        logger.exception("Failed to read embedding health state")
     return {
         "status": "ok",
         "db_exists": os.path.isfile(db_path),
+        "embedding_index_loaded": embedding_index_loaded,
+        "embedding_model_warmed": embedding_model_warmed,
     }
 
 

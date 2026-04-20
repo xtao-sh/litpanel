@@ -108,21 +108,22 @@ export function ProjectPageShell({
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
         <div className="space-y-3">
+          <p className="section-kicker">Project dossier</p>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+            <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
               {project.paperCount} papers
             </span>
-            <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+            <span className="rounded-full bg-[color:oklch(var(--accent)/0.45)] px-2 py-1 text-xs font-medium text-muted-foreground">
               {getProjectStatusLabel(project.status)}
             </span>
-            <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+            <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
               {getProjectTypeLabel(project)}
             </span>
-            <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+            <span className="rounded-full bg-[color:oklch(var(--accent)/0.45)] px-2 py-1 text-xs font-medium text-muted-foreground">
               {getProjectScopeLabel(project.scopeType)}
             </span>
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="font-display text-[clamp(2.6rem,4.3vw,4rem)] text-foreground">
             {project.title}
           </h1>
           <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
@@ -130,9 +131,10 @@ export function ProjectPageShell({
           </p>
         </div>
 
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Project Context</CardTitle>
+        <Card className="paper-panel rounded-[1.75rem] shadow-none">
+          <CardHeader className="pb-4">
+            <p className="section-kicker">Context rail</p>
+            <CardTitle className="font-display text-[1.65rem] text-foreground">Project Context</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <div className="space-y-1">
@@ -165,7 +167,7 @@ export function ProjectPageShell({
             {project.originQuery && (
               <Link
                 href={`/research?q=${encodeURIComponent(project.originQuery)}`}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/90"
               >
                 Reopen source research
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -180,7 +182,7 @@ export function ProjectPageShell({
                   projectTitle: project.title,
                   tab: activeTab,
                 })}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/90"
               >
                 Open project graph
                 <GitBranch className="h-3.5 w-3.5" />
@@ -190,7 +192,7 @@ export function ProjectPageShell({
         </Card>
       </div>
 
-      <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-background/80 p-2">
+      <div className="paper-panel flex flex-wrap gap-2 rounded-[1.4rem] p-2.5">
         {PROJECT_TABS.map((tab) => {
           const href = `/projects/${project.slug}${tab.suffix}`;
           const isActive = tab.key === activeTab;
@@ -198,10 +200,10 @@ export function ProjectPageShell({
             <Link
               key={tab.key}
               href={href}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-full px-3.5 py-2 text-sm font-medium transition-colors ${
                 isActive
                   ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  : "text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
               }`}
             >
               {tab.label}

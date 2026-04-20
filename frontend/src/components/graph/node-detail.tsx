@@ -65,16 +65,19 @@ export function NodeDetail({ node, connections = [], onClose, onExpand }: NodeDe
   const color = TYPE_COLORS[node.type] ?? "#6b7280";
 
   return (
-    <Card className="w-80 bg-background/90 backdrop-blur-md rounded-xl shadow-lg border">
+    <Card className="paper-panel w-80 rounded-[1.55rem] bg-background/92 shadow-none backdrop-blur-md">
       <div className="p-4">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
-          <Badge variant={getVariant(node.type)} className="text-xs">
-            {node.type}
-          </Badge>
+          <div>
+            <p className="section-kicker">Node dossier</p>
+            <Badge variant={getVariant(node.type)} className="mt-1 text-xs">
+              {node.type}
+            </Badge>
+          </div>
           <button
             onClick={onClose}
-            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="rounded-full p-1.5 text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
             aria-label="Close detail panel"
           >
             <X className="h-4 w-4" />
@@ -82,42 +85,42 @@ export function NodeDetail({ node, connections = [], onClose, onExpand }: NodeDe
         </div>
 
         {/* Title */}
-        <h3 className="mt-2 text-sm font-semibold leading-snug text-gray-900">
+        <h3 className="font-display mt-3 text-[1.55rem] leading-tight text-foreground">
           {node.label}
         </h3>
 
         {/* Node info */}
-        <div className="mt-3 space-y-2">
-          <div className="flex items-center gap-2 text-xs text-gray-500">
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span
               className="inline-block h-3 w-3 rounded-full"
               style={{ backgroundColor: color }}
             />
             <span className="capitalize">{node.type}</span>
-            <span className="text-gray-300">|</span>
+            <span className="text-border">|</span>
             <span>ID: {node.id}</span>
           </div>
 
           {node.isSeed ? (
-            <div className="text-xs font-medium text-blue-600">Seed node in current graph</div>
+            <div className="text-xs font-medium text-primary">Seed node in current graph</div>
           ) : null}
 
           {node.size != null && (
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-muted-foreground">
               Relative size: {node.size}
             </div>
           )}
 
           {node.year != null ? (
-            <div className="text-xs text-gray-500">Year: {node.year}</div>
+            <div className="text-xs text-muted-foreground">Year: {node.year}</div>
           ) : null}
 
           {node.theme ? (
-            <div className="text-xs text-gray-500">Theme: {node.theme}</div>
+            <div className="text-xs text-muted-foreground">Theme: {node.theme}</div>
           ) : null}
 
           {node.paperCount != null ? (
-            <div className="text-xs text-gray-500">Linked papers: {node.paperCount}</div>
+            <div className="text-xs text-muted-foreground">Linked papers: {node.paperCount}</div>
           ) : null}
 
           {node.fields && node.fields.length > 0 ? (
@@ -125,7 +128,7 @@ export function NodeDetail({ node, connections = [], onClose, onExpand }: NodeDe
               {node.fields.slice(0, 4).map((field) => (
                 <span
                   key={field}
-                  className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600"
+                  className="rounded-full bg-[color:oklch(var(--accent)/0.45)] px-2 py-0.5 text-[11px] text-foreground"
                 >
                   {field}
                 </span>
@@ -134,15 +137,13 @@ export function NodeDetail({ node, connections = [], onClose, onExpand }: NodeDe
           ) : null}
 
           {connections.length > 0 ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                Connected By
-              </p>
+            <div className="rounded-[1rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.38)] p-3">
+              <p className="section-kicker">Connected by</p>
               <div className="mt-2 space-y-1.5">
                 {connections.map((item) => (
-                  <div key={item.relation} className="flex items-center justify-between text-xs text-slate-600">
+                  <div key={item.relation} className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>{formatRelationLabel(item.relation)}</span>
-                    <span className="rounded-full bg-white px-1.5 py-0.5 font-medium text-slate-500">
+                    <span className="rounded-full bg-background/85 px-1.5 py-0.5 font-medium text-foreground">
                       {item.count}
                     </span>
                   </div>
@@ -155,7 +156,7 @@ export function NodeDetail({ node, connections = [], onClose, onExpand }: NodeDe
         {/* Actions */}
         <div className="mt-4 flex gap-2">
           {link && (
-            <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+            <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 rounded-full text-xs">
               <Link href={link}>
                 <ExternalLink className="h-3 w-3" />
                 Open detail
@@ -165,7 +166,7 @@ export function NodeDetail({ node, connections = [], onClose, onExpand }: NodeDe
           <Button
             variant="secondary"
             size="sm"
-            className="h-8 gap-1.5 text-xs"
+            className="h-8 gap-1.5 rounded-full text-xs"
             onClick={() => onExpand(node.id, node.type)}
           >
             <Expand className="h-3 w-3" />

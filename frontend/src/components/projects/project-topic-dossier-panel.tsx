@@ -33,9 +33,10 @@ export function ProjectTopicDossierPanel({
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_420px]">
-      <Card className="rounded-xl shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">Topic Dossier</CardTitle>
+      <Card className="paper-panel rounded-[1.8rem] shadow-none">
+        <CardHeader className="pb-4">
+          <p className="section-kicker">Topic dossier</p>
+          <CardTitle className="font-display text-[2rem] text-foreground">Topic Dossier</CardTitle>
           <p className="text-sm leading-relaxed text-muted-foreground">
             This project now acts as a topic dossier: an anchored paper set, a chronology, and a
             synthesis layer tied back to the underlying research question.
@@ -43,20 +44,20 @@ export function ProjectTopicDossierPanel({
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-lg border border-border bg-muted/20 p-4">
+            <div className="rounded-[1.3rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.34)] p-4">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Topic Anchor
               </p>
-              <p className="mt-2 text-lg font-semibold text-foreground">{topicAnchor}</p>
+              <p className="font-display mt-2 text-[1.95rem] text-foreground">{topicAnchor}</p>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                 The query or title that currently defines the boundary of this project corpus.
               </p>
             </div>
-            <div className="rounded-lg border border-border bg-muted/20 p-4">
+            <div className="rounded-[1.3rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.34)] p-4">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Current Scope
               </p>
-              <p className="mt-2 text-lg font-semibold text-foreground">
+              <p className="font-display mt-2 text-[1.95rem] text-foreground">
                 {project.paperCount} papers
               </p>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
@@ -66,19 +67,19 @@ export function ProjectTopicDossierPanel({
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-lg border border-border bg-background p-4">
+            <div className="rounded-[1.1rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-background/85 p-4">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Dominant Field
               </p>
               <p className="mt-2 text-sm font-semibold text-foreground">{topField}</p>
             </div>
-            <div className="rounded-lg border border-border bg-background p-4">
+            <div className="rounded-[1.1rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-background/85 p-4">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Leading Method
               </p>
               <p className="mt-2 text-sm font-semibold text-foreground">{topMethod}</p>
             </div>
-            <div className="rounded-lg border border-border bg-background p-4">
+            <div className="rounded-[1.1rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-background/85 p-4">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Why This Matters
               </p>
@@ -89,8 +90,9 @@ export function ProjectTopicDossierPanel({
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-blue-50/40 p-4">
-            <p className="text-sm font-medium text-foreground">Next Moves</p>
+          <div className="rounded-[1.45rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.38)] p-4">
+            <p className="section-kicker">Next moves</p>
+            <p className="font-display mt-2 text-[1.55rem] text-foreground">Where To Push The Topic</p>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
               Reopen the topic workspace if the query boundary needs refinement. Stay in Projects if
               the corpus is stable enough for comparison, chronology, and gap framing.
@@ -98,7 +100,7 @@ export function ProjectTopicDossierPanel({
             <div className="mt-4 flex flex-wrap gap-2">
               <Link
                 href={buildResearchHref({ query: topicAnchor })}
-                className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
               >
                 <Microscope className="h-3.5 w-3.5" />
                 Topic Workspace
@@ -108,7 +110,7 @@ export function ProjectTopicDossierPanel({
                   query: topicAnchor,
                   returnTo: `/projects/${project.slug}`,
                 })}
-                className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+                className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
               >
                 <Compass className="h-3.5 w-3.5" />
                 Corpus In Explorer
@@ -121,14 +123,14 @@ export function ProjectTopicDossierPanel({
                   tab: "overview",
                   label: `${project.title} dossier`,
                 })}
-                className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
               >
                 <GitBranch className="h-3.5 w-3.5" />
                 Open Graph
               </Link>
               <Link
                 href={`/projects/${project.slug}/gaps`}
-                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 Read Gaps

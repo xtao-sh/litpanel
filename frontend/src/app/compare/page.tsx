@@ -51,12 +51,13 @@ function CompareContent() {
           <span>/</span>
           <span className="text-foreground">Compare</span>
         </nav>
-        <div className="flex flex-col items-center justify-center py-24">
-          <h2 className="text-xl font-semibold text-gray-900">Cannot compare papers</h2>
-          <p className="mt-2 text-sm text-gray-500">{error}</p>
+        <div className="paper-panel flex flex-col items-center justify-center rounded-[1.8rem] px-6 py-24 text-center">
+          <p className="section-kicker">Comparison unavailable</p>
+          <h2 className="font-display mt-3 text-[2rem] text-foreground">Cannot compare papers</h2>
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">{error}</p>
           <Link
             href={backHref}
-            className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
+            className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/15"
           >
             <ArrowLeft className="h-4 w-4" />
             {backLabel}
@@ -68,8 +69,9 @@ function CompareContent() {
 
   if (!result || result.papers.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-24">
-        <p className="text-sm text-gray-500">No results to display.</p>
+      <div className="paper-panel flex flex-col items-center justify-center rounded-[1.8rem] px-6 py-24 text-center">
+        <p className="section-kicker">Empty comparison</p>
+        <p className="mt-3 text-sm text-muted-foreground">No results to display.</p>
       </div>
     );
   }
@@ -95,7 +97,7 @@ function CompareContent() {
       <div className="pt-2">
         <Link
           href={backHref}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border/75 bg-background/85 px-4 py-2 text-sm font-medium text-primary hover:bg-accent/50"
         >
           <ArrowLeft className="h-4 w-4" />
           {backLabel}

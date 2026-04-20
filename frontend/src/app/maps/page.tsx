@@ -63,10 +63,10 @@ function MapGridSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {[1, 2, 3, 4, 5].map((i) => (
-        <Card key={i} className="overflow-hidden">
-          <CardHeader className="pb-3">
+        <Card key={i} className="paper-panel overflow-hidden p-0">
+          <CardHeader className="pb-3 pt-5">
             <div className="flex items-center gap-3">
-              <Skeleton className="h-10 w-10 rounded-lg" />
+              <Skeleton className="h-10 w-10 rounded-2xl" />
               <Skeleton className="h-5 w-40" />
             </div>
           </CardHeader>
@@ -94,18 +94,31 @@ export default function FieldMapsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-gray-900">
-          Field Maps
-        </h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Synthesized views across the research landscape
-        </p>
+      <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="space-y-3">
+          <p className="section-kicker">Atlas Layer</p>
+          <div>
+            <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+              Field Maps
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+              Read synthesized field briefs across the archive: landscapes,
+              methods, debates, frontier gaps, and idea banks.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
+          <p className="section-kicker">Reading Mode</p>
+          <p className="mt-2 text-sm leading-6 text-foreground/80">
+            Use maps to move from scattered papers toward higher-level field
+            structure and recurring research questions.
+          </p>
+        </div>
       </div>
 
       {/* Error state */}
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+        <div className="paper-panel border-red-200/80 bg-red-50/80 p-4 shadow-none">
           <p className="text-sm text-red-700">
             Failed to load field maps. Please try again later.
           </p>
@@ -126,22 +139,23 @@ export default function FieldMapsPage() {
 
             return (
               <Link key={map.slug} href={`/maps/${map.slug}`}>
-                <Card className="group h-full cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:border-blue-200 hover:shadow-lg">
-                  <CardHeader className="pb-3">
+                <Card className="paper-panel group h-full cursor-pointer p-0 transition-all duration-200 hover:-translate-y-1">
+                  <CardHeader className="border-b border-border/70 pb-4 pt-5">
+                    <p className="section-kicker mb-3">Field Brief</p>
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-100">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.1rem] border border-border/70 bg-background/80 text-primary transition-colors group-hover:bg-accent/55">
                         <Icon className="h-5 w-5" />
                       </div>
-                      <h3 className="text-base font-semibold text-gray-900">
+                      <h3 className="font-display text-2xl tracking-tight text-foreground">
                         {map.title}
                       </h3>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
+                  <CardContent className="space-y-4 py-5">
+                    <p className="text-sm leading-6 text-muted-foreground">
                       {description}
                     </p>
-                    <div className="mt-3 flex items-center gap-1 text-xs font-medium text-blue-600 opacity-0 transition-opacity group-hover:opacity-100">
+                    <div className="flex items-center gap-1 text-xs font-medium uppercase tracking-[0.18em] text-primary opacity-0 transition-opacity group-hover:opacity-100">
                       Open map <ArrowRight className="h-3 w-3" />
                     </div>
                   </CardContent>

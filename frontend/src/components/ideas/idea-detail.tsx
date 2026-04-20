@@ -15,13 +15,13 @@ import type { IdeaEvaluation } from "@/lib/types";
 function verdictColor(verdict: string | null): string {
   switch (verdict?.toUpperCase()) {
     case "DEVELOP":
-      return "bg-yellow-100 text-yellow-800 border-yellow-300";
+      return "bg-amber-100 text-amber-800 border-amber-300";
     case "PROMOTE":
-      return "bg-green-100 text-green-800 border-green-300";
+      return "bg-emerald-100 text-emerald-800 border-emerald-300";
     case "KILL":
-      return "bg-red-100 text-red-800 border-red-300";
+      return "bg-rose-100 text-rose-800 border-rose-300";
     default:
-      return "bg-gray-100 text-gray-600 border-gray-300";
+      return "bg-muted text-muted-foreground border-border";
   }
 }
 
@@ -53,25 +53,25 @@ function DimBar({ label, value }: DimBarProps) {
 
   const barColor =
     displayValue >= 4
-      ? "bg-green-500"
+      ? "bg-emerald-500"
       : displayValue >= 3
-        ? "bg-blue-500"
+        ? "bg-sky-500"
         : displayValue >= 2
-          ? "bg-yellow-500"
-          : "bg-gray-400";
+          ? "bg-amber-500"
+          : "bg-muted-foreground/50";
 
   return (
     <div className="flex items-center gap-2">
-      <span className="w-28 shrink-0 text-xs font-medium text-gray-500">
+      <span className="w-28 shrink-0 text-xs font-medium text-muted-foreground">
         {label}
       </span>
-      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
         <div
           className={`h-full rounded-full transition-all ${barColor}`}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="w-8 text-right text-xs font-semibold text-gray-700">
+      <span className="w-8 text-right text-xs font-semibold text-foreground">
         {value !== null ? `${value}/5` : "--"}
       </span>
     </div>
@@ -92,17 +92,17 @@ function NextSteps({ text }: { text: string }) {
 
   return (
     <div className="space-y-2">
-      <h4 className="text-sm font-semibold text-gray-700">Next Steps</h4>
-      <ul className="space-y-1.5">
+      <h4 className="text-sm font-semibold text-foreground">Next Steps</h4>
+      <ol role="list" className="space-y-1.5">
         {steps.map((step, i) => (
-          <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
-            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-600">
+          <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+            <span aria-hidden="true" className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/70 text-xs font-semibold text-primary">
               {i + 1}
             </span>
             <span className="leading-relaxed break-words" style={{ overflowWrap: "anywhere" }}>{step}</span>
           </li>
         ))}
-      </ul>
+      </ol>
     </div>
   );
 }
@@ -126,7 +126,7 @@ function renderWithPaperLinks(text: string): React.ReactNode[] {
       <Link
         key={`paper-${match.index}`}
         href={`/paper/${match[1]}`}
-        className="inline rounded bg-blue-50 px-1 py-0.5 font-mono text-xs font-semibold text-blue-600 hover:bg-blue-100"
+        className="inline rounded-full border border-border/70 bg-accent/55 px-1.5 py-0.5 font-mono text-xs font-semibold text-primary hover:bg-accent/80"
       >
         {match[1]}
       </Link>
@@ -149,10 +149,10 @@ interface IdeaDetailProps {
 
 export function IdeaDetail({ evaluation }: IdeaDetailProps) {
   return (
-    <div className="mt-4 space-y-4 border-t border-gray-100 pt-4">
+    <div className="mt-4 space-y-4 border-t border-border/70 pt-4">
       {/* Verdict + Overall Score */}
       <div className="flex items-center gap-3">
-        <h4 className="text-sm font-semibold text-gray-700">
+        <h4 className="text-sm font-semibold text-foreground">
           Critic Evaluation
         </h4>
         {evaluation.verdict && (
@@ -165,14 +165,14 @@ export function IdeaDetail({ evaluation }: IdeaDetailProps) {
           </Badge>
         )}
         {evaluation.overallScore != null && (
-          <span className="text-sm font-semibold text-gray-500">
+          <span className="text-sm font-semibold text-muted-foreground">
             {evaluation.overallScore.toFixed(1)}/5
           </span>
         )}
       </div>
 
       {/* 5-dimension score bars */}
-      <Card className="overflow-hidden border-gray-100 shadow-none">
+      <Card className="paper-panel overflow-hidden border-border/70 shadow-none">
         <CardContent className="space-y-2 pt-4 pb-4 break-words">
           <DimBar label="Novelty" value={evaluation.noveltyScore} />
           <DimBar label="Identification" value={evaluation.identificationScore} />
@@ -184,7 +184,7 @@ export function IdeaDetail({ evaluation }: IdeaDetailProps) {
 
       {/* Key Risk */}
       {evaluation.keyRisk && (
-        <Card className="overflow-hidden border-amber-200 bg-amber-50/50 shadow-none">
+        <Card className="paper-panel overflow-hidden border-amber-200/70 bg-amber-50/60 shadow-none">
           <CardHeader className="flex-row items-start gap-2 pb-1 pt-3">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
             <h4 className="text-sm font-semibold text-amber-800">Key Risk</h4>
@@ -199,7 +199,7 @@ export function IdeaDetail({ evaluation }: IdeaDetailProps) {
 
       {/* Death reason for KILL verdicts */}
       {evaluation.deathReason && (
-        <Card className="overflow-hidden border-red-200 bg-red-50/50 shadow-none">
+        <Card className="paper-panel overflow-hidden border-rose-200/70 bg-rose-50/60 shadow-none">
           <CardHeader className="flex-row items-start gap-2 pb-1 pt-3">
             <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
             <h4 className="text-sm font-semibold text-red-800">Death Reason</h4>

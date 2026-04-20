@@ -98,12 +98,6 @@ function CreateIdeaDialog({
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
 
-  // Sync with initial values when they change (e.g. from URL params)
-  useEffect(() => {
-    setTitle(initialTitle);
-    setDescription(initialDescription);
-  }, [initialTitle, initialDescription]);
-
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent>
@@ -117,7 +111,7 @@ function CreateIdeaDialog({
           <div>
             <label className="text-sm font-medium text-muted-foreground">Title *</label>
             <input
-              className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 w-full rounded-2xl border border-border/70 bg-background/85 px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="e.g., Impact of AI on Chinese manufacturing"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -127,7 +121,7 @@ function CreateIdeaDialog({
           <div>
             <label className="text-sm font-medium text-muted-foreground">Description</label>
             <textarea
-              className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 w-full rounded-2xl border border-border/70 bg-background/85 px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               rows={3}
               placeholder="Brief description of the idea..."
               value={description}
@@ -312,7 +306,7 @@ function LinkIdeaPicker({
         </DialogHeader>
         <div className="space-y-3">
           <input
-            className="w-full rounded-md border border-border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-2xl border border-border/70 bg-background/85 px-3 py-1.5 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
             placeholder="Search ideas..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -325,7 +319,7 @@ function LinkIdeaPicker({
             {filtered.map((idea) => (
               <button
                 key={idea.id}
-                className="w-full text-left rounded-md px-3 py-2 text-xs hover:bg-blue-50 transition-colors"
+                className="w-full rounded-xl px-3 py-2 text-left text-xs transition-colors hover:bg-accent/45"
                 onClick={() => {
                   onLink(idea.id);
                   onClose();
@@ -433,17 +427,19 @@ function IdeaDevelopmentView({
   return (
     <div className="space-y-4">
       {/* Back button */}
-      <Button variant="ghost" size="sm" onClick={onBack} className="text-muted-foreground">
+      <Button variant="ghost" size="sm" onClick={onBack} className="rounded-full text-muted-foreground">
         <ChevronLeft className="mr-1 h-4 w-4" /> Back to list
       </Button>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         {/* Left column: editable form (3/5) */}
         <div className="xl:col-span-3 space-y-4">
+          <div className="paper-panel p-5">
           {/* Title */}
           <div>
+            <p className="section-kicker mb-2">Idea Draft</p>
             <input
-              className="w-full text-xl font-bold text-foreground border-0 border-b border-transparent focus:border-blue-500 focus:outline-none bg-transparent pb-1"
+              className="w-full border-0 border-b border-transparent bg-transparent pb-1 font-display text-4xl tracking-tight text-foreground focus:border-ring focus:outline-none"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onBlur={() => saveField("title", title)}
@@ -451,13 +447,13 @@ function IdeaDevelopmentView({
           </div>
 
           {/* Status selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground">Status:</span>
+          <div className="mt-4 flex items-center gap-2">
+            <span className="section-kicker">Status</span>
             <div className="flex gap-1">
               {STATUS_OPTIONS.map((s) => (
                 <button
                   key={s}
-                  className={`rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
                     status === s
                       ? statusStyle(s) + " border"
                       : "text-muted-foreground hover:text-foreground"
@@ -472,6 +468,7 @@ function IdeaDevelopmentView({
               ))}
             </div>
           </div>
+          </div>
 
           {/* Textarea fields */}
           <div className="space-y-3">
@@ -480,7 +477,7 @@ function IdeaDevelopmentView({
                 Research Question
               </label>
               <textarea
-                className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="mt-1 w-full rounded-2xl border border-border/70 bg-background/85 px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 rows={3}
                 placeholder="What question does this idea try to answer?"
                 value={researchQuestion}
@@ -493,7 +490,7 @@ function IdeaDevelopmentView({
                 Proposed Method
               </label>
               <textarea
-                className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="mt-1 w-full rounded-2xl border border-border/70 bg-background/85 px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 rows={3}
                 placeholder="How would you investigate this?"
                 value={proposedMethod}
@@ -506,7 +503,7 @@ function IdeaDevelopmentView({
                 Data Needed
               </label>
               <textarea
-                className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="mt-1 w-full rounded-2xl border border-border/70 bg-background/85 px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 rows={2}
                 placeholder="What data sources would you need?"
                 value={dataNeeded}
@@ -519,7 +516,7 @@ function IdeaDevelopmentView({
                 Notes
               </label>
               <textarea
-                className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="mt-1 w-full rounded-2xl border border-border/70 bg-background/85 px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 rows={3}
                 placeholder="Any additional thoughts..."
                 value={notes}
@@ -538,13 +535,13 @@ function IdeaDevelopmentView({
               {relatedPapers.map((pid) => (
                 <span
                   key={pid}
-                  className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-xs font-mono text-blue-600"
+                  className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-accent/55 px-2 py-0.5 text-xs font-mono text-primary"
                 >
                   <Link href={`/paper/${pid}`} className="hover:underline">
                     {pid}
                   </Link>
                   <button
-                    className="text-blue-400 hover:text-red-500"
+                    className="text-primary/60 hover:text-red-500"
                     onClick={() => handleRemovePaper(pid)}
                   >
                     <X className="h-3 w-3" />
@@ -574,11 +571,11 @@ function IdeaDevelopmentView({
                 {linkedIdeas.map((li) => (
                   <div
                     key={li.id}
-                    className="flex items-center gap-2 rounded-md bg-indigo-50 px-3 py-1.5 group"
+                    className="group flex items-center gap-2 rounded-2xl border border-border/70 bg-background/80 px-3 py-1.5"
                   >
-                    <Link2 className="h-3 w-3 text-indigo-400 shrink-0" />
+                    <Link2 className="h-3 w-3 shrink-0 text-primary/60" />
                     <button
-                      className="text-xs font-medium text-indigo-700 hover:underline text-left flex-1 min-w-0 truncate"
+                      className="min-w-0 flex-1 truncate text-left text-xs font-medium text-foreground hover:underline"
                       onClick={() => onSelectIdea(li.id)}
                     >
                       {li.title}
@@ -587,7 +584,7 @@ function IdeaDevelopmentView({
                       {li.status}
                     </Badge>
                     <button
-                      className="text-indigo-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                      className="shrink-0 text-primary/40 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-500"
                       title="Unlink"
                       onClick={() => handleUnlinkIdea(li.id)}
                     >
@@ -600,7 +597,7 @@ function IdeaDevelopmentView({
             <Button
               variant="outline"
               size="sm"
-              className="mt-2 text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+              className="mt-2 rounded-full text-xs text-primary"
               onClick={() => setLinkPickerOpen(true)}
             >
               <Link2 className="mr-1.5 h-3 w-3" />
@@ -611,17 +608,17 @@ function IdeaDevelopmentView({
 
         {/* Right column: system assistance (2/5) */}
         <div className="xl:col-span-2 space-y-4">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          <h3 className="section-kicker">
             Research Assistant
           </h3>
 
           {/* Launch Debate */}
-          <Card>
+          <Card className="paper-panel">
             <CardContent className="p-4">
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full justify-start text-xs text-purple-600 border-purple-200 hover:bg-purple-50"
+                className="w-full justify-start rounded-full text-xs text-primary"
                 disabled={!ideaText.trim()}
                 onClick={() => {
                   setDebateExpanded(false);
@@ -654,7 +651,7 @@ function IdeaDevelopmentView({
           )}
 
           {/* Check Novelty */}
-          <Card>
+          <Card className="paper-panel">
             <CardContent className="p-4">
               <Button
                 variant="outline"
@@ -697,7 +694,7 @@ function IdeaDevelopmentView({
                         <div key={p.paperId} className="py-1.5 border-b border-border last:border-0">
                           <Link
                             href={`/paper/${p.paperId}`}
-                            className="text-xs text-blue-600 hover:underline"
+                            className="text-xs text-primary hover:underline"
                           >
                             {p.title || p.paperId}
                           </Link>
@@ -731,7 +728,7 @@ function IdeaDevelopmentView({
           </Card>
 
           {/* Suggest Methods (5.2 - with "Use" buttons) */}
-          <Card>
+          <Card className="paper-panel">
             <CardContent className="p-4">
               <Button
                 variant="outline"
@@ -754,7 +751,7 @@ function IdeaDevelopmentView({
                         <div className="min-w-0 flex-1">
                           <Link
                             href={`/atom/${m.slug}`}
-                            className="text-xs font-medium text-foreground hover:text-blue-600"
+                            className="text-xs font-medium text-foreground hover:text-primary"
                           >
                             {m.title}
                           </Link>
@@ -765,7 +762,8 @@ function IdeaDevelopmentView({
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-5 px-1.5 text-[10px] text-blue-600 hover:bg-blue-50 shrink-0"
+                          className="h-5 shrink-0 px-1.5 text-[10px] text-primary hover:bg-accent/50"
+                          
                           onClick={() => {
                             setProposedMethod((prev) =>
                               prev + (prev ? "\n" : "") + `${m.title}: ${m.whenToUse || m.description || ""}`
@@ -788,7 +786,7 @@ function IdeaDevelopmentView({
           </Card>
 
           {/* Find Data (5.2 - with "Use" buttons) */}
-          <Card>
+          <Card className="paper-panel">
             <CardContent className="p-4">
               <Button
                 variant="outline"
@@ -811,7 +809,7 @@ function IdeaDevelopmentView({
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <Link
                             href={`/atom/${d.slug}`}
-                            className="text-xs font-medium text-foreground hover:text-blue-600"
+                            className="text-xs font-medium text-foreground hover:text-primary"
                           >
                             {d.title}
                           </Link>
@@ -831,7 +829,7 @@ function IdeaDevelopmentView({
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-5 px-1.5 text-[10px] text-blue-600 hover:bg-blue-50 shrink-0"
+                            className="h-5 shrink-0 px-1.5 text-[10px] text-primary hover:bg-accent/50"
                           onClick={() => {
                             setDataNeeded((prev) =>
                               prev + (prev ? "\n" : "") + `${d.title} (${d.access || "unknown access"})`
@@ -922,7 +920,7 @@ function WorkspaceSkeleton() {
   return (
     <div className="space-y-4">
       {[1, 2, 3].map((i) => (
-        <Skeleton key={i} className="h-24 rounded-lg" />
+        <Skeleton key={i} className="h-24 rounded-[1.5rem]" />
       ))}
     </div>
   );
@@ -938,11 +936,19 @@ export default function IdeaWorkspacePage() {
   return (
     <Suspense
       fallback={
-        <div className="space-y-4">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-24 rounded-lg" />
-          <Skeleton className="h-24 rounded-lg" />
-          <Skeleton className="h-24 rounded-lg" />
+        <div className="space-y-5">
+          <div className="paper-panel space-y-3 px-6 py-6">
+            <p className="section-kicker">Working Studio</p>
+            <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+              My Research Ideas
+            </h2>
+            <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+              Develop and refine your own research ideas with system-assisted tools.
+            </p>
+          </div>
+          <Skeleton className="h-24 rounded-[1.5rem]" />
+          <Skeleton className="h-24 rounded-[1.5rem]" />
+          <Skeleton className="h-24 rounded-[1.5rem]" />
         </div>
       }
     >
@@ -966,14 +972,13 @@ function IdeaWorkspaceContent() {
     refetchQueries: [{ query: GET_USER_IDEAS }],
   });
 
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(Boolean(prefillTitle));
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
 
   // Auto-open create dialog if URL params are present (from frontier gaps)
   useEffect(() => {
     if (prefillTitle) {
-      setShowCreate(true);
       // Clean up URL params so refresh doesn't re-open the dialog
       window.history.replaceState({}, "", "/ideas/workspace");
     }
@@ -1013,36 +1018,50 @@ function IdeaWorkspaceContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-            My Research Ideas
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Develop and refine your own research ideas with system-assisted tools
-          </p>
+      <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="space-y-3">
+          <p className="section-kicker">Working Studio</p>
+          <div>
+            <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+              My Research Ideas
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+              Develop, link, evaluate, and pressure-test your own ideas with
+              novelty, methods, data, and debate tools.
+            </p>
+          </div>
         </div>
-        <Button size="sm" onClick={() => setShowCreate(true)}>
-          <Plus className="mr-1.5 h-4 w-4" /> New Idea
-        </Button>
+        <div className="space-y-3 rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
+          <p className="section-kicker">Create</p>
+          <p className="text-sm leading-6 text-foreground/80">
+            Start from a question, attach related papers, then use the assistant
+            panel to test novelty and feasibility.
+          </p>
+          <Button size="sm" className="mt-1 rounded-full" onClick={() => setShowCreate(true)}>
+            <Plus className="mr-1.5 h-4 w-4" /> New Idea
+          </Button>
+        </div>
       </div>
 
       {/* Sub-header: back link + view toggle */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/ideas"
-          className="text-sm text-muted-foreground hover:text-blue-600 transition-colors"
-        >
-          View AI-generated ideas
-        </Link>
+      <div className="paper-panel flex items-center justify-between px-5 py-4">
+        <div className="space-y-1">
+          <p className="section-kicker">Reference stream</p>
+          <Link
+            href="/ideas"
+            className="text-sm text-muted-foreground transition-colors hover:text-primary"
+          >
+            Browse AI-generated ideas for adjacent questions and prior suggestions
+          </Link>
+        </div>
 
         {/* View mode toggle (6.6) */}
         {ideas.length > 0 && (
-          <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
+          <div className="flex items-center gap-1 rounded-full border border-border/70 bg-background/85 p-0.5 shadow-sm">
             <button
-              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
                 viewMode === "list"
-                  ? "bg-foreground text-background"
+                  ? "bg-accent/70 text-foreground"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setViewMode("list")}
@@ -1051,9 +1070,9 @@ function IdeaWorkspaceContent() {
               List
             </button>
             <button
-              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
                 viewMode === "kanban"
-                  ? "bg-foreground text-background"
+                  ? "bg-accent/70 text-foreground"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setViewMode("kanban")}
@@ -1066,7 +1085,7 @@ function IdeaWorkspaceContent() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+        <div className="paper-panel border-red-200/80 bg-red-50/80 p-4 shadow-none">
           <p className="text-sm text-red-700">Failed to load ideas. Please try again later.</p>
         </div>
       )}
@@ -1075,16 +1094,29 @@ function IdeaWorkspaceContent() {
 
       {/* Ideas list */}
       {!loading && ideas.length === 0 && !error && (
-        <div className="flex flex-col items-center justify-center py-16">
-          <p className="text-sm text-muted-foreground">
-            No research ideas yet. Click &quot;New Idea&quot; to get started.
+        <div className="paper-panel flex flex-col items-center justify-center py-16 text-center">
+          <p className="font-display text-2xl tracking-tight text-foreground">
+            No research ideas yet.
           </p>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+            Start with a question, attach a few anchor papers, and use novelty,
+            method, and debate tools to pressure-test the idea.
+          </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            <Button size="sm" className="rounded-full" onClick={() => setShowCreate(true)}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              New Idea
+            </Button>
+            <Button asChild variant="outline" size="sm" className="rounded-full">
+              <Link href="/ideas">Open AI-generated ideas</Link>
+            </Button>
+          </div>
         </div>
       )}
 
       {!loading && ideas.length > 0 && viewMode === "list" && (
         <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
             {ideas.length} idea{ideas.length !== 1 ? "s" : ""}
           </p>
           {ideas.map((idea) => (
@@ -1100,7 +1132,7 @@ function IdeaWorkspaceContent() {
 
       {!loading && ideas.length > 0 && viewMode === "kanban" && (
         <div>
-          <p className="text-xs text-muted-foreground mb-3">
+          <p className="mb-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
             {ideas.length} idea{ideas.length !== 1 ? "s" : ""} across {STATUS_OPTIONS.length} stages
           </p>
           <KanbanView ideas={ideas} onSelectIdea={(id) => setSelectedId(id)} />
@@ -1109,6 +1141,7 @@ function IdeaWorkspaceContent() {
 
       {/* Create dialog */}
       <CreateIdeaDialog
+        key={`${prefillTitle}::${prefillDescription}::${showCreate ? "open" : "closed"}`}
         open={showCreate}
         onClose={() => setShowCreate(false)}
         onCreate={handleCreate}

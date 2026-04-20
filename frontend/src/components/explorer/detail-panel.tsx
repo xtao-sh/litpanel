@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import { useQuery } from "@apollo/client/react";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -52,19 +52,35 @@ interface DetailPanelProps {
 // ---------------------------------------------------------------------------
 
 export function DetailPanel({ item, onClose }: DetailPanelProps) {
+  // Close on Escape key
+  useEffect(() => {
+    if (!item) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [item, onClose]);
+
   if (!item) return null;
 
   return (
     <aside
-      className="fixed inset-y-0 right-0 z-30 w-full max-w-md border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.05)] transition-transform duration-200 ease-out lg:relative lg:inset-auto lg:z-auto lg:w-[400px] lg:shadow-[-4px_0_12px_rgba(0,0,0,0.05)]"
+      className="fixed inset-y-0 right-0 z-30 w-full max-w-md border-l border-border/70 bg-background/95 shadow-[-12px_0_36px_rgba(44,51,71,0.12)] backdrop-blur-sm transition-transform duration-200 ease-out lg:relative lg:inset-auto lg:z-auto lg:w-[400px] lg:shadow-[-12px_0_36px_rgba(44,51,71,0.08)]"
       style={{ animation: "slideInRight 0.2s ease-out" }}
     >
       <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h3 className="text-sm font-semibold text-foreground">Details</h3>
+        <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+          <div>
+            <p className="section-kicker">Inspection</p>
+            <h3 className="font-display text-2xl tracking-tight text-foreground">Details</h3>
+          </div>
           <button
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
@@ -77,6 +93,10 @@ export function DetailPanel({ item, onClose }: DetailPanelProps) {
             {item.type === "idea" && <IdeaDetail idea={item.data} />}
           </div>
         </ScrollArea>
+
+        <div className="border-t border-border/50 px-4 py-2 text-center">
+          <span className="text-[10px] text-muted-foreground">Press <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">Esc</kbd> to close</span>
+        </div>
       </div>
     </aside>
   );
@@ -208,7 +228,7 @@ function PaperDetail({ paperId }: { paperId: string }) {
             {paper.sections.length > 3 && (
               <Link
                 href={`/paper/${paper.paperId}`}
-                className="inline-block text-sm text-blue-600 hover:underline"
+                className="inline-block text-sm text-primary hover:underline"
               >
                 View full card ({paper.sections.length} sections)
               </Link>
@@ -291,7 +311,7 @@ function AtomDetail({ slug }: { slug: string }) {
                 href={`/paper/${p.paperId}`}
                 className="block rounded border border-border p-2 text-sm transition-colors hover:bg-muted/50"
               >
-                <span className="text-blue-600">{p.title || p.paperId}</span>
+                <span className="text-primary">{p.title || p.paperId}</span>
                 <div className="mt-0.5 flex gap-3 text-xs text-muted-foreground">
                   {p.year && <span>{p.year}</span>}
                   {p.averageScore != null && (
@@ -303,7 +323,7 @@ function AtomDetail({ slug }: { slug: string }) {
             {atom.papers.length > 10 && (
               <Link
                 href={`/atom/${atom.slug}`}
-                className="inline-block text-sm text-blue-600 hover:underline"
+                className="inline-block text-sm text-primary hover:underline"
               >
                 View all {atom.paperCount} papers
               </Link>
@@ -368,7 +388,7 @@ function IdeaDetail({ idea }: { idea: Idea }) {
               <Link
                 key={pid}
                 href={`/paper/${pid}`}
-                className="block text-sm text-blue-600 hover:underline"
+                className="block text-sm text-primary hover:underline"
               >
                 {pid}
               </Link>
@@ -407,7 +427,7 @@ function ScoreCell({
   value: number | null;
 }) {
   return (
-    <div className="rounded-lg border border-border p-2.5 text-center">
+    <div className="rounded-2xl border border-border/70 bg-background/75 p-2.5 text-center">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="text-lg font-semibold tabular-nums text-foreground">
         {value ?? "-"}
@@ -474,27 +494,27 @@ function atomTypeVariant(type: string): BadgeProps["variant"] {
 function evidenceBadgeClass(strength: string | null): string {
   switch (strength) {
     case "strong":
-      return "bg-green-100 text-green-800";
+      return "bg-emerald-100 text-emerald-800";
     case "moderate":
-      return "bg-yellow-100 text-yellow-800";
+      return "bg-amber-100 text-amber-800";
     case "weak":
-      return "bg-red-100 text-red-800";
+      return "bg-rose-100 text-rose-800";
     default:
-      return "bg-gray-100 text-gray-600";
+      return "bg-muted text-muted-foreground";
   }
 }
 
 function statusBadgeClass(status: string | null): string {
   switch (status) {
     case "new":
-      return "bg-blue-100 text-blue-800";
+      return "bg-sky-100 text-sky-800";
     case "developing":
-      return "bg-yellow-100 text-yellow-800";
+      return "bg-amber-100 text-amber-800";
     case "promoted":
-      return "bg-green-100 text-green-800";
+      return "bg-emerald-100 text-emerald-800";
     case "killed":
-      return "bg-red-100 text-red-800";
+      return "bg-rose-100 text-rose-800";
     default:
-      return "bg-gray-100 text-gray-600";
+      return "bg-muted text-muted-foreground";
   }
 }

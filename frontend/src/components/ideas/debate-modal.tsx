@@ -32,7 +32,7 @@ import type { AgentRole, DebateAgentMessage, DebateVerdict } from "@/lib/types";
 // Constants
 // ---------------------------------------------------------------------------
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8011";
 
 const AGENT_CONFIG: Record<
   AgentRole,
@@ -54,17 +54,17 @@ const AGENT_CONFIG: Record<
   },
   methodologist: {
     color: "text-blue-600",
-    borderColor: "border-l-blue-600",
-    bgColor: "bg-blue-600",
+    borderColor: "border-l-sky-600",
+    bgColor: "bg-sky-600",
     icon: FlaskConical,
-    badgeClass: "bg-blue-100 text-blue-700 border-blue-200",
+    badgeClass: "border-sky-200 bg-sky-50 text-sky-700",
   },
   moderator: {
     color: "text-purple-600",
-    borderColor: "border-l-purple-600",
-    bgColor: "bg-purple-600",
+    borderColor: "border-l-violet-600",
+    bgColor: "bg-violet-600",
     icon: Scale,
-    badgeClass: "bg-purple-100 text-purple-700 border-purple-200",
+    badgeClass: "border-violet-200 bg-violet-50 text-violet-700",
   },
 };
 
@@ -108,7 +108,7 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
         <Link
           key={`${keyPrefix}-paper-bold-${match.index}`}
           href={`/paper/${paperId}`}
-          className="inline rounded bg-blue-50 px-1 py-0.5 font-mono text-xs font-semibold text-blue-600 hover:bg-blue-100"
+          className="inline rounded-full border border-border/70 bg-accent/55 px-1.5 py-0.5 font-mono text-xs font-semibold text-primary hover:bg-accent/80"
         >
           {display}
         </Link>
@@ -122,7 +122,7 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
         <Link
           key={`${keyPrefix}-paper-${match.index}`}
           href={`/paper/${match[5]}`}
-          className="inline rounded bg-blue-50 px-1 py-0.5 font-mono text-xs font-semibold text-blue-600 hover:bg-blue-100"
+          className="inline rounded-full border border-border/70 bg-accent/55 px-1.5 py-0.5 font-mono text-xs font-semibold text-primary hover:bg-accent/80"
         >
           {match[5]}
         </Link>
@@ -263,7 +263,7 @@ const AgentMessageCard = memo(function AgentMessageCard({
   const Icon = cfg.icon;
 
   return (
-    <div className={`rounded-lg border-l-[3px] ${cfg.borderColor} bg-card p-4 shadow-sm`}>
+    <div className={`paper-panel rounded-[1.35rem] border-l-[3px] ${cfg.borderColor} bg-background/85 p-4 shadow-none`}>
       <div className="mb-2 flex items-center gap-2">
         <div
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${cfg.bgColor}`}
@@ -330,10 +330,10 @@ function VerdictCard({
   }
 
   return (
-    <div className={`rounded-lg border-2 ${recColor} p-5 shadow-md`}>
+    <div className={`paper-panel rounded-[1.5rem] border-2 ${recColor} p-5 shadow-none`}>
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Scale className="h-5 w-5 text-purple-600" />
+          <Scale className="h-5 w-5 text-violet-600" />
           <span className="text-base font-bold text-foreground">Verdict</span>
           <Badge className={`text-xs uppercase ${recBadgeClass}`}>
             {verdict.recommendation}
@@ -664,19 +664,19 @@ export function DebateModal({
     <div
       className={
         isInline
-          ? "relative flex min-h-[420px] w-full flex-col overflow-hidden rounded-xl border border-border bg-muted shadow-sm"
-          : "relative mx-4 flex h-[90vh] w-full max-w-[800px] flex-col overflow-hidden rounded-xl border border-border bg-muted shadow-2xl"
+          ? "paper-panel relative flex min-h-[420px] w-full flex-col overflow-hidden rounded-[1.75rem] border border-border/75 bg-background/92 shadow-[0_24px_60px_rgba(44,51,71,0.10)]"
+          : "paper-panel relative mx-4 flex h-[90vh] w-full max-w-[800px] flex-col overflow-hidden rounded-[1.9rem] border border-border/75 bg-background/94 shadow-[0_28px_80px_rgba(44,51,71,0.18)]"
       }
     >
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-border bg-card px-6 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-border/70 bg-background/80 px-6 py-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <Scale className="h-5 w-5 text-purple-600 shrink-0" />
+              <Scale className="h-5 w-5 shrink-0 text-violet-600" />
               <h2 className="truncate text-lg font-bold text-foreground">
                 {ideaTitle}
               </h2>
-              <Badge className="shrink-0 bg-purple-100 text-purple-700 border-purple-200 text-[10px]">
+              <Badge className="shrink-0 border-violet-200 bg-violet-50 text-[10px] text-violet-700">
                 Research Debate
               </Badge>
             </div>
@@ -686,18 +686,18 @@ export function DebateModal({
               </p>
             )}
             {status === "done" && (
-              <p className="mt-1 text-xs text-green-600 font-medium">Debate complete</p>
+              <p className="mt-1 text-xs font-medium text-emerald-600">Debate complete</p>
             )}
           </div>
           <div className="ml-4 flex items-center gap-2">
             {isInline && onExpand && (
-              <Button variant="outline" size="sm" className="text-xs" onClick={onExpand}>
+              <Button variant="outline" size="sm" className="rounded-full text-xs" onClick={onExpand}>
                 <Maximize2 className="mr-1.5 h-3.5 w-3.5" />
                 Expand
               </Button>
             )}
             {!isInline && onCollapseToInline && (
-              <Button variant="outline" size="sm" className="text-xs" onClick={onCollapseToInline}>
+              <Button variant="outline" size="sm" className="rounded-full text-xs" onClick={onCollapseToInline}>
                 <Minimize2 className="mr-1.5 h-3.5 w-3.5" />
                 Back to page
               </Button>
@@ -725,8 +725,8 @@ export function DebateModal({
           {/* Idle state: start button */}
           {status === "idle" && (
             <div className="flex flex-col items-center justify-center py-16">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-50">
-                <Scale className="h-8 w-8 text-purple-500" />
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-border/70 bg-accent/55">
+                <Scale className="h-8 w-8 text-violet-600" />
               </div>
               <h3 className="mb-2 text-lg font-semibold text-foreground">
                 Multi-Agent Research Debate
@@ -763,9 +763,9 @@ export function DebateModal({
 
           {/* Context banner */}
           {contextItems.length > 0 && status !== "idle" && (
-            <div className="mb-4 flex items-center gap-2 rounded-lg bg-blue-50 px-4 py-2.5">
-              <BookOpen className="h-4 w-4 text-blue-500 shrink-0" />
-              <span className="text-xs text-blue-700">
+            <div className="mb-4 flex items-center gap-2 rounded-2xl border border-border/70 bg-accent/45 px-4 py-2.5">
+              <BookOpen className="h-4 w-4 shrink-0 text-primary" />
+              <span className="text-xs text-primary">
                 Analyzing with {contextItems.length} paper{contextItems.length !== 1 ? "s" : ""}
               </span>
               <div className="flex flex-wrap gap-1">
@@ -773,13 +773,13 @@ export function DebateModal({
                   <Link
                     key={item.entity_id}
                     href={`/paper/${item.entity_id}`}
-                    className="rounded bg-blue-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue-600 hover:bg-blue-200"
+                    className="rounded-full border border-border/70 bg-background/85 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary hover:bg-accent/50"
                   >
                     {item.entity_id}
                   </Link>
                 ))}
                 {contextItems.length > 8 && (
-                  <span className="text-[10px] text-blue-500">
+                  <span className="text-[10px] text-primary/70">
                     +{contextItems.length - 8} more
                   </span>
                 )}
@@ -808,11 +808,11 @@ export function DebateModal({
                   if (isFirstMod) {
                     elements.push(
                       <div key="synthesis-divider" className="flex items-center gap-3 py-3">
-                        <div className="h-px flex-1 bg-purple-200" />
-                        <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-600">
+                        <div className="h-px flex-1 bg-border" />
+                        <span className="rounded-full border border-border/70 bg-accent/55 px-3 py-1 text-xs font-medium text-violet-700">
                           Moderator Synthesis
                         </span>
-                        <div className="h-px flex-1 bg-purple-200" />
+                        <div className="h-px flex-1 bg-border" />
                       </div>
                     );
                   }
@@ -834,7 +834,7 @@ export function DebateModal({
 
               {/* Error */}
               {status === "error" && errorMessage && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
                   <p className="text-sm text-red-700">{errorMessage}</p>
                 </div>
               )}
@@ -843,11 +843,11 @@ export function DebateModal({
         </div>
 
         {/* Footer */}
-        <div className="flex shrink-0 items-center justify-between border-t border-border bg-card px-6 py-3">
+        <div className="flex shrink-0 items-center justify-between border-t border-border/70 bg-background/80 px-6 py-3">
           <div className="flex items-center gap-2">
             {status === "debating" && (
               <>
-                <Loader2 className="h-4 w-4 animate-spin text-purple-500" />
+                <Loader2 className="h-4 w-4 animate-spin text-violet-600" />
                 <span className="text-xs text-muted-foreground">Debate in progress...</span>
               </>
             )}
@@ -864,11 +864,11 @@ export function DebateModal({
           </div>
           <div className="flex items-center gap-2">
             {(status === "error" || status === "done") && (
-              <Button variant="outline" size="sm" className="text-xs" onClick={startDebate}>
+              <Button variant="outline" size="sm" className="rounded-full text-xs" onClick={startDebate}>
                 Restart Debate
               </Button>
             )}
-            <Button variant="outline" size="sm" className="text-xs" onClick={handleClose}>
+            <Button variant="outline" size="sm" className="rounded-full text-xs" onClick={handleClose}>
               Close
             </Button>
           </div>
