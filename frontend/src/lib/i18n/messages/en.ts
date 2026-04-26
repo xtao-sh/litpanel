@@ -68,7 +68,7 @@ const en = {
       projectMatrix: "Project Matrix",
     },
     descriptions: {
-      dashboard: "Live signals, topic movement, and the next dossier to open.",
+      dashboard: "Workspace",
       latest: "Recent papers, topic movement, and emerging paper clusters.",
       research: "Move from query to topic workspace, then to a stable paper set.",
       setup: "Connect folders, import PDFs, and bring a new library online.",
@@ -116,6 +116,7 @@ const en = {
       dashboard: "Dashboard",
       research: "Research",
       explorer: "Explorer",
+      evidenceBrowser: "Evidence Browser",
       latestResearch: "Latest Research",
       projects: "Projects",
       fieldMaps: "Field Maps",
@@ -579,6 +580,7 @@ const en = {
       titleAZ: "Title A-Z",
     },
     actions: {
+      filters: "Filters",
       reset: "Reset",
       selectVisible: "Select page",
       selectVisibleHelp: "Select the papers currently shown on this page for export, re-reading, or batch actions.",

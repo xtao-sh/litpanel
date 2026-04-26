@@ -759,19 +759,15 @@ export default function PipelinePage() {
   // -----------------------------------------------------------------------
   // Render
   // -----------------------------------------------------------------------
+  const showAdvancedTools = false;
+
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col gap-8">
       {/* Header */}
       <div>
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">
           导入中心
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          导入、同步并处理 PDF 到本地知识库
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          AI 模型和流程路由可以在设置页配置。
-        </p>
       </div>
 
       {libraries.length > 0 && (
@@ -792,22 +788,19 @@ export default function PipelinePage() {
               </option>
             ))}
           </select>
-          <span className="text-xs text-muted-foreground">
-            导入内容会写入当前选择的文献库。
-          </span>
         </div>
       )}
 
-      {!appConfig.supportsRemoteDiscovery && (
+      {showAdvancedTools && !appConfig.supportsRemoteDiscovery && (
         <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
           当前工作区未启用远程发现。请通过 PDF 上传建立本地文献库。
         </div>
       )}
 
-      <Card>
+      <Card className="order-3">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">
-            AI 阅读设置
+            读取设置
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -826,10 +819,6 @@ export default function PipelinePage() {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                {selectedReadingProfile?.description ??
-                  "该方案控制新论文进入知识库前的读取深度。"}
-              </p>
             </div>
 
             <div className="space-y-2">
@@ -838,6 +827,7 @@ export default function PipelinePage() {
                 {analysisFocusOptions.map((option) => (
                   <label
                     key={option.value}
+                    title={option.description}
                     className="flex gap-3 rounded-xl border border-border bg-background/70 p-3"
                   >
                     <Checkbox
@@ -850,9 +840,6 @@ export default function PipelinePage() {
                     <span className="space-y-1">
                       <span className="block text-sm font-medium text-foreground">
                         {option.label}
-                      </span>
-                      <span className="block text-xs text-muted-foreground">
-                        {option.description}
                       </span>
                     </span>
                   </label>
@@ -867,6 +854,8 @@ export default function PipelinePage() {
       {/* ================================================================ */}
       {/* Section 1: Pipeline Status */}
       {/* ================================================================ */}
+      {showAdvancedTools ? (
+      <>
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">
@@ -1050,8 +1039,10 @@ export default function PipelinePage() {
           )}
         </CardContent>
       </Card>
+      </>
+      ) : null}
 
-      <Card>
+      <Card className="order-4">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold">
@@ -1126,6 +1117,7 @@ export default function PipelinePage() {
         </CardContent>
       </Card>
 
+      {showAdvancedTools ? (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">
@@ -1180,11 +1172,12 @@ export default function PipelinePage() {
           )}
         </CardContent>
       </Card>
+      ) : null}
 
       {/* ================================================================ */}
       {/* Section 2: Discover New Papers */}
       {/* ================================================================ */}
-      {appConfig.supportsRemoteDiscovery && (
+      {showAdvancedTools && appConfig.supportsRemoteDiscovery && (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">
@@ -1284,7 +1277,7 @@ export default function PipelinePage() {
       {/* ================================================================ */}
       {/* Section 3: Process by ID */}
       {/* ================================================================ */}
-      {appConfig.supportsRemoteDiscovery && (
+      {showAdvancedTools && appConfig.supportsRemoteDiscovery && (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">
@@ -1364,16 +1357,13 @@ export default function PipelinePage() {
       {/* ================================================================ */}
       {/* Section 4: Upload PDF */}
       {/* ================================================================ */}
-      <Card>
+      <Card className="order-2">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">
             上传 PDF
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-xs text-muted-foreground">
-            新上传的论文会保存当前 AI 阅读设置，后续流程会按这个方案处理。
-          </p>
           {/* Drop zone */}
           <div
             className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors ${
@@ -1515,6 +1505,7 @@ export default function PipelinePage() {
       {/* ================================================================ */}
       {/* Section 5: Recent Activity */}
       {/* ================================================================ */}
+      {showAdvancedTools ? (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">
@@ -1563,6 +1554,7 @@ export default function PipelinePage() {
           )}
         </CardContent>
       </Card>
+      ) : null}
     </div>
   );
 }

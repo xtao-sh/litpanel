@@ -40,12 +40,9 @@ export function ActiveIdeas({ ideas, loading }: ActiveIdeasProps) {
     <Card className="paper-panel rounded-[1.45rem] border-border/75 shadow-none">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="section-kicker">{t("dashboard.activeIdeas.kicker")}</p>
-            <CardTitle className="mt-2 font-display text-[1.45rem] text-foreground">
-              {t("dashboard.activeIdeas.title")}
-            </CardTitle>
-          </div>
+          <CardTitle className="text-base font-semibold">
+            {t("dashboard.activeIdeas.title")}
+          </CardTitle>
           <Link
             href="/ideas"
             className="text-xs font-medium text-primary hover:underline"

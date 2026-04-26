@@ -582,9 +582,6 @@ export default function SetupPage() {
             <CardTitle className="text-base">{t("setup.ai.providersTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-muted-foreground">
-            <p>
-              {t("setup.ai.providersBody")}
-            </p>
             <div className="rounded-2xl border border-border bg-background/75 p-3">
               <p className="text-xs font-medium text-foreground">
                 {t("setup.ai.enabledProviders")}
@@ -629,11 +626,10 @@ export default function SetupPage() {
             </div>
 
             {activeProvider && activeProviderSetting ? (
-              <div className="rounded-2xl border border-border bg-background/75 p-4">
+              <div className="rounded-2xl border border-border bg-background/75 p-4" title={activeProvider.description}>
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-semibold text-foreground">{activeProvider.label}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{activeProvider.description}</p>
                     <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                       {t("setup.ai.apiLabel", { style: activeProvider.api_style })}
                     </p>
@@ -733,13 +729,11 @@ export default function SetupPage() {
             <CardTitle className="text-base">{t("setup.ai.stepRoutingTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-muted-foreground">
-            <p>
-              {t("setup.ai.stepRoutingBody")}
-            </p>
             <div className="rounded-2xl border border-border bg-background/75 p-4">
               <div className="grid gap-2 sm:grid-cols-2">
                 <button
                   type="button"
+                  title={t("setup.ai.sameModelBody")}
                   onClick={() => {
                     setSingleStepRouting(true);
                     applySingleStepRouting(defaultStepProvider, defaultStepModel);
@@ -751,10 +745,10 @@ export default function SetupPage() {
                   }`}
                 >
                   <span className="block font-medium">{t("setup.ai.sameModel")}</span>
-                  <span className="mt-1 block text-xs text-muted-foreground">{t("setup.ai.sameModelBody")}</span>
                 </button>
                 <button
                   type="button"
+                  title={t("setup.ai.perStepModelBody")}
                   onClick={() => setSingleStepRouting(false)}
                   className={`rounded-xl border px-3 py-2 text-left text-sm transition ${
                     !singleStepRouting
@@ -763,7 +757,6 @@ export default function SetupPage() {
                   }`}
                 >
                   <span className="block font-medium">{t("setup.ai.perStepModel")}</span>
-                  <span className="mt-1 block text-xs text-muted-foreground">{t("setup.ai.perStepModelBody")}</span>
                 </button>
               </div>
 
@@ -814,12 +807,11 @@ export default function SetupPage() {
                       model: "",
                     };
                     return (
-                      <div key={step.key} className="rounded-xl border border-border bg-background/70 p-3">
+                      <div key={step.key} className="rounded-xl border border-border bg-background/70 p-3" title={step.description}>
                         <div className="mb-3">
                           <p className="text-sm font-semibold text-foreground">
                             {step.group === "pipeline" ? t("setup.ai.pipelineSteps") : t("setup.ai.workspaceFeatures")} · {step.label}
                           </p>
-                          <p className="mt-1 text-xs text-muted-foreground">{step.description}</p>
                         </div>
                         <div className="grid gap-3 md:grid-cols-2">
                           <Select
@@ -871,9 +863,6 @@ export default function SetupPage() {
         <section className="space-y-4 rounded-[1.4rem] border border-border bg-background/85 px-5 py-5">
           <div>
             <h3 className="text-lg font-semibold text-foreground">{t("setup.steps.confirmPathsTitle")}</h3>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              {t("setup.steps.confirmPathsBody")}
-            </p>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <PathBlock label={t("setup.paths.knowledgeBase")} value={config?.knowledge_base_dir ?? t("setup.status.unavailable")} />
@@ -949,15 +938,6 @@ export default function SetupPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-muted-foreground">
-            <p>{t("setup.libraryExchange.body")}</p>
-            <div className="rounded-2xl border border-border bg-background/75 p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                {t("setup.libraryExchange.formatTitle")}
-              </p>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                {t("setup.libraryExchange.formatBody")}
-              </p>
-            </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"

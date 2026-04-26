@@ -4,26 +4,15 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Clock3,
-  LayoutDashboard,
   Microscope,
-  GitBranch,
-  Map,
-  Newspaper,
   Lightbulb,
-  MessageSquare,
   Menu,
   X,
   BookOpen,
   Bookmark,
   Download,
-  Globe,
-  PenTool,
-  Layers,
-  Hash,
   FolderOpen,
   Compass,
-  BookMarked,
   Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -43,46 +32,15 @@ interface NavSection {
 
 const navSections: NavSection[] = [
   {
-    id: "workspace",
+    id: "primary",
     items: [
       { labelKey: "sidebar.items.setup", href: "/setup", icon: Wrench },
-      { labelKey: "sidebar.items.paperManager", href: "/library", icon: Bookmark },
       { labelKey: "sidebar.items.importCenter", href: "/pipeline", icon: Download },
-      { labelKey: "sidebar.items.knowledgeGraph", href: "/graph", icon: GitBranch },
-      { labelKey: "sidebar.items.dashboard", href: "/", icon: LayoutDashboard },
-    ],
-  },
-  {
-    id: "researchViews",
-    items: [
+      { labelKey: "sidebar.items.paperManager", href: "/library", icon: Bookmark },
+      { labelKey: "sidebar.items.evidenceBrowser", href: "/explorer", icon: Compass },
       { labelKey: "sidebar.items.research", href: "/research", icon: Microscope },
-      { labelKey: "sidebar.items.explorer", href: "/explorer", icon: Compass },
-      { labelKey: "sidebar.items.latestResearch", href: "/latest", icon: Clock3 },
-    ],
-  },
-  {
-    id: "synthesize",
-    items: [
-      { labelKey: "sidebar.items.projects", href: "/projects", icon: FolderOpen },
-      { labelKey: "sidebar.items.fieldMaps", href: "/maps", icon: Map },
-      { labelKey: "sidebar.items.digests", href: "/digests", icon: Newspaper },
-      { labelKey: "sidebar.items.chinaLens", href: "/china", icon: Globe },
-    ],
-  },
-  {
-    id: "reference",
-    items: [
-      { labelKey: "sidebar.items.methods", href: "/methods", icon: BookMarked },
-      { labelKey: "sidebar.items.fields", href: "/fields", icon: Layers },
-      { labelKey: "sidebar.items.jelCodes", href: "/jel", icon: Hash },
-    ],
-  },
-  {
-    id: "myWork",
-    items: [
       { labelKey: "sidebar.items.ideas", href: "/ideas", icon: Lightbulb },
-      { labelKey: "sidebar.items.workspace", href: "/ideas/workspace", icon: PenTool },
-      { labelKey: "sidebar.items.ask", href: "/ask", icon: MessageSquare },
+      { labelKey: "sidebar.items.projects", href: "/projects", icon: FolderOpen },
     ],
   },
 ];

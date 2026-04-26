@@ -19,6 +19,7 @@ import {
   Search,
   Database,
   RefreshCw,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -319,6 +320,7 @@ function PaperManagerTab() {
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [fieldFilter, setFieldFilter] = useState("all");
   const [yearMin, setYearMin] = useState("");
@@ -727,6 +729,16 @@ function PaperManagerTab() {
           </div>
           <Button
             type="button"
+            variant="outline"
+            onClick={() => setFiltersOpen((value) => !value)}
+            className="h-11 shrink-0 rounded-full gap-2"
+            aria-expanded={filtersOpen}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            {t("library.actions.filters")}
+          </Button>
+          <Button
+            type="button"
             onClick={() => setImportDialogOpen(true)}
             className="h-11 shrink-0 rounded-full gap-2 lg:ml-auto"
           >
@@ -735,6 +747,8 @@ function PaperManagerTab() {
           </Button>
         </div>
 
+        {filtersOpen ? (
+        <>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <select
             value={fieldFilter}
@@ -894,6 +908,8 @@ function PaperManagerTab() {
             {t("library.actions.reset")}
           </Button>
         </div>
+        </>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-b border-border/70 px-4 py-3 text-xs text-muted-foreground">
@@ -2109,19 +2125,6 @@ function LibraryContent() {
 
   return (
     <div className="space-y-5">
-      <div className="paper-panel p-6">
-        <div className="space-y-3">
-          <div>
-            <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
-              {t("library.heroTitle")}
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground sm:text-[15px]">
-              {t("library.heroBody")} {t("library.appCardBody")}
-            </p>
-          </div>
-        </div>
-      </div>
-
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="h-11 gap-1 p-1">
           <TabsTrigger value="papers" className="gap-1.5 px-4 text-sm">

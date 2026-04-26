@@ -68,7 +68,7 @@ const zhCN = {
       projectMatrix: "项目矩阵",
     },
     descriptions: {
-      dashboard: "查看动态信号、主题变化和下一份可打开的研究档案。",
+      dashboard: "工作台",
       latest: "最新论文、主题变化和新出现的研究簇。",
       research: "从检索问题进入主题工作区，再沉淀为稳定的论文集合。",
       setup: "连接文件夹、导入 PDF，并启动新的本地文献库。",
@@ -116,6 +116,7 @@ const zhCN = {
       dashboard: "仪表盘",
       research: "研究",
       explorer: "浏览器",
+      evidenceBrowser: "证据浏览器",
       latestResearch: "最新研究",
       projects: "项目",
       fieldMaps: "领域地图",
@@ -579,6 +580,7 @@ const zhCN = {
       titleAZ: "标题 A-Z",
     },
     actions: {
+      filters: "筛选",
       reset: "重置",
       selectVisible: "全选本页",
       selectVisibleHelp: "选择当前页已经筛选出来的论文，用于导出、重读或批量操作。",
