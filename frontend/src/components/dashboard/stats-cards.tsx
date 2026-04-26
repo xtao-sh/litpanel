@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FileText, Atom, Lightbulb, Layers, ArrowUpRight } from "lucide-react";
 import type { Stats } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 function formatNumber(n: number): string {
   return n.toLocaleString();
@@ -16,6 +17,8 @@ interface StatsCardsProps {
 }
 
 export function StatsCards({ stats, loading }: StatsCardsProps) {
+  const { t } = useI18n();
+
   if (loading || !stats) {
     return (
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
@@ -42,7 +45,7 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
         <Card className="paper-panel relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md h-full">
           <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Papers
+              {t("dashboard.stats.papers")}
             </CardTitle>
             <div className="flex items-center gap-1 text-primary">
               <FileText className="h-4 w-4" />
@@ -54,7 +57,7 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
               {formatNumber(stats.totalPapers)}
             </div>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              All indexed papers · {formatNumber(stats.totalCards)} with deep-read cards
+              {t("dashboard.stats.papersBody", { count: formatNumber(stats.totalCards) })}
             </p>
           </CardContent>
         </Card>
@@ -65,7 +68,7 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
         <Card className="paper-panel relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md h-full">
           <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Knowledge Atoms
+              {t("dashboard.stats.atoms")}
             </CardTitle>
             <div className="flex items-center gap-1 text-emerald-700">
               <Atom className="h-4 w-4" />
@@ -77,11 +80,12 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
               {formatNumber(stats.totalAtoms)}
             </div>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              Extracted knowledge objects across the corpus.{" "}
-              {formatNumber(stats.totalMechanisms)} mechanisms &middot;{" "}
-              {formatNumber(stats.totalMethods)} methods &middot;{" "}
-              {formatNumber(stats.totalDatasets)} datasets &middot;{" "}
-              {formatNumber(stats.totalPuzzles)} puzzles
+              {t("dashboard.stats.atomsBody", {
+                mechanisms: formatNumber(stats.totalMechanisms),
+                methods: formatNumber(stats.totalMethods),
+                datasets: formatNumber(stats.totalDatasets),
+                puzzles: formatNumber(stats.totalPuzzles),
+              })}
             </p>
           </CardContent>
         </Card>
@@ -92,7 +96,7 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
         <Card className="paper-panel relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md h-full">
           <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Research Ideas
+              {t("dashboard.stats.ideas")}
             </CardTitle>
             <div className="flex items-center gap-1 text-amber-700">
               <Lightbulb className="h-4 w-4" />
@@ -104,7 +108,7 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
               {formatNumber(stats.totalIdeas)}
             </div>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              AI-generated hypotheses from maps and gap synthesis
+              {t("dashboard.stats.ideasBody")}
             </p>
           </CardContent>
         </Card>
@@ -115,7 +119,7 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
         <Card className="paper-panel relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md h-full">
           <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Fields Covered
+              {t("dashboard.stats.fields")}
             </CardTitle>
             <div className="flex items-center gap-1 text-violet-700">
               <Layers className="h-4 w-4" />
@@ -127,7 +131,7 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
               {formatNumber((stats as Stats & { totalFields?: number }).totalFields ?? 0)}
             </div>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              Distinct research fields across the corpus
+              {t("dashboard.stats.fieldsBody")}
             </p>
           </CardContent>
         </Card>

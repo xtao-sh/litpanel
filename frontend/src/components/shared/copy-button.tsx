@@ -13,7 +13,10 @@ export function CopyButton({ text, label = "Copy" }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(text);
+    if (!navigator.clipboard?.writeText) return;
+    navigator.clipboard.writeText(text).catch(() => {
+      // Clipboard access can be blocked in embedded browsers.
+    });
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [text]);

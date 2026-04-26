@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResponsiveBar } from "@nivo/bar";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 interface FieldDatum {
   field: string;
@@ -49,6 +50,7 @@ function truncateField(field: string, max: number = 30): string {
 }
 
 export function FieldChart({ data, loading }: FieldChartProps) {
+  const { t } = useI18n();
   const top15 = data
     ? data
         .slice()
@@ -66,7 +68,7 @@ export function FieldChart({ data, loading }: FieldChartProps) {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold">
-          Top Fields by Paper Count
+          {t("dashboard.fieldChart.title")}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -94,7 +96,7 @@ export function FieldChart({ data, loading }: FieldChartProps) {
               colors={(d) => FIELD_COLORS[d.index % FIELD_COLORS.length]}
               borderRadius={4}
               axisBottom={{
-                legend: "Papers",
+                legend: t("dashboard.fieldChart.axisPapers"),
                 legendPosition: "middle",
                 legendOffset: 22,
               }}

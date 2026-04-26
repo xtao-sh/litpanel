@@ -9,6 +9,7 @@ import { ChevronDown, ChevronRight, FileText, Clock, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TOPIC_TIMELINE } from "@/lib/queries";
 import type { TimelineYear, TimelinePaper } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -41,6 +42,7 @@ export function TimelineView({
   compareIds,
   onToggleCompare,
 }: TimelineViewProps) {
+  const { t } = useI18n();
   const { data, loading, error } = useQuery<TopicTimelineResult>(TOPIC_TIMELINE, {
     variables: { query, limitPerYear },
     skip: !query,
@@ -90,7 +92,7 @@ export function TimelineView({
     return (
       <div className="flex items-center justify-center p-8 text-sm text-red-500">
         <div className="paper-panel rounded-[1.35rem] px-5 py-4">
-          Failed to load timeline: {error.message}
+          {t("research.timeline.failed", { message: error.message })}
         </div>
       </div>
     );
@@ -102,8 +104,8 @@ export function TimelineView({
       <div className="flex flex-col items-center justify-center p-8 text-sm text-muted-foreground">
         <div className="paper-panel rounded-[1.35rem] px-5 py-4 text-center">
           <Clock className="mx-auto mb-2 h-8 w-8 text-primary/45" />
-          <p className="section-kicker">Timeline view</p>
-          <p className="mt-2">No timeline data available for this query.</p>
+          <p className="section-kicker">{t("research.timeline.kicker")}</p>
+          <p className="mt-2">{t("research.timeline.empty")}</p>
         </div>
       </div>
     );
@@ -160,7 +162,9 @@ export function TimelineView({
                     {yearData.year}
                   </span>
                   <Badge variant="secondary" className="rounded-full text-[10px] px-1.5 py-0">
-                    {yearData.count} paper{yearData.count !== 1 ? "s" : ""}
+                    {t(yearData.count === 1 ? "research.timeline.paperCount" : "research.timeline.paperCountPlural", {
+                      count: yearData.count,
+                    })}
                   </Badge>
                 </button>
 
@@ -177,8 +181,12 @@ export function TimelineView({
                     ))}
                     {yearData.count > yearData.papers.length && (
                       <p className="text-[10px] text-muted-foreground pl-2">
-                        + {yearData.count - yearData.papers.length} more paper
-                        {yearData.count - yearData.papers.length !== 1 ? "s" : ""}
+                        {t(
+                          yearData.count - yearData.papers.length === 1
+                            ? "research.timeline.morePapers"
+                            : "research.timeline.morePapersPlural",
+                          { count: yearData.count - yearData.papers.length }
+                        )}
                       </p>
                     )}
                   </div>
@@ -205,6 +213,8 @@ function TimelinePaperCard({
   compareIds: Set<string>;
   onToggleCompare: (paperId: string, e: React.MouseEvent) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div
       className={cn(
@@ -238,7 +248,7 @@ function TimelinePaperCard({
             )}
             {paper.hasCard && (
               <Badge variant="outline" className="rounded-full text-[9px] px-1 py-0 border-green-300 text-green-700">
-                Card
+                {t("research.timeline.card")}
               </Badge>
             )}
             {paper.fields.slice(0, 2).map((f) => (

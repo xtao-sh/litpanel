@@ -1,4 +1,4 @@
-"""RAG (Retrieval-Augmented Generation) Q&A pipeline for the NBER knowledge base.
+"""RAG (Retrieval-Augmented Generation) Q&A pipeline for the research knowledge base.
 
 Steps:
 1. Query Expansion — generate search variations from the user question
@@ -11,30 +11,30 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import uuid
-from pathlib import Path
 from typing import Any, AsyncGenerator, Optional
 
-import anthropic
-
 import resolvers
+from config import (
+    APP_NAME,
+    SOURCE_NAME,
+    SOURCE_PAPER_LABEL,
+)
+from llm_runtime import (
+    LLMConnectionError,
+    LLMStatusError,
+    build_async_client,
+    resolve_step_runtime,
+)
 from search import prepare_search, search_sql
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# LLM client setup
-# ---------------------------------------------------------------------------
-
-_API_BASE_URL = os.environ.get("NBER_API_BASE_URL", "https://api.kimi.com/coding/")
-_API_MODEL = os.environ.get("NBER_AGENT_MODEL", "kimi-for-coding")
-
 _SYSTEM_PROMPT = (
-    "You are a research assistant for an economics researcher. "
+    f"You are a research assistant working inside {APP_NAME}. "
     "Answer questions based on the provided knowledge base content. "
-    "Cite paper IDs (e.g., w31161) when referencing findings. "
+    "Cite paper IDs when referencing findings. "
     "If the knowledge base doesn't contain relevant information, say so. "
     "Be concise and precise."
 )
@@ -71,40 +71,23 @@ def _build_history_messages(history: list[dict[str, str]]) -> list[dict[str, str
     return [{"role": turn["role"], "content": turn["content"]} for turn in trimmed]
 
 
-def _load_api_key() -> str:
-    """Load API key from env var, then fall back to OpenClaw config."""
-    key = os.environ.get("KIMI_API_KEY", "")
-    if key:
-        return key
-    openclaw_cfg = Path.home() / ".openclaw" / "openclaw.json"
-    if openclaw_cfg.exists():
-        try:
-            with open(openclaw_cfg) as f:
-                cfg = json.load(f)
-            key = cfg.get("env", {}).get("KIMI_API_KEY", "")
-        except (json.JSONDecodeError, OSError):
-            pass
-    return key
+_client_cache: dict[str, Any] = {}
 
 
-_client: anthropic.AsyncAnthropic | None = None
+def _get_client(step: str = "rag"):
+    client = _client_cache.get(step)
+    if client is None:
+        client = build_async_client(step)
+        _client_cache[step] = client
+    return client
 
 
-def _get_client() -> anthropic.AsyncAnthropic:
-    """Return a cached async Anthropic client pointed at the Kimi Coding API.
+def _get_model(step: str = "rag") -> str:
+    return str(resolve_step_runtime(step)["model"])
 
-    Raises ValueError when no API key is available.
-    """
-    global _client
-    if _client is not None:
-        return _client
-    key = _load_api_key()
-    if not key:
-        raise ValueError(
-            "LLM API key not configured. Set KIMI_API_KEY environment variable."
-        )
-    _client = anthropic.AsyncAnthropic(base_url=_API_BASE_URL, api_key=key)
-    return _client
+
+def reset_llm_clients() -> None:
+    _client_cache.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -494,9 +477,9 @@ async def ask_knowledge_base(
     # Stream from LLM
     full_answer_parts: list[str] = []
     try:
-        client = _get_client()
+        client = _get_client("rag")
         async with client.messages.stream(
-            model=_API_MODEL,
+            model=_get_model("rag"),
             max_tokens=4096,
             system=_SYSTEM_PROMPT,
             messages=messages,
@@ -508,11 +491,11 @@ async def ask_knowledge_base(
         error_msg = f"\n\n[Error: {e}]"
         full_answer_parts.append(error_msg)
         yield error_msg
-    except anthropic.APIConnectionError:
+    except LLMConnectionError:
         error_msg = "\n\n[Error: Could not connect to the LLM API. Please check your network and API configuration.]"
         full_answer_parts.append(error_msg)
         yield error_msg
-    except anthropic.APIStatusError as e:
+    except LLMStatusError as e:
         error_msg = f"\n\n[Error: LLM API returned status {e.status_code}. Please try again later.]"
         full_answer_parts.append(error_msg)
         yield error_msg
@@ -577,9 +560,9 @@ async def ask_knowledge_base_sync(
     messages = history_messages + [{"role": "user", "content": user_message}]
 
     try:
-        client = _get_client()
+        client = _get_client("rag")
         response = await client.messages.create(
-            model=_API_MODEL,
+            model=_get_model("rag"),
             max_tokens=4096,
             system=_SYSTEM_PROMPT,
             messages=messages,
@@ -602,14 +585,14 @@ async def ask_knowledge_base_sync(
         }
     except ValueError as e:
         return {"answer": str(e), "citations": [], "context_used": context_items, "session_id": sid}
-    except anthropic.APIConnectionError:
+    except LLMConnectionError:
         return {
             "answer": "Could not connect to the LLM API. Please check your network and API configuration.",
             "citations": [],
             "context_used": context_items,
             "session_id": sid,
         }
-    except anthropic.APIStatusError as e:
+    except LLMStatusError as e:
         return {
             "answer": f"LLM API returned status {e.status_code}. Please try again later.",
             "citations": [],
@@ -718,7 +701,7 @@ async def ask_contextual(
     # 2. Build contextual system prompt
     n_papers = len(paper_ids)
     system_parts = [
-        "You are a research assistant helping an economist explore a specific topic.",
+        "You are a research assistant helping a researcher explore a specific topic.",
         f'The researcher searched for "{search_query}" and found {n_papers} papers.' if search_query else f"The researcher is exploring {n_papers} papers.",
     ]
     if landscape_summary:
@@ -748,9 +731,9 @@ async def ask_contextual(
     # 5. Stream from LLM
     full_answer_parts: list[str] = []
     try:
-        client = _get_client()
+        client = _get_client("rag")
         async with client.messages.stream(
-            model=_API_MODEL,
+            model=_get_model("rag"),
             max_tokens=4096,
             system=system_prompt,
             messages=messages,
@@ -762,11 +745,11 @@ async def ask_contextual(
         error_msg = f"\n\n[Error: {e}]"
         full_answer_parts.append(error_msg)
         yield error_msg
-    except anthropic.APIConnectionError:
+    except LLMConnectionError:
         error_msg = "\n\n[Error: Could not connect to the LLM API. Please check your network and API configuration.]"
         full_answer_parts.append(error_msg)
         yield error_msg
-    except anthropic.APIStatusError as e:
+    except LLMStatusError as e:
         error_msg = f"\n\n[Error: LLM API returned status {e.status_code}. Please try again later.]"
         full_answer_parts.append(error_msg)
         yield error_msg
@@ -877,9 +860,9 @@ async def generate_literature_review(
         "methodological": "organized by methodology (group by identification strategies and empirical approaches)",
     }.get(style, "organized thematically")
 
-    system_prompt = f"""You are an academic writing assistant helping an economist draft a literature review section.
+    system_prompt = f"""You are an academic writing assistant helping a researcher draft a literature review section.
 
-Given {n} NBER working papers{focus_desc}, write a structured literature review {style_instruction}.
+Given {n} {SOURCE_NAME} {SOURCE_PAPER_LABEL}{focus_desc}, write a structured literature review {style_instruction}.
 
 Requirements:
 - Cite papers using author names and their IDs in parentheses, e.g., Brynjolfsson et al. (w31161)
@@ -906,9 +889,9 @@ Requirements:
 
     # 4. Stream from LLM
     try:
-        client = _get_client()
+        client = _get_client("rag")
         async with client.messages.stream(
-            model=_API_MODEL,
+            model=_get_model("rag"),
             max_tokens=4096,
             system=system_prompt,
             messages=messages,
@@ -917,9 +900,9 @@ Requirements:
                 yield text
     except ValueError as e:
         yield f"\n\n[Error: {e}]"
-    except anthropic.APIConnectionError:
+    except LLMConnectionError:
         yield "\n\n[Error: Could not connect to the LLM API. Please check your network and API configuration.]"
-    except anthropic.APIStatusError as e:
+    except LLMStatusError as e:
         yield f"\n\n[Error: LLM API returned status {e.status_code}. Please try again later.]"
     except Exception as e:
         logger.exception("Literature review generation failed")

@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, Info } from "lucide-react";
 import { TOPIC_SATURATION } from "@/lib/queries";
 import type { TopicSaturation, SaturationIndicator } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -36,8 +37,16 @@ function phaseBadge(phase: string) {
   }
 }
 
-function phaseLabel(phase: string) {
-  return phase.charAt(0).toUpperCase() + phase.slice(1);
+function phaseLabel(phase: string, t: (key: string) => string) {
+  switch (phase) {
+    case "emerging":
+    case "growing":
+    case "mature":
+    case "saturated":
+      return t(`latest.saturation.phases.${phase}`);
+    default:
+      return t("latest.saturation.phases.unknown");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -101,6 +110,7 @@ export function SaturationCard({
   searchQuery,
   allPaperIds,
 }: SaturationCardProps) {
+  const { t } = useI18n();
   const { data, loading } = useQuery<{
     topicSaturation: TopicSaturation;
   }>(TOPIC_SATURATION, {
@@ -139,14 +149,14 @@ export function SaturationCard({
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-700">
             <TrendingUp className="h-4 w-4 text-blue-500" />
-            Topic Saturation
+            {t("latest.saturation.title")}
           </CardTitle>
           <span
             className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${phaseBadge(
               saturation.growthPhase
             )}`}
           >
-            {phaseLabel(saturation.growthPhase)}
+            {phaseLabel(saturation.growthPhase, t)}
           </span>
         </div>
       </CardHeader>
@@ -156,7 +166,7 @@ export function SaturationCard({
         {saturation.yearTrend.length > 1 && (
           <div>
             <p className="mb-1.5 text-[11px] font-medium text-gray-500">
-              Papers per year ({saturation.totalPapers} total)
+              {t("latest.saturation.papersPerYear", { count: saturation.totalPapers })}
             </p>
             <MiniBarChart data={saturation.yearTrend} />
           </div>
@@ -166,7 +176,7 @@ export function SaturationCard({
         <div className="flex gap-4">
           <div className="flex-1 rounded-lg border border-gray-100 bg-gray-50 p-2.5">
             <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">
-              Growth Rate
+              {t("latest.saturation.growthRate")}
             </p>
             <p
               className={`text-lg font-bold tabular-nums ${
@@ -183,7 +193,7 @@ export function SaturationCard({
           </div>
           <div className="flex-1 rounded-lg border border-gray-100 bg-gray-50 p-2.5">
             <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">
-              Method Diversity
+              {t("latest.saturation.methodDiversity")}
             </p>
             <div className="mt-1 flex items-center gap-2">
               <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
@@ -203,7 +213,7 @@ export function SaturationCard({
         {saturation.keyIndicators.length > 0 && (
           <div className="space-y-1.5">
             <p className="text-[11px] font-medium text-gray-500">
-              Key Indicators
+              {t("latest.saturation.keyIndicators")}
             </p>
             {saturation.keyIndicators.map((ki: SaturationIndicator) => (
               <div

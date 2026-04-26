@@ -11,6 +11,7 @@ import {
 } from "@tanstack/react-table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { useI18n } from "@/lib/i18n/locale-context";
 import type { Idea } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -54,7 +55,8 @@ function SortIcon({ column }: { column: { getIsSorted: () => false | "asc" | "de
 // Column definitions
 // ---------------------------------------------------------------------------
 
-const columns: ColumnDef<Idea>[] = [
+function createColumns(t: (key: string, vars?: Record<string, string | number>) => string): ColumnDef<Idea>[] {
+  return [
   {
     accessorKey: "id",
     header: ({ column }) => (
@@ -62,7 +64,7 @@ const columns: ColumnDef<Idea>[] = [
         className="flex items-center text-left font-medium"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        ID
+        {t("explorer.columns.id")}
         <SortIcon column={column} />
       </button>
     ),
@@ -82,7 +84,7 @@ const columns: ColumnDef<Idea>[] = [
         className="flex items-center text-left font-medium"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Title
+        {t("explorer.columns.title")}
         <SortIcon column={column} />
       </button>
     ),
@@ -98,7 +100,7 @@ const columns: ColumnDef<Idea>[] = [
         className="flex items-center text-left font-medium"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Status
+        {t("explorer.columns.status")}
         <SortIcon column={column} />
       </button>
     ),
@@ -109,7 +111,7 @@ const columns: ColumnDef<Idea>[] = [
         <span
           className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${statusBadgeClass(status)}`}
         >
-          {status}
+          {t(`explorer.values.${status}`)}
         </span>
       );
     },
@@ -122,7 +124,7 @@ const columns: ColumnDef<Idea>[] = [
         className="flex items-center text-left font-medium"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Novelty
+        {t("explorer.columns.novelty")}
         <SortIcon column={column} />
       </button>
     ),
@@ -145,7 +147,7 @@ const columns: ColumnDef<Idea>[] = [
         className="flex items-center text-left font-medium"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Feasibility
+        {t("explorer.columns.feasibility")}
         <SortIcon column={column} />
       </button>
     ),
@@ -168,7 +170,7 @@ const columns: ColumnDef<Idea>[] = [
         className="flex items-center text-left font-medium"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Impact
+        {t("explorer.columns.impact")}
         <SortIcon column={column} />
       </button>
     ),
@@ -191,7 +193,7 @@ const columns: ColumnDef<Idea>[] = [
         className="flex items-center text-left font-medium"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Composite
+        {t("explorer.columns.composite")}
         <SortIcon column={column} />
       </button>
     ),
@@ -205,7 +207,8 @@ const columns: ColumnDef<Idea>[] = [
     },
     size: 90,
   },
-];
+  ];
+}
 
 // ---------------------------------------------------------------------------
 // Table Component
@@ -224,13 +227,14 @@ export function IdeaTable({
   onRowClick,
   selectedId,
 }: IdeaTableProps) {
+  const { t } = useI18n();
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
   // TanStack Table exposes imperative instance methods; React Compiler skips memoization here by design.
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
-    columns,
+    columns: createColumns(t),
     state: { sorting },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -244,7 +248,7 @@ export function IdeaTable({
   if (data.length === 0) {
     return (
       <div className="flex h-64 flex-col items-center justify-center text-gray-500">
-        <p className="text-sm">No ideas found matching your filters.</p>
+        <p className="text-sm">{t("explorer.empty.ideas")}</p>
       </div>
     );
   }
@@ -302,7 +306,7 @@ export function IdeaTable({
       </div>
       <div className="border-t border-border px-4 py-3">
         <p className="text-sm text-muted-foreground">
-          {data.length} idea{data.length !== 1 ? "s" : ""}
+          {t("explorer.counts.showingIdeas", { count: data.length })}
         </p>
       </div>
     </div>

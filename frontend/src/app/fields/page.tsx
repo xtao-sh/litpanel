@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback } from "react";
 import { useQuery } from "@apollo/client/react";
 import Link from "next/link";
 import { GET_FIELD_TAXONOMY, GET_FIELD_DETAIL } from "@/lib/queries";
+import { collectErrorMessages } from "@/components/shared/query-error-banner";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -429,6 +430,14 @@ function FieldDetailPanel({
   return (
     <ScrollArea className="h-full">
       <div className="max-w-5xl space-y-6 p-6">
+        {error && (
+          <div className="paper-panel border-red-200/80 bg-red-50/80 p-3 text-sm text-red-800 shadow-none">
+            <p className="font-medium">Failed to load field detail.</p>
+            <p className="mt-1 text-xs text-red-700">
+              {collectErrorMessages([error]) || "Please refresh the page."}
+            </p>
+          </div>
+        )}
         {/* Header */}
         <div className="paper-panel p-5">
           <p className="section-kicker">Field Dossier</p>
@@ -775,7 +784,10 @@ export default function FieldsPage() {
     <div className="flex h-full flex-col gap-5">
       {error && (
         <div className="mx-6 paper-panel border-red-200/80 bg-red-50/80 p-3 text-sm text-red-800 shadow-none">
-          Failed to load field taxonomy. Please refresh the page.
+          <p className="font-medium">Failed to load field taxonomy.</p>
+          <p className="mt-1 text-xs text-red-700">
+            {collectErrorMessages([error]) || "Please refresh the page."}
+          </p>
         </div>
       )}
       {/* Page header */}

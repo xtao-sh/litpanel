@@ -19,6 +19,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { useI18n } from "@/lib/i18n/locale-context";
 import type { Atom } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -75,7 +76,8 @@ function SortIcon({ column }: { column: { getIsSorted: () => false | "asc" | "de
 // Column definitions
 // ---------------------------------------------------------------------------
 
-const columns: ColumnDef<Atom>[] = [
+function createColumns(t: (key: string, vars?: Record<string, string | number>) => string): ColumnDef<Atom>[] {
+  return [
   {
     accessorKey: "title",
     header: ({ column }) => (
@@ -83,7 +85,7 @@ const columns: ColumnDef<Atom>[] = [
         className="flex items-center text-left font-medium"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Title
+        {t("explorer.columns.title")}
         <SortIcon column={column} />
       </button>
     ),
@@ -104,20 +106,20 @@ const columns: ColumnDef<Atom>[] = [
         className="flex items-center text-left font-medium"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Type
+        {t("explorer.columns.type")}
         <SortIcon column={column} />
       </button>
     ),
     cell: ({ row }) => (
-      <Badge variant={atomTypeVariant(row.original.type)} className="text-xs capitalize">
-        {row.original.type}
+      <Badge variant={atomTypeVariant(row.original.type)} className="text-xs">
+        {t(`explorer.values.${row.original.type}`)}
       </Badge>
     ),
     size: 110,
   },
   {
     accessorKey: "description",
-    header: "Description",
+    header: t("explorer.columns.description"),
     cell: ({ row }) => {
       const desc = row.original.description;
       const truncated = truncate(desc, 80);
@@ -151,7 +153,7 @@ const columns: ColumnDef<Atom>[] = [
         className="flex items-center text-left font-medium"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Evidence
+        {t("explorer.columns.evidence")}
         <SortIcon column={column} />
       </button>
     ),
@@ -162,7 +164,7 @@ const columns: ColumnDef<Atom>[] = [
         <span
           className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${evidenceBadgeClass(strength)}`}
         >
-          {strength}
+          {t(`explorer.values.${strength}`)}
         </span>
       );
     },
@@ -175,7 +177,7 @@ const columns: ColumnDef<Atom>[] = [
         className="flex items-center text-left font-medium"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Papers
+        {t("explorer.columns.papers")}
         <SortIcon column={column} />
       </button>
     ),
@@ -184,7 +186,8 @@ const columns: ColumnDef<Atom>[] = [
     ),
     size: 70,
   },
-];
+  ];
+}
 
 // ---------------------------------------------------------------------------
 // Table Component
@@ -211,13 +214,14 @@ export function AtomTable({
   onRowClick,
   selectedSlug,
 }: AtomTableProps) {
+  const { t } = useI18n();
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
   // TanStack Table exposes imperative instance methods; React Compiler skips memoization here by design.
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
-    columns,
+    columns: createColumns(t),
     state: { sorting },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -234,7 +238,7 @@ export function AtomTable({
   if (data.length === 0) {
     return (
       <div className="flex h-64 flex-col items-center justify-center text-gray-500">
-        <p className="text-sm">No atoms found matching your filters.</p>
+        <p className="text-sm">{t("explorer.empty.atoms")}</p>
       </div>
     );
   }
@@ -321,6 +325,7 @@ function Pagination({
   pageSize: number;
   onPageChange: (page: number) => void;
 }) {
+  const { t } = useI18n();
   const from = (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
 
@@ -328,8 +333,8 @@ function Pagination({
     <div className="flex items-center justify-between border-t border-border px-4 py-3">
       <p className="text-sm text-muted-foreground">
         {total > 0
-          ? `${from}-${to} of ${total.toLocaleString()}`
-          : "No results"}
+          ? t("explorer.counts.rangeOfTotal", { start: from, end: to, total: total.toLocaleString() })
+          : t("explorer.counts.noResults")}
       </p>
       <div className="flex items-center gap-1">
         <button
@@ -337,7 +342,7 @@ function Pagination({
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
         >
-          Previous
+          {t("common.actions.previous")}
         </button>
         {generatePageNumbers(page, totalPages).map((p, i) =>
           p === "..." ? (
@@ -363,7 +368,7 @@ function Pagination({
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
         >
-          Next
+          {t("common.actions.next")}
         </button>
       </div>
     </div>

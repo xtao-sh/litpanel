@@ -1,22 +1,28 @@
-"""Enrich papers with abstracts and NBER URLs."""
+"""Enrich papers with abstracts and source URLs."""
 import sqlite3
 import logging
 from pathlib import Path
 
+from config import KB_DB_PATH, build_paper_url
+
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path(__file__).parent / "kb.db"
+DB_PATH = Path(KB_DB_PATH)
 
 
 def enrich_papers():
     db_path = str(DB_PATH)
     conn = sqlite3.connect(db_path)
 
-    # 1. Set NBER URL for all papers
-    conn.execute(
-        "UPDATE papers SET nber_url = 'https://www.nber.org/papers/' || paper_id "
-        "WHERE nber_url IS NULL"
-    )
+    # 1. Set source URL for all papers
+    missing_urls = conn.execute(
+        "SELECT paper_id FROM papers WHERE nber_url IS NULL OR nber_url = ''"
+    ).fetchall()
+    if missing_urls:
+        conn.executemany(
+            "UPDATE papers SET nber_url = ? WHERE paper_id = ?",
+            [(build_paper_url(row[0]), row[0]) for row in missing_urls],
+        )
 
     # 2. For papers with card sections, use Research Question as abstract
     conn.execute("""
@@ -47,7 +53,7 @@ def enrich_papers():
     with_url = conn.execute(
         "SELECT COUNT(*) FROM papers WHERE nber_url IS NOT NULL"
     ).fetchone()[0]
-    print(f"Papers: {total} total, {with_abstract} with abstract, {with_url} with URL")
+    print(f"Papers: {total} total, {with_abstract} with abstract, {with_url} with source URL")
 
     conn.close()
 

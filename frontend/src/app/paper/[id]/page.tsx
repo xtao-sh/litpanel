@@ -18,6 +18,7 @@ import {
   FolderPlus,
   MessageCircle,
   Plus,
+  RefreshCw,
   Swords,
   GitBranch,
   Scale,
@@ -39,6 +40,8 @@ import {
   ADD_PAPER_TO_IDEA,
   REMOVE_PAPER_FROM_IDEA,
 } from "@/lib/queries";
+import { appConfig } from "@/lib/app-config";
+import { activeLibraryFetch, getApiUrl, readErrorMessage, withActiveLibraryHeaders } from "@/lib/api";
 import {
   buildAtomDetailHref,
   buildCompareHref,
@@ -111,10 +114,67 @@ const READING_STATUS_OPTIONS = [
   { value: "read_in_detail", label: "Read in detail", color: "bg-green-500" },
 ];
 
+interface PaperProcessingDimension {
+  dimension_key: string;
+  label: string;
+  status: string;
+  quality_score: number | null;
+}
+
+interface PaperProcessingState {
+  library_id: number;
+  paper_id: string;
+  processing_status: string;
+  reading_profile: string;
+  analysis_focuses: string[];
+  reading_status: string | null;
+  imported_at: string | null;
+  updated_at: string | null;
+  completed_at: string | null;
+  last_error: string;
+  extraction_status: Record<string, boolean>;
+  extraction_rows: PaperProcessingDimension[];
+}
+
+interface PaperFeedbackItem {
+  id: number;
+  library_id: number;
+  paper_id: string;
+  dimension_key: string;
+  feedback_type: string;
+  rating: number | null;
+  comment: string;
+  action_status: string;
+  created_at: string;
+}
+
 function statusColor(status: string | null | undefined): string {
   if (!status) return "bg-gray-300";
   const opt = READING_STATUS_OPTIONS.find((o) => o.value === status);
   return opt ? opt.color : "bg-gray-300";
+}
+
+function processingBadgeTone(status: string): string {
+  switch (status) {
+    case "completed":
+      return "bg-green-100 text-green-700 border-green-200";
+    case "triaged":
+    case "indexed":
+      return "bg-blue-100 text-blue-700 border-blue-200";
+    case "pending":
+      return "bg-amber-100 text-amber-700 border-amber-200";
+    case "error":
+    case "pdf_error":
+    case "timeout":
+      return "bg-red-100 text-red-700 border-red-200";
+    default:
+      return "bg-muted text-muted-foreground border-border";
+  }
+}
+
+function formatProcessingText(value: string | null | undefined): string {
+  if (!value) return "Not set";
+  return value.replace(/_/g, " ");
 }
 
 /** Order in which card sections should appear. */
@@ -125,6 +185,22 @@ const SECTION_ORDER = [
   "what_makes_this_paper_good",
   "limitations_and_open_questions",
   "china_applicability",
+];
+
+const REPROCESS_PROFILE_OPTIONS = [
+  { value: "auto", label: "Auto" },
+  { value: "metadata_only", label: "Metadata Only" },
+  { value: "title_abstract", label: "Title + Abstract" },
+  { value: "full_content", label: "Full Content" },
+  { value: "style_logic", label: "Style + Logic" },
+];
+
+const FEEDBACK_TYPE_OPTIONS = [
+  { value: "good", label: "Good" },
+  { value: "too_shallow", label: "Too shallow" },
+  { value: "incorrect", label: "Incorrect" },
+  { value: "missing", label: "Missing" },
+  { value: "format_issue", label: "Format issue" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -552,6 +628,94 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
   const [fetchRelatedByAxis, { loading: axisLoading }] = useLazyQuery<{
     paper: { relatedByAxis: RelatedPaper[] };
   }>(GET_RELATED_BY_AXIS);
+  const [processingState, setProcessingState] = useState<PaperProcessingState | null>(null);
+  const [processingLoading, setProcessingLoading] = useState(false);
+  const [processingError, setProcessingError] = useState("");
+  const [reprocessProfile, setReprocessProfile] = useState("auto");
+  const [reprocessLoading, setReprocessLoading] = useState(false);
+  const [reprocessMessage, setReprocessMessage] = useState("");
+  const [feedbackItems, setFeedbackItems] = useState<PaperFeedbackItem[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackError, setFeedbackError] = useState("");
+  const [feedbackType, setFeedbackType] = useState("too_shallow");
+  const [feedbackDimension, setFeedbackDimension] = useState("");
+  const [feedbackRating, setFeedbackRating] = useState("3");
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadProcessingState() {
+      setProcessingLoading(true);
+      setProcessingError("");
+      try {
+        const response = await activeLibraryFetch(
+          `${getApiUrl()}/api/papers/${encodeURIComponent(id)}/processing`
+        );
+        if (!response.ok) {
+          throw new Error(await readErrorMessage(response, "Failed to load processing state"));
+        }
+        const payload = (await response.json()) as PaperProcessingState;
+        if (!active) return;
+        setProcessingState(payload);
+        setReprocessProfile(payload.reading_profile || "auto");
+      } catch (error_) {
+        if (!active) return;
+        setProcessingState(null);
+        setProcessingError(
+          error_ instanceof Error ? error_.message : "Failed to load processing state."
+        );
+      } finally {
+        if (active) setProcessingLoading(false);
+      }
+    }
+
+    loadProcessingState();
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    const firstDimension = processingState?.extraction_rows?.[0]?.dimension_key ?? "";
+    if (!firstDimension) {
+      setFeedbackDimension("");
+      return;
+    }
+    setFeedbackDimension((current) => current || firstDimension);
+  }, [processingState?.extraction_rows]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadFeedback() {
+      setFeedbackLoading(true);
+      setFeedbackError("");
+      try {
+        const response = await activeLibraryFetch(
+          `${getApiUrl()}/api/papers/${encodeURIComponent(id)}/feedback`
+        );
+        if (!response.ok) {
+          throw new Error(await readErrorMessage(response, "Failed to load feedback"));
+        }
+        const payload = await response.json();
+        if (!active) return;
+        setFeedbackItems((payload.items ?? []) as PaperFeedbackItem[]);
+      } catch (error_) {
+        if (!active) return;
+        setFeedbackItems([]);
+        setFeedbackError(error_ instanceof Error ? error_.message : "Failed to load feedback.");
+      } finally {
+        if (active) setFeedbackLoading(false);
+      }
+    }
+
+    loadFeedback();
+    return () => {
+      active = false;
+    };
+  }, [id]);
 
   useEffect(() => {
     return () => {
@@ -672,6 +836,87 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
     [id, fetchRelatedByAxis]
   );
 
+  const reloadProcessingState = useCallback(async () => {
+    const response = await activeLibraryFetch(
+      `${getApiUrl()}/api/papers/${encodeURIComponent(id)}/processing`
+    );
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response, "Failed to load processing state"));
+    }
+    const payload = (await response.json()) as PaperProcessingState;
+    setProcessingState(payload);
+    setReprocessProfile(payload.reading_profile || "auto");
+  }, [id]);
+
+  const reloadFeedback = useCallback(async () => {
+    const response = await activeLibraryFetch(
+      `${getApiUrl()}/api/papers/${encodeURIComponent(id)}/feedback`
+    );
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response, "Failed to load feedback"));
+    }
+    const payload = await response.json();
+    setFeedbackItems((payload.items ?? []) as PaperFeedbackItem[]);
+  }, [id]);
+
+  const handleReprocess = useCallback(async () => {
+    setReprocessLoading(true);
+    setReprocessMessage("");
+    try {
+      const response = await activeLibraryFetch(
+        `${getApiUrl()}/api/papers/${encodeURIComponent(id)}/reprocess`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reading_profile: reprocessProfile,
+          }),
+        }
+      );
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, "Failed to re-run extraction"));
+      }
+      await response.json();
+      await reloadProcessingState();
+      setReprocessMessage("Re-run completed.");
+    } catch (error_) {
+      setReprocessMessage(
+        error_ instanceof Error ? error_.message : "Failed to re-run extraction."
+      );
+    } finally {
+      setReprocessLoading(false);
+    }
+  }, [id, reprocessProfile, reloadProcessingState]);
+
+  const handleSubmitFeedback = useCallback(async () => {
+    setFeedbackSubmitting(true);
+    setFeedbackError("");
+    try {
+      const response = await activeLibraryFetch(
+        `${getApiUrl()}/api/papers/${encodeURIComponent(id)}/feedback`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            dimension_key: feedbackDimension,
+            feedback_type: feedbackType,
+            rating: Number(feedbackRating),
+            comment: feedbackComment,
+          }),
+        }
+      );
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, "Failed to save feedback"));
+      }
+      setFeedbackComment("");
+      await reloadFeedback();
+    } catch (error_) {
+      setFeedbackError(error_ instanceof Error ? error_.message : "Failed to save feedback.");
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  }, [feedbackComment, feedbackDimension, feedbackRating, feedbackType, id, reloadFeedback]);
+
   if (loading) return <PaperSkeleton paperId={id} />;
   if (error || !data?.paper) {
     return <PaperNotFound paperId={id} backHref={backHref} backLabel={backLabel} />;
@@ -764,7 +1009,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                   rel="noopener noreferrer"
                   className="shrink-0 mt-1 inline-flex items-center gap-1.5 rounded-full border border-foreground/10 bg-background/85 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
                 >
-                  View on NBER
+                  {appConfig.externalPaperLabel}
                   <ExternalLink className="h-3 w-3" />
                 </a>
               )}
@@ -1301,6 +1546,324 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
         {/* SIDEBAR (~35%)                                                */}
         {/* ============================================================= */}
         <div className="w-full space-y-6 lg:w-[35%] lg:sticky lg:top-6 lg:self-start">
+          <Card className="border-border shadow-none">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm font-semibold text-foreground">
+                Extraction Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 p-4 pt-2">
+              {processingLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : processingError ? (
+                <p className="text-xs leading-5 text-red-600">{processingError}</p>
+              ) : processingState ? (
+                <>
+                  <div className="flex items-center justify-between gap-3">
+                    <span
+                      className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${processingBadgeTone(processingState.processing_status)}`}
+                    >
+                      {formatProcessingText(processingState.processing_status)}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      Profile: {formatProcessingText(processingState.reading_profile)}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Imported</span>
+                      <span className="text-foreground">
+                        {processingState.imported_at
+                          ? new Date(processingState.imported_at).toLocaleString()
+                          : "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Last updated</span>
+                      <span className="text-foreground">
+                        {processingState.updated_at
+                          ? new Date(processingState.updated_at).toLocaleString()
+                          : "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Reading status</span>
+                      <span className="text-foreground">
+                        {formatProcessingText(processingState.reading_status)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {processingState.analysis_focuses.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        Requested Focus
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {processingState.analysis_focuses.map((focus) => (
+                          <Badge key={focus} variant="outline" className="text-[10px]">
+                            {formatProcessingText(focus)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      Coverage
+                    </p>
+                    <div className="space-y-2">
+                      {processingState.extraction_rows.map((row) => (
+                        <div
+                          key={row.dimension_key}
+                          className="flex items-center justify-between rounded-xl border border-border px-3 py-2 text-xs"
+                        >
+                          <span className="text-foreground">{row.label}</span>
+                          <div className="flex items-center gap-2">
+                            {typeof row.quality_score === "number" ? (
+                              <span className="text-[11px] text-muted-foreground">
+                                {row.quality_score.toFixed(1)}/5
+                              </span>
+                            ) : null}
+                            <span
+                              className={`inline-flex rounded-full px-2 py-0.5 font-medium ${
+                                row.status === "complete"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {row.status === "complete" ? "Ready" : "Missing"}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-xl border border-border bg-card p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                          Re-run Extraction
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          Choose how deeply the PDF should be re-read before refreshing this paper.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Select
+                        value={reprocessProfile}
+                        onValueChange={setReprocessProfile}
+                        disabled={reprocessLoading}
+                      >
+                        <SelectTrigger className="h-9 text-xs">
+                          <SelectValue placeholder="Select re-read profile" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {REPROCESS_PROFILE_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full gap-2"
+                        onClick={handleReprocess}
+                        disabled={reprocessLoading}
+                      >
+                        {reprocessLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4" />
+                        )}
+                        {reprocessLoading ? "Re-reading…" : "Re-run extraction"}
+                      </Button>
+                      {reprocessMessage ? (
+                        <p
+                          className={cn(
+                            "text-xs leading-5",
+                            reprocessMessage === "Re-run completed."
+                              ? "text-green-700"
+                              : "text-red-600"
+                          )}
+                        >
+                          {reprocessMessage}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-xl border border-border bg-card p-3">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        Extraction Feedback
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        Mark weak dimensions so the system can target a better re-read later.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <Select
+                        value={feedbackDimension}
+                        onValueChange={setFeedbackDimension}
+                        disabled={feedbackSubmitting || processingState.extraction_rows.length === 0}
+                      >
+                        <SelectTrigger className="h-9 text-xs">
+                          <SelectValue placeholder="Dimension" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {processingState.extraction_rows.map((row) => (
+                            <SelectItem key={row.dimension_key} value={row.dimension_key}>
+                              {row.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={feedbackType}
+                        onValueChange={setFeedbackType}
+                        disabled={feedbackSubmitting}
+                      >
+                        <SelectTrigger className="h-9 text-xs">
+                          <SelectValue placeholder="Feedback type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {FEEDBACK_TYPE_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={feedbackRating}
+                        onValueChange={setFeedbackRating}
+                        disabled={feedbackSubmitting}
+                      >
+                        <SelectTrigger className="h-9 text-xs">
+                          <SelectValue placeholder="Rating" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["1", "2", "3", "4", "5"].map((value) => (
+                            <SelectItem key={value} value={value}>
+                              {value}/5
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <textarea
+                      value={feedbackComment}
+                      onChange={(event) => setFeedbackComment(event.target.value)}
+                      placeholder="What should improve in this extraction?"
+                      className="min-h-[96px] w-full resize-y rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                      disabled={feedbackSubmitting}
+                    />
+
+                    <Button
+                      type="button"
+                      className="w-full gap-2"
+                      onClick={handleSubmitFeedback}
+                      disabled={feedbackSubmitting || !feedbackDimension}
+                    >
+                      {feedbackSubmitting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <MessageCircle className="h-4 w-4" />
+                      )}
+                      {feedbackSubmitting ? "Saving feedback…" : "Save feedback"}
+                    </Button>
+
+                    {feedbackError ? (
+                      <p className="text-xs leading-5 text-red-600">{feedbackError}</p>
+                    ) : null}
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                          Recent Feedback
+                        </p>
+                        {feedbackLoading ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                        ) : null}
+                      </div>
+
+                      {feedbackItems.length > 0 ? (
+                        <div className="space-y-2">
+                          {feedbackItems.slice(0, 5).map((item) => {
+                            const label =
+                              processingState.extraction_rows.find(
+                                (row) => row.dimension_key === item.dimension_key
+                              )?.label ?? formatProcessingText(item.dimension_key);
+                            return (
+                              <div
+                                key={item.id}
+                                className="rounded-xl border border-border px-3 py-2"
+                              >
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <Badge variant="outline" className="text-[10px]">
+                                    {label}
+                                  </Badge>
+                                  <Badge variant="secondary" className="text-[10px]">
+                                    {formatProcessingText(item.feedback_type)}
+                                  </Badge>
+                                  {item.rating ? (
+                                    <span className="text-[11px] text-muted-foreground">
+                                      {item.rating}/5
+                                    </span>
+                                  ) : null}
+                                </div>
+                                {item.comment ? (
+                                  <p className="mt-2 text-xs leading-5 text-foreground">
+                                    {item.comment}
+                                  </p>
+                                ) : null}
+                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                  {new Date(item.created_at).toLocaleString()}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs leading-5 text-muted-foreground">
+                          No feedback has been recorded for this paper yet.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {processingState.last_error ? (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-red-700">
+                        Last error
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-red-700">
+                        {processingState.last_error}
+                      </p>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <p className="text-xs leading-5 text-muted-foreground">
+                  No processing state is available for this paper in the active library.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* --- Score Profile (toggle between Bars and Radar) --- */}
           {scores.length > 0 && (
             <Card className="border-border shadow-none">
@@ -1478,10 +2041,10 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                   setIdeaGenResult("");
                   const controller = new AbortController();
                   try {
-                    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8011";
-                    const res = await fetch(`${apiUrl}/api/generate-ideas`, {
+                    const apiUrl = getApiUrl();
+                    const res = await activeLibraryFetch(`${apiUrl}/api/generate-ideas`, {
                       method: "POST",
-                      headers: { "Content-Type": "application/json" },
+                      headers: withActiveLibraryHeaders({ "Content-Type": "application/json" }),
                       body: JSON.stringify({ paper_ids: [paper.paperId], num_ideas: 3 }),
                       signal: controller.signal,
                     });

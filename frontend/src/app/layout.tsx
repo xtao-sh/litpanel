@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
-import { ThemeProvider } from "next-themes";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 import { ApolloWrapper } from "@/lib/apollo-provider";
 import { AppShell } from "@/components/layout/app-shell";
+import { appConfig } from "@/lib/app-config";
+import { LocaleProvider } from "@/lib/i18n/locale-context";
+import { ThemeProvider } from "@/lib/theme-context";
 
 export const metadata: Metadata = {
-  title: "NBER Research Knowledge Base",
-  description:
-    "Explore NBER working papers, mechanisms, methods, datasets, and research ideas",
+  title: appConfig.appName,
+  description: appConfig.appDescription,
 };
 
 export default function RootLayout({
@@ -23,10 +24,12 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full font-body">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <ApolloWrapper>
-            <AppShell>{children}</AppShell>
-          </ApolloWrapper>
+        <ThemeProvider>
+          <LocaleProvider>
+            <ApolloWrapper>
+              <AppShell>{children}</AppShell>
+            </ApolloWrapper>
+          </LocaleProvider>
         </ThemeProvider>
       </body>
     </html>

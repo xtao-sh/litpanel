@@ -1,6 +1,7 @@
 import type { Project, ResearchFilter } from "@/lib/types";
+import { getApiUrl } from "@/lib/api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8011";
+const API_URL = getApiUrl();
 
 interface CreateResearchDraftOptions {
   title: string;

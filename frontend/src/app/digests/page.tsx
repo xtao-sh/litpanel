@@ -5,6 +5,7 @@ import { useQuery } from "@apollo/client/react";
 import { Newspaper, Calendar, AlertTriangle, Search } from "lucide-react";
 import { GET_DIGESTS } from "@/lib/queries";
 import { MarkdownRenderer } from "@/components/maps/markdown-renderer";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 interface Digest {
   date: string;
@@ -145,6 +146,7 @@ class MarkdownErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryS
 // ---------------------------------------------------------------------------
 
 export default function DigestsPage() {
+  const { t } = useI18n();
   const { data, loading, error } = useQuery<{ digests: Digest[] }>(
     GET_DIGESTS,
     { variables: { limit: 30 } }
@@ -237,7 +239,7 @@ export default function DigestsPage() {
           </div>
         </div>
         <div className="rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
-          <p className="section-kicker">Use This View</p>
+          <p className="section-kicker">{t("common.pageInfo")}</p>
           <p className="mt-2 text-sm leading-6 text-foreground/80">
             Start here for recency. Move to Research or Projects when a digest
             deserves a deeper thematic read.

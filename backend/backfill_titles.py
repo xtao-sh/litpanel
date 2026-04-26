@@ -1,13 +1,21 @@
-"""Backfill paper titles for papers missing them using NBER API."""
+"""Backfill paper titles for papers missing them using source landing pages."""
 import sqlite3
 import requests
 import time
 import re
 import logging
+from pathlib import Path
 
-def backfill_from_nber_api(batch_size=100, max_batches=5):
-    """Fetch titles from NBER API for papers that lack them."""
-    conn = sqlite3.connect('kb.db')
+from config import KB_DB_PATH, SOURCE_NAME, SUPPORTS_REMOTE_DISCOVERY, build_paper_url
+
+
+def backfill_titles_from_source(batch_size=100, max_batches=5):
+    """Fetch titles from source landing pages for papers that lack them."""
+    if not SUPPORTS_REMOTE_DISCOVERY:
+        print("Remote source is disabled. Title backfill from source pages is unavailable.")
+        return
+
+    conn = sqlite3.connect(str(Path(KB_DB_PATH)))
 
     # Get papers without titles
     missing = conn.execute(
@@ -26,25 +34,20 @@ def backfill_from_nber_api(batch_size=100, max_batches=5):
     for i in range(0, len(missing), batch_size):
         batch = missing[i:i+batch_size]
 
-        # Try NBER API search
         for row in batch:
             pid = row[0]
-            # Extract number from paper_id (e.g., w31161 -> 31161)
-            num = re.search(r'\d+', pid)
-            if not num:
-                continue
 
             try:
-                # Fetch paper page from NBER
-                url = f"https://www.nber.org/papers/{pid}"
+                url = build_paper_url(pid)
                 resp = requests.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
                 if resp.status_code == 200:
                     # Extract title from HTML <title> tag
                     title_match = re.search(r'<title>(.*?)</title>', resp.text)
                     if title_match:
                         title = title_match.group(1).strip()
-                        # Clean up: remove "| NBER" suffix
-                        title = re.sub(r'\s*\|\s*NBER\s*$', '', title)
+                        # Clean up common site-brand suffixes from HTML titles.
+                        source_suffix = re.escape(SOURCE_NAME)
+                        title = re.sub(rf'\s*(?:\||-|–|—)\s*{source_suffix}\s*$', '', title)
                         if title and title != pid:
                             conn.execute("UPDATE papers SET title = ? WHERE paper_id = ?", (title, pid))
                             updated += 1
@@ -68,4 +71,4 @@ def backfill_from_nber_api(batch_size=100, max_batches=5):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    backfill_from_nber_api(batch_size=50, max_batches=3)  # Process 150 papers as a start
+    backfill_titles_from_source(batch_size=50, max_batches=3)

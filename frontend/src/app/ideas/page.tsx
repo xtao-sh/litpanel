@@ -8,6 +8,7 @@ import { PenSquare, ChevronDown, ChevronRight, Search, X } from "lucide-react";
 
 import { GET_IDEAS } from "@/lib/queries";
 import type { Idea } from "@/lib/types";
+import { collectErrorMessages } from "@/components/shared/query-error-banner";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -429,8 +430,9 @@ function IdeasPageInner() {
       {/* Error */}
       {error && (
         <div className="paper-panel border-red-200/80 bg-red-50/80 p-4 shadow-none">
-          <p className="text-sm text-red-700">
-            Failed to load ideas. Please try again later.
+          <p className="text-sm font-medium text-red-700">Failed to load ideas.</p>
+          <p className="mt-1 text-xs text-red-700">
+            {collectErrorMessages([error]) || "Please refresh the page."}
           </p>
         </div>
       )}

@@ -9,6 +9,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { activeLibraryFetch, getApiUrl, readErrorMessage, withActiveLibraryHeaders } from "@/lib/api";
 import Link from "next/link";
 import {
   X,
@@ -32,7 +33,7 @@ import type { AgentRole, DebateAgentMessage, DebateVerdict } from "@/lib/types";
 // Constants
 // ---------------------------------------------------------------------------
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8011";
+const API_URL = getApiUrl();
 
 const AGENT_CONFIG: Record<
   AgentRole,
@@ -323,7 +324,11 @@ function VerdictCard({
       `Next Steps:`,
       ...verdict.nextSteps.map((s, i) => `  ${i + 1}. ${s}`),
     ].join("\n");
-    navigator.clipboard.writeText(text);
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => {
+        // Clipboard access can be blocked in embedded browsers.
+      });
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     onCopy();
@@ -520,9 +525,9 @@ export function DebateModal({
     abortRef.current = controller;
 
     try {
-      const response = await fetch(`${API_URL}/api/debate`, {
+      const response = await activeLibraryFetch(`${API_URL}/api/debate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: withActiveLibraryHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           idea_title: ideaTitle,
           idea_text: ideaText,
@@ -533,7 +538,7 @@ export function DebateModal({
       });
 
       if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`);
+        throw new Error(await readErrorMessage(response, "Failed to start the debate"));
       }
 
       const reader = response.body?.getReader();

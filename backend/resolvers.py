@@ -15,14 +15,13 @@ from typing import Any
 
 import aiosqlite
 
+from config import KB_DB_PATH, PROJECTS_DIR
+from library_context import get_active_library_id
 from search import prepare_search, search_sql, count_sql
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = os.environ.get("KB_DB_PATH", os.path.join(os.path.dirname(__file__), "kb.db"))
-PROJECTS_DIR = (
-    Path(__file__).resolve().parent.parent / "Data" / "knowledge_base" / "projects"
-)
+DB_PATH = KB_DB_PATH
 
 
 # ---------------------------------------------------------------------------
@@ -35,7 +34,11 @@ def _ttl_cache(seconds: int = 300):
         _cache = {}
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            key = (args, tuple(sorted(kwargs.items())))
+            key = (
+                get_active_library_id(),
+                args,
+                tuple(sorted(kwargs.items())),
+            )
             now = _time.time()
             if key in _cache and now - _cache[key][0] < seconds:
                 return _cache[key][1]
@@ -80,6 +83,61 @@ def _first_sentence(text: str) -> str:
     return text[:147] + "..."
 
 
+def _active_library_id() -> int | None:
+    return get_active_library_id()
+
+
+def _content_library_id() -> int:
+    library_id = _active_library_id()
+    if library_id is not None:
+        return library_id
+    from database import ensure_default_library
+    return ensure_default_library()
+
+
+def _paper_scope_where(alias: str = "p") -> tuple[str | None, list[Any]]:
+    library_id = _active_library_id()
+    if library_id is None:
+        return None, []
+    return (
+        f"EXISTS (SELECT 1 FROM library_papers lp WHERE lp.paper_id = {alias}.paper_id AND lp.library_id = ?)",
+        [library_id],
+    )
+
+
+def _with_paper_scope(where_parts: list[str], binds: list[Any], alias: str = "p") -> None:
+    clause, scoped_binds = _paper_scope_where(alias)
+    if clause:
+        where_parts.append(clause)
+        binds.extend(scoped_binds)
+
+
+def _atom_scope_where(alias: str = "a") -> tuple[str | None, list[Any]]:
+    library_id = _active_library_id()
+    if library_id is None:
+        return None, []
+    return (
+        "EXISTS ("
+        "SELECT 1 "
+        "FROM atom_paper_refs apr "
+        "JOIN library_papers lp ON lp.paper_id = apr.paper_id "
+        f"WHERE apr.atom_slug = {alias}.slug AND lp.library_id = ?"
+        ")",
+        [library_id],
+    )
+
+
+def _with_atom_scope(where_parts: list[str], binds: list[Any], alias: str = "a") -> None:
+    clause, scoped_binds = _atom_scope_where(alias)
+    if clause:
+        where_parts.append(clause)
+        binds.extend(scoped_binds)
+
+
+def _content_scope_where(alias: str = "x") -> tuple[str, list[Any]]:
+    return f"{alias}.library_id = ?", [_content_library_id()]
+
+
 _db_lock = asyncio.Lock()
 _db_conn: aiosqlite.Connection | None = None
 
@@ -111,12 +169,21 @@ def _projects_exist() -> bool:
     return PROJECTS_DIR.is_dir()
 
 
+def _raise_resolver_runtime_error(context: str, exc: Exception) -> None:
+    logger.exception("%s failed", context)
+    detail = str(exc).strip() or exc.__class__.__name__
+    raise RuntimeError(f"{context} failed: {detail}") from exc
+
+
 MAX_GRAPH_SEED_PAPERS = 60
 MAX_GRAPH_CONTEXT_PAPERS = 20
 MAX_GRAPH_CANDIDATE_PAPERS = 120
 PAPER_SET_NETWORK_CACHE_TTL = 180
 PAPER_SET_NETWORK_CACHE_MAX = 64
-_paper_set_network_cache: dict[tuple[tuple[str, ...], int], tuple[float, dict[str, Any]]] = {}
+_paper_set_network_cache: dict[
+    tuple[int | None, tuple[str, ...], int],
+    tuple[float, dict[str, Any]],
+] = {}
 
 
 def _graph_edge_relation(atom_type: str) -> str:
@@ -129,7 +196,7 @@ def _graph_edge_relation(atom_type: str) -> str:
 
 
 def _get_paper_set_network_cache(
-    cache_key: tuple[tuple[str, ...], int],
+    cache_key: tuple[int | None, tuple[str, ...], int],
 ) -> dict[str, Any] | None:
     entry = _paper_set_network_cache.get(cache_key)
     if entry is None:
@@ -143,7 +210,7 @@ def _get_paper_set_network_cache(
 
 
 def _set_paper_set_network_cache(
-    cache_key: tuple[tuple[str, ...], int],
+    cache_key: tuple[int | None, tuple[str, ...], int],
     value: dict[str, Any],
 ) -> None:
     now = _time.time()
@@ -154,6 +221,22 @@ def _set_paper_set_network_cache(
         )[0]
         _paper_set_network_cache.pop(oldest_key, None)
     _paper_set_network_cache[cache_key] = (now, value)
+
+
+def clear_runtime_caches() -> None:
+    """Clear resolver TTL caches after imports, deletes, or reindex jobs."""
+    for resolver in (
+        get_jel_taxonomy,
+        get_method_field_matrix,
+        field_overview,
+        detect_gaps,
+        get_trending_topics,
+        get_stats,
+    ):
+        cache_clear = getattr(resolver, "cache_clear", None)
+        if callable(cache_clear):
+            cache_clear()
+    _paper_set_network_cache.clear()
 
 
 def _paper_row_to_graph_node(
@@ -230,6 +313,8 @@ def _finalize_network_graph(
     source_paper_count: int | None = None,
     seed_count: int = 0,
     truncated: bool = False,
+    error_message: str | None = None,
+    warning_message: str | None = None,
 ) -> dict[str, Any]:
     total_paper_nodes = sum(1 for node in nodes.values() if node["type"] == "paper")
     return {
@@ -240,7 +325,21 @@ def _finalize_network_graph(
         "seed_count": seed_count,
         "total_paper_nodes": total_paper_nodes,
         "truncated": truncated,
+        "error_message": error_message,
+        "warning_message": warning_message,
     }
+
+
+def _graph_runtime_error(mode: str, exc: Exception) -> dict[str, Any]:
+    raw_message = str(exc).strip()
+    detail = raw_message if raw_message else exc.__class__.__name__
+    return _finalize_network_graph(
+        nodes={},
+        edges={},
+        mode=mode,
+        seed_count=0,
+        error_message=f"Failed to build the {mode.replace('_', ' ')} graph: {detail}",
+    )
 
 
 def _read_json_file(path: Path) -> Any | None:
@@ -438,9 +537,12 @@ async def get_papers_by_ids(paper_ids: list[str]) -> list[dict[str, Any]]:
     try:
         db = await _get_db()
         placeholders = ", ".join("?" for _ in paper_ids)
+        where_parts = [f"p.paper_id IN ({placeholders})"]
+        binds: list[Any] = list(paper_ids)
+        _with_paper_scope(where_parts, binds, "p")
         cursor = await db.execute(
-            f"SELECT * FROM papers WHERE paper_id IN ({placeholders})",
-            paper_ids,
+            f"SELECT p.* FROM papers p WHERE {' AND '.join(where_parts)}",
+            binds,
         )
         rows = await cursor.fetchall()
         papers = [_row_to_paper(row) for row in rows]
@@ -452,7 +554,7 @@ async def get_papers_by_ids(paper_ids: list[str]) -> list[dict[str, Any]]:
 
 
 async def get_projects() -> list[dict[str, Any]]:
-    """List curated review projects defined in Data/knowledge_base/projects."""
+    """List curated review projects defined in the configured projects directory."""
     if not _projects_exist():
         return []
 
@@ -476,9 +578,8 @@ async def get_projects() -> list[dict[str, Any]]:
 
         projects.sort(key=lambda p: (p["updated_at"], p["title"]), reverse=True)
         return projects
-    except Exception:
-        logger.exception("get_projects failed")
-        return []
+    except Exception as exc:
+        _raise_resolver_runtime_error("get_projects", exc)
 
 
 async def get_project(slug: str) -> dict[str, Any] | None:
@@ -536,7 +637,13 @@ async def get_paper(paper_id: str) -> dict[str, Any] | None:
         return None
     try:
         db = await _get_db()
-        cursor = await db.execute("SELECT * FROM papers WHERE paper_id = ?", (paper_id,))
+        where_parts = ["p.paper_id = ?"]
+        binds: list[Any] = [paper_id]
+        _with_paper_scope(where_parts, binds, "p")
+        cursor = await db.execute(
+            f"SELECT p.* FROM papers p WHERE {' AND '.join(where_parts)}",
+            binds,
+        )
         row = await cursor.fetchone()
         if row is None:
             return None
@@ -564,6 +671,7 @@ async def get_papers(
         where_parts: list[str] = []
         binds: list[Any] = []
         need_triage_join = False
+        _with_paper_scope(where_parts, binds, "p")
 
         if filter_:
             if filter_.get("search"):
@@ -665,9 +773,8 @@ async def get_papers(
             item["tldr"] = tldrs.get(item["paper_id"])
 
         return {"items": items, "total": total}
-    except Exception:
-        logger.exception("get_papers failed")
-        return empty
+    except Exception as exc:
+        _raise_resolver_runtime_error("get_papers", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -891,9 +998,10 @@ async def get_idea_count_for_paper(paper_id: str) -> int:
         return 0
     try:
         db = await _get_db()
+        scope_sql, scope_binds = _content_scope_where("li")
         cursor = await db.execute(
-            "SELECT COUNT(*) FROM ideas WHERE source_papers LIKE ?",
-            (f"%{paper_id}%",),
+            f"SELECT COUNT(*) FROM library_ideas li WHERE {scope_sql} AND li.source_papers LIKE ?",
+            [*scope_binds, f"%{paper_id}%"],
         )
         row = await cursor.fetchone()
         return row[0] if row else 0
@@ -928,15 +1036,17 @@ async def get_related_papers(paper_id: str, limit: int = 10) -> list[dict[str, A
         return []
     try:
         db = await _get_db()
+        scope_clause, scope_binds = _paper_scope_where("p")
         cursor = await db.execute(
             """
             SELECT DISTINCT p.* FROM atom_paper_refs apr1
             JOIN atom_paper_refs apr2 ON apr1.atom_slug = apr2.atom_slug
             JOIN papers p ON p.paper_id = apr2.paper_id
             WHERE apr1.paper_id = ? AND apr2.paper_id != ?
+            """ + (f" AND {scope_clause}" if scope_clause else "") + """
             LIMIT ?
             """,
-            (paper_id, paper_id, limit),
+            [paper_id, paper_id, *scope_binds, limit],
         )
         return [_row_to_paper(r) for r in await cursor.fetchall()]
     except Exception:
@@ -950,6 +1060,7 @@ async def get_related_papers_scored(paper_id: str, limit: int = 10) -> list[dict
         return []
     try:
         db = await _get_db()
+        scope_clause, scope_binds = _paper_scope_where("p")
         cursor = await db.execute(
             """
             SELECT p.*, COUNT(DISTINCT apr1.atom_slug) as shared_count,
@@ -958,11 +1069,12 @@ async def get_related_papers_scored(paper_id: str, limit: int = 10) -> list[dict
             JOIN atom_paper_refs apr2 ON apr1.atom_slug = apr2.atom_slug
             JOIN papers p ON p.paper_id = apr2.paper_id
             WHERE apr1.paper_id = ? AND apr2.paper_id != ?
+            """ + (f" AND {scope_clause}" if scope_clause else "") + """
             GROUP BY apr2.paper_id
             ORDER BY shared_count DESC
             LIMIT ?
             """,
-            (paper_id, paper_id, limit),
+            [paper_id, paper_id, *scope_binds, limit],
         )
         results = []
         for r in await cursor.fetchall():
@@ -1004,6 +1116,7 @@ async def get_related_papers_by_axis(
 
     try:
         db = await _get_db()
+        scope_clause, scope_binds = _paper_scope_where("p")
         cursor = await db.execute(
             """
             SELECT p.*, COUNT(DISTINCT apr1.atom_slug) as shared_count,
@@ -1014,11 +1127,12 @@ async def get_related_papers_by_axis(
             JOIN papers p ON p.paper_id = apr2.paper_id
             WHERE apr1.paper_id = ? AND apr2.paper_id != ?
             AND a.type = ?
+            """ + (f" AND {scope_clause}" if scope_clause else "") + """
             GROUP BY apr2.paper_id
             ORDER BY shared_count DESC
             LIMIT ?
             """,
-            (paper_id, paper_id, axis, limit),
+            [paper_id, paper_id, axis, *scope_binds, limit],
         )
         results = []
         for r in await cursor.fetchall():
@@ -1063,7 +1177,13 @@ async def get_atom(slug: str) -> dict[str, Any] | None:
         return None
     try:
         db = await _get_db()
-        cursor = await db.execute("SELECT * FROM atoms WHERE slug = ?", (slug,))
+        where_parts = ["a.slug = ?"]
+        binds: list[Any] = [slug]
+        _with_atom_scope(where_parts, binds, "a")
+        cursor = await db.execute(
+            f"SELECT a.* FROM atoms a WHERE {' AND '.join(where_parts)}",
+            binds,
+        )
         row = await cursor.fetchone()
         if row is None:
             return None
@@ -1087,6 +1207,7 @@ async def get_atoms(
 
         where_parts: list[str] = []
         binds: list[Any] = []
+        _with_atom_scope(where_parts, binds, "a")
 
         if filter_:
             if filter_.get("search"):
@@ -1108,11 +1229,14 @@ async def get_atoms(
 
         where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
 
-        count_cursor = await db.execute(f"SELECT COUNT(*) FROM atoms{where_sql}", binds)
+        count_cursor = await db.execute(
+            f"SELECT COUNT(*) FROM atoms a{where_sql}",
+            binds,
+        )
         total = (await count_cursor.fetchone())[0]
 
         cursor = await db.execute(
-            f"SELECT * FROM atoms{where_sql} ORDER BY title LIMIT ? OFFSET ?",
+            f"SELECT a.* FROM atoms a{where_sql} ORDER BY a.title LIMIT ? OFFSET ?",
             binds + [limit, offset],
         )
         rows = await cursor.fetchall()
@@ -1127,13 +1251,16 @@ async def get_atom_papers(slug: str) -> list[dict[str, Any]]:
         return []
     try:
         db = await _get_db()
+        where_parts = ["apr.atom_slug = ?"]
+        binds: list[Any] = [slug]
+        _with_paper_scope(where_parts, binds, "p")
         cursor = await db.execute(
             """
             SELECT p.* FROM papers p
             JOIN atom_paper_refs apr ON p.paper_id = apr.paper_id
-            WHERE apr.atom_slug = ?
-            """,
-            (slug,),
+            WHERE """
+            + " AND ".join(where_parts),
+            binds,
         )
         return [_row_to_paper(r) for r in await cursor.fetchall()]
     except Exception:
@@ -1146,10 +1273,26 @@ async def get_atom_paper_count(slug: str) -> int:
         return 0
     try:
         db = await _get_db()
-        cursor = await db.execute(
-            "SELECT COUNT(*) FROM atom_paper_refs WHERE atom_slug = ?",
-            (slug,),
-        )
+        where_parts = ["apr.atom_slug = ?"]
+        binds: list[Any] = [slug]
+        paper_scope, paper_scope_binds = _paper_scope_where("p")
+        if paper_scope:
+            where_parts.append(paper_scope)
+            binds.extend(paper_scope_binds)
+            cursor = await db.execute(
+                """
+                SELECT COUNT(DISTINCT apr.paper_id)
+                FROM atom_paper_refs apr
+                JOIN papers p ON p.paper_id = apr.paper_id
+                WHERE """
+                + " AND ".join(where_parts),
+                binds,
+            )
+        else:
+            cursor = await db.execute(
+                "SELECT COUNT(*) FROM atom_paper_refs apr WHERE apr.atom_slug = ?",
+                (slug,),
+            )
         return (await cursor.fetchone())[0]
     except Exception:
         logger.exception("get_atom_paper_count failed for %s", slug)
@@ -1169,16 +1312,17 @@ async def get_atom_themes(atom_type: str | None = None) -> list[dict[str, Any]]:
     try:
         db = await _get_db()
 
-        where_parts: list[str] = ["theme IS NOT NULL"]
+        where_parts: list[str] = ["a.theme IS NOT NULL"]
         binds: list[Any] = []
+        _with_atom_scope(where_parts, binds, "a")
         if atom_type:
-            where_parts.append("type = ?")
+            where_parts.append("a.type = ?")
             binds.append(atom_type)
         where_sql = " WHERE " + " AND ".join(where_parts)
 
         # Get theme counts
         cursor = await db.execute(
-            f"SELECT theme, type, COUNT(*) as cnt FROM atoms{where_sql} GROUP BY theme, type ORDER BY cnt DESC",
+            f"SELECT a.theme, a.type, COUNT(*) as cnt FROM atoms a{where_sql} GROUP BY a.theme, a.type ORDER BY cnt DESC",
             binds,
         )
         theme_rows = await cursor.fetchall()
@@ -1190,17 +1334,23 @@ async def get_atom_themes(atom_type: str | None = None) -> list[dict[str, Any]]:
             count = tr["cnt"]
 
             # Get top 10 atoms for this theme
+            top_where_parts = ["a.theme = ?", "a.type = ?"]
+            top_binds: list[Any] = [theme, atype]
+            _with_atom_scope(top_where_parts, top_binds, "a")
             top_cursor = await db.execute(
                 """SELECT a.slug, a.title, a.type, a.description,
                           a.evidence_strength, a.access,
-                          COUNT(apr.paper_id) as paper_count
+                          COUNT(DISTINCT apr.paper_id) as paper_count
                    FROM atoms a
                    LEFT JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-                   WHERE a.theme = ? AND a.type = ?
+                   LEFT JOIN library_papers lp ON lp.paper_id = apr.paper_id
+                   WHERE """
+                + " AND ".join(top_where_parts)
+                + """
                    GROUP BY a.slug
                    ORDER BY paper_count DESC
                    LIMIT 10""",
-                (theme, atype),
+                top_binds,
             )
             top_atoms = []
             for ar in await top_cursor.fetchall():
@@ -1234,15 +1384,18 @@ async def get_available_themes(atom_type: str | None = None) -> list[str]:
         return []
     try:
         db = await _get_db()
+        where_parts = ["a.theme IS NOT NULL"]
+        binds: list[Any] = []
+        _with_atom_scope(where_parts, binds, "a")
         if atom_type:
-            cursor = await db.execute(
-                "SELECT DISTINCT theme FROM atoms WHERE theme IS NOT NULL AND type = ? ORDER BY theme",
-                (atom_type,),
-            )
-        else:
-            cursor = await db.execute(
-                "SELECT DISTINCT theme FROM atoms WHERE theme IS NOT NULL ORDER BY theme"
-            )
+            where_parts.append("a.type = ?")
+            binds.append(atom_type)
+        cursor = await db.execute(
+            "SELECT DISTINCT a.theme FROM atoms a WHERE "
+            + " AND ".join(where_parts)
+            + " ORDER BY a.theme",
+            binds,
+        )
         rows = await cursor.fetchall()
         return [r[0] for r in rows]
     except Exception:
@@ -1259,7 +1412,11 @@ async def get_field_map(slug: str) -> dict[str, Any] | None:
         return None
     try:
         db = await _get_db()
-        cursor = await db.execute("SELECT * FROM field_maps WHERE slug = ?", (slug,))
+        scope_sql, scope_binds = _content_scope_where("lfm")
+        cursor = await db.execute(
+            f"SELECT * FROM library_field_maps lfm WHERE {scope_sql} AND lfm.slug = ?",
+            [*scope_binds, slug],
+        )
         row = await cursor.fetchone()
         if row is None:
             return None
@@ -1274,7 +1431,11 @@ async def get_field_maps() -> list[dict[str, Any]]:
         return []
     try:
         db = await _get_db()
-        cursor = await db.execute("SELECT * FROM field_maps ORDER BY title")
+        scope_sql, scope_binds = _content_scope_where("lfm")
+        cursor = await db.execute(
+            f"SELECT * FROM library_field_maps lfm WHERE {scope_sql} ORDER BY lfm.title",
+            scope_binds,
+        )
         return [
             {"slug": r["slug"], "title": r["title"], "content": r["content"]}
             for r in await cursor.fetchall()
@@ -1363,9 +1524,8 @@ async def get_jel_taxonomy() -> list[dict[str, Any]]:
                 "subcodes": subcodes,
             })
         return result
-    except Exception:
-        logger.exception("get_jel_taxonomy failed")
-        return []
+    except Exception as exc:
+        _raise_resolver_runtime_error("get_jel_taxonomy", exc)
 
 
 async def get_papers_by_jel(
@@ -1411,9 +1571,8 @@ async def get_papers_by_jel(
         page = matching[offset : offset + limit]
         items = [_row_to_paper(r) for r in page]
         return {"items": items, "total": total}
-    except Exception:
-        logger.exception("get_papers_by_jel failed for %s", code)
-        return {"items": [], "total": 0}
+    except Exception as exc:
+        _raise_resolver_runtime_error(f"get_papers_by_jel[{code}]", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -1426,8 +1585,11 @@ async def get_frontier_gaps() -> list[dict[str, Any]]:
         return []
     try:
         db = await _get_db()
+        scope_sql, scope_binds = _content_scope_where("lfm")
         cursor = await db.execute(
-            "SELECT content FROM field_maps WHERE slug = 'frontier_gaps'"
+            f"SELECT lfm.content FROM library_field_maps lfm WHERE {scope_sql} AND lfm.slug = 'frontier_gaps'"
+            ,
+            scope_binds,
         )
         row = await cursor.fetchone()
         if row is None:
@@ -1460,9 +1622,8 @@ async def get_frontier_gaps() -> list[dict[str, Any]]:
                 gap["closest_paper_titles"] = {}
 
         return gaps
-    except Exception:
-        logger.exception("get_frontier_gaps failed")
-        return []
+    except Exception as exc:
+        _raise_resolver_runtime_error("get_frontier_gaps", exc)
 
 
 def _parse_frontier_gaps(content: str) -> list[dict[str, Any]]:
@@ -1579,7 +1740,11 @@ async def get_idea(idea_id: str) -> dict[str, Any] | None:
         return None
     try:
         db = await _get_db()
-        cursor = await db.execute("SELECT * FROM ideas WHERE id = ?", (idea_id,))
+        scope_sql, scope_binds = _content_scope_where("li")
+        cursor = await db.execute(
+            f"SELECT * FROM library_ideas li WHERE {scope_sql} AND li.id = ?",
+            [*scope_binds, idea_id],
+        )
         row = await cursor.fetchone()
         if row is None:
             return None
@@ -1594,22 +1759,28 @@ async def get_ideas(status: str | None = None) -> list[dict[str, Any]]:
         return []
     try:
         db = await _get_db()
+        scope_sql, scope_binds = _content_scope_where("li")
         if status:
             cursor = await db.execute(
-                "SELECT * FROM ideas WHERE status = ? ORDER BY composite DESC",
-                (status,),
+                f"SELECT * FROM library_ideas li WHERE {scope_sql} AND li.status = ? ORDER BY li.composite DESC",
+                [*scope_binds, status],
             )
         else:
-            cursor = await db.execute("SELECT * FROM ideas ORDER BY composite DESC")
+            cursor = await db.execute(
+                f"SELECT * FROM library_ideas li WHERE {scope_sql} ORDER BY li.composite DESC",
+                scope_binds,
+            )
         rows = await cursor.fetchall()
         ideas = [_row_to_idea(r) for r in rows]
-        evaluations = await _prefetch_idea_evaluations(db, [idea["id"] for idea in ideas])
+        evaluations = await _prefetch_idea_evaluations(
+            db,
+            [idea["id"] for idea in ideas],
+        )
         for idea in ideas:
             idea["evaluation"] = evaluations.get(idea["id"])
         return ideas
-    except Exception:
-        logger.exception("get_ideas failed")
-        return []
+    except Exception as exc:
+        _raise_resolver_runtime_error("get_ideas", exc)
 
 
 async def _prefetch_idea_evaluations(
@@ -1623,9 +1794,10 @@ async def _prefetch_idea_evaluations(
     result: dict[str, dict[str, Any] | None] = {idea_id: None for idea_id in idea_ids}
 
     try:
+        scope_sql, scope_binds = _content_scope_where("lie")
         cursor = await db.execute(
-            f"SELECT * FROM idea_evaluations WHERE idea_id IN ({placeholders})",
-            idea_ids,
+            f"SELECT * FROM library_idea_evaluations lie WHERE {scope_sql} AND lie.idea_id IN ({placeholders})",
+            [*scope_binds, *idea_ids],
         )
         for row in await cursor.fetchall():
             result[row["idea_id"]] = {
@@ -1659,9 +1831,10 @@ async def set_idea_status(idea_id: str, status: str) -> bool:
         return False
     try:
         db = await _get_db()
+        scope_sql, scope_binds = _content_scope_where("li")
         cursor = await db.execute(
-            "UPDATE ideas SET status = ? WHERE id = ?",
-            (status, idea_id),
+            f"UPDATE library_ideas AS li SET status = ? WHERE {scope_sql} AND li.id = ?",
+            [status, *scope_binds, idea_id],
         )
         await db.commit()
         return cursor.rowcount > 0
@@ -1676,8 +1849,10 @@ async def get_idea_evaluation(idea_id: str) -> dict[str, Any] | None:
         return None
     try:
         db = await _get_db()
+        scope_sql, scope_binds = _content_scope_where("lie")
         cursor = await db.execute(
-            "SELECT * FROM idea_evaluations WHERE idea_id = ?", (idea_id,)
+            f"SELECT * FROM library_idea_evaluations lie WHERE {scope_sql} AND lie.idea_id = ?",
+            [*scope_binds, idea_id],
         )
         row = await cursor.fetchone()
         if row is None:
@@ -1710,9 +1885,13 @@ async def get_method_field_matrix(
         return {"methods": [], "fields": [], "matrix": []}
     try:
         db = await _get_db()
+        paper_scope, paper_scope_binds = _paper_scope_where("p")
         cursor = await db.execute(
-            "SELECT methods, fields FROM triage_cards "
-            "WHERE methods IS NOT NULL AND fields IS NOT NULL"
+            "SELECT tc.methods, tc.fields FROM triage_cards tc "
+            "JOIN papers p ON p.paper_id = tc.paper_id "
+            "WHERE tc.methods IS NOT NULL AND tc.fields IS NOT NULL"
+            + (f" AND {paper_scope}" if paper_scope else ""),
+            paper_scope_binds,
         )
         rows = await cursor.fetchall()
 
@@ -1774,23 +1953,46 @@ async def search(
 
     try:
         db = await _get_db()
+        active_library_id = _active_library_id()
 
-        sql, binds = search_sql(params)
+        sql, binds = search_sql(params, library_id=active_library_id or _content_library_id())
         cursor = await db.execute(sql, binds)
         rows = await cursor.fetchall()
 
-        hits = [
-            {
-                "entity_type": r["entity_type"],
-                "entity_id": r["entity_id"],
-                "title": r["title"],
-                "snippet": r["snippet"],
-                "rank": float(r["rank"]),
-            }
-            for r in rows
-        ]
+        hits = []
+        for r in rows:
+            if active_library_id is not None:
+                if r["entity_type"] == "paper":
+                    scoped = await db.execute(
+                        "SELECT 1 FROM library_papers WHERE library_id = ? AND paper_id = ?",
+                        (active_library_id, r["entity_id"]),
+                    )
+                    if await scoped.fetchone() is None:
+                        continue
+                elif r["entity_type"] == "atom":
+                    scoped = await db.execute(
+                        """
+                        SELECT 1
+                        FROM atom_paper_refs apr
+                        JOIN library_papers lp ON lp.paper_id = apr.paper_id
+                        WHERE lp.library_id = ? AND apr.atom_slug = ?
+                        LIMIT 1
+                        """,
+                        (active_library_id, r["entity_id"]),
+                    )
+                    if await scoped.fetchone() is None:
+                        continue
+            hits.append(
+                {
+                    "entity_type": r["entity_type"],
+                    "entity_id": r["entity_id"],
+                    "title": r["title"],
+                    "snippet": r["snippet"],
+                    "rank": float(r["rank"]),
+                }
+            )
 
-        c_sql, c_binds = count_sql(params)
+        c_sql, c_binds = count_sql(params, library_id=active_library_id or _content_library_id())
         count_cursor = await db.execute(c_sql, c_binds)
         total = (await count_cursor.fetchone())[0]
 
@@ -1817,16 +2019,28 @@ async def hybrid_search_resolver(
 async def paper_network(paper_id: str, depth: int = 1) -> dict[str, Any]:
     empty = _finalize_network_graph(nodes={}, edges={}, mode="paper", seed_count=0)
     if not _db_exists():
-        return empty
+        return _finalize_network_graph(
+            nodes={},
+            edges={},
+            mode="paper",
+            seed_count=0,
+            warning_message="The graph database is not available yet. Reindex the library first.",
+        )
 
     try:
         db = await _get_db()
+        paper_scope, paper_scope_binds = _paper_scope_where("p")
 
         nodes: dict[str, dict[str, Any]] = {}
         edges: dict[tuple[str, str, str], dict[str, Any]] = {}
 
         # Seed paper
-        cursor = await db.execute("SELECT * FROM papers WHERE paper_id = ?", (paper_id,))
+        seed_sql = "SELECT p.* FROM papers p WHERE p.paper_id = ?"
+        seed_binds: list[Any] = [paper_id]
+        if paper_scope:
+            seed_sql += f" AND {paper_scope}"
+            seed_binds.extend(paper_scope_binds)
+        cursor = await db.execute(seed_sql, seed_binds)
         paper = await cursor.fetchone()
         if paper is None:
             return empty
@@ -1844,17 +2058,26 @@ async def paper_network(paper_id: str, depth: int = 1) -> dict[str, Any]:
 
             for pid in frontier:
                 # Get atoms for this paper
+                atom_where_parts = ["apr.paper_id = ?"]
+                atom_binds: list[Any] = [pid]
+                atom_count_scope, atom_count_scope_binds = _paper_scope_where("p_all")
+                if atom_count_scope:
+                    atom_where_parts.append(atom_count_scope)
+                    atom_binds.extend(atom_count_scope_binds)
                 atom_cursor = await db.execute(
                     """
                     SELECT a.*,
-                           COUNT(apr_all.paper_id) as paper_count
+                           COUNT(DISTINCT apr_all.paper_id) as paper_count
                     FROM atoms a
                     JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
                     LEFT JOIN atom_paper_refs apr_all ON a.slug = apr_all.atom_slug
-                    WHERE apr.paper_id = ?
+                    LEFT JOIN papers p_all ON p_all.paper_id = apr_all.paper_id
+                    WHERE """
+                    + " AND ".join(atom_where_parts)
+                    + """
                     GROUP BY a.slug
                     """,
-                    (pid,),
+                    atom_binds,
                 )
                 atom_rows = await atom_cursor.fetchall()
 
@@ -1870,13 +2093,16 @@ async def paper_network(paper_id: str, depth: int = 1) -> dict[str, Any]:
                     )
 
                     # Get papers sharing this atom
+                    shared_where_parts = ["apr.atom_slug = ?", "p.paper_id != ?"]
+                    shared_binds: list[Any] = [ar["slug"], pid]
+                    _with_paper_scope(shared_where_parts, shared_binds, "p")
                     shared_cursor = await db.execute(
                         """
                         SELECT p.* FROM papers p
                         JOIN atom_paper_refs apr ON p.paper_id = apr.paper_id
-                        WHERE apr.atom_slug = ? AND p.paper_id != ?
-                        """,
-                        (ar["slug"], pid),
+                        WHERE """
+                        + " AND ".join(shared_where_parts),
+                        shared_binds,
                     )
                     shared_rows = await shared_cursor.fetchall()
                     for sr in shared_rows:
@@ -1902,15 +2128,21 @@ async def paper_network(paper_id: str, depth: int = 1) -> dict[str, Any]:
             source_paper_count=1,
             seed_count=1,
         )
-    except Exception:
+    except Exception as exc:
         logger.exception("paper_network failed for %s", paper_id)
-        return empty
+        return _graph_runtime_error("paper", exc)
 
 
 async def atom_neighborhood(slug: str, depth: int = 1) -> dict[str, Any]:
     empty = _finalize_network_graph(nodes={}, edges={}, mode="atom", seed_count=0)
     if not _db_exists():
-        return empty
+        return _finalize_network_graph(
+            nodes={},
+            edges={},
+            mode="atom",
+            seed_count=0,
+            warning_message="The graph database is not available yet. Reindex the library first.",
+        )
 
     try:
         db = await _get_db()
@@ -1919,16 +2151,22 @@ async def atom_neighborhood(slug: str, depth: int = 1) -> dict[str, Any]:
         edges: dict[tuple[str, str, str], dict[str, Any]] = {}
 
         # Seed atom
+        atom_where_parts = ["a.slug = ?"]
+        atom_binds: list[Any] = [slug]
+        _with_atom_scope(atom_where_parts, atom_binds, "a")
         cursor = await db.execute(
             """
             SELECT a.*,
-                   COUNT(apr.paper_id) as paper_count
+                   COUNT(DISTINCT apr.paper_id) as paper_count
             FROM atoms a
             LEFT JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
-            WHERE a.slug = ?
+            LEFT JOIN papers p ON p.paper_id = apr.paper_id
+            WHERE """
+            + " AND ".join(atom_where_parts)
+            + """
             GROUP BY a.slug
             """,
-            (slug,),
+            atom_binds,
         )
         atom = await cursor.fetchone()
         if atom is None:
@@ -1946,13 +2184,16 @@ async def atom_neighborhood(slug: str, depth: int = 1) -> dict[str, Any]:
             if ring % 2 == 0:
                 next_papers: set[str] = set()
                 for current_slug in frontier_atoms:
+                    paper_where_parts = ["apr.atom_slug = ?"]
+                    paper_binds: list[Any] = [current_slug]
+                    _with_paper_scope(paper_where_parts, paper_binds, "p")
                     paper_cursor = await db.execute(
                         """
                         SELECT p.* FROM papers p
                         JOIN atom_paper_refs apr ON p.paper_id = apr.paper_id
-                        WHERE apr.atom_slug = ?
-                        """,
-                        (current_slug,),
+                        WHERE """
+                        + " AND ".join(paper_where_parts),
+                        paper_binds,
                     )
                     paper_rows = await paper_cursor.fetchall()
                     current_atom = nodes.get(f"atom:{current_slug}")
@@ -1980,17 +2221,26 @@ async def atom_neighborhood(slug: str, depth: int = 1) -> dict[str, Any]:
 
             next_atoms: set[str] = set()
             for pid in frontier_papers:
+                other_where_parts = ["apr.paper_id = ?"]
+                other_binds: list[Any] = [pid]
+                atom_count_scope, atom_count_scope_binds = _paper_scope_where("p_all")
+                if atom_count_scope:
+                    other_where_parts.append(atom_count_scope)
+                    other_binds.extend(atom_count_scope_binds)
                 other_cursor = await db.execute(
                     """
                     SELECT a.*,
-                           COUNT(apr_all.paper_id) as paper_count
+                           COUNT(DISTINCT apr_all.paper_id) as paper_count
                     FROM atoms a
                     JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
                     LEFT JOIN atom_paper_refs apr_all ON a.slug = apr_all.atom_slug
-                    WHERE apr.paper_id = ?
+                    LEFT JOIN papers p_all ON p_all.paper_id = apr_all.paper_id
+                    WHERE """
+                    + " AND ".join(other_where_parts)
+                    + """
                     GROUP BY a.slug
                     """,
-                    (pid,),
+                    other_binds,
                 )
                 other_rows = await other_cursor.fetchall()
 
@@ -2018,9 +2268,9 @@ async def atom_neighborhood(slug: str, depth: int = 1) -> dict[str, Any]:
             mode="atom",
             seed_count=1,
         )
-    except Exception:
+    except Exception as exc:
         logger.exception("atom_neighborhood failed for %s", slug)
-        return empty
+        return _graph_runtime_error("atom", exc)
 
 
 async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, Any]:
@@ -2032,7 +2282,14 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
         seed_count=0,
     )
     if not _db_exists():
-        return empty
+        return _finalize_network_graph(
+            nodes={},
+            edges={},
+            mode="paper_set",
+            source_paper_count=len(paper_ids),
+            seed_count=0,
+            warning_message="The graph database is not available yet. Reindex the library first.",
+        )
 
     deduped_ids: list[str] = []
     seen_ids: set[str] = set()
@@ -2048,13 +2305,32 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
 
     source_paper_count = len(deduped_ids)
     candidate_ids = deduped_ids[:MAX_GRAPH_CANDIDATE_PAPERS]
-    cache_key = (tuple(candidate_ids), depth)
+    active_library_id = _active_library_id()
+    cache_key = (active_library_id, tuple(candidate_ids), depth)
     cached = _get_paper_set_network_cache(cache_key)
     if cached is not None:
         return cached
 
     try:
         db = await _get_db()
+        paper_scope, paper_scope_binds = _paper_scope_where("p")
+
+        if paper_scope:
+            scoped_placeholders = ", ".join("?" for _ in candidate_ids)
+            scope_cursor = await db.execute(
+                f"""
+                SELECT p.paper_id
+                FROM papers p
+                WHERE p.paper_id IN ({scoped_placeholders})
+                  AND {paper_scope}
+                """,
+                [*candidate_ids, *paper_scope_binds],
+            )
+            allowed_ids = {row["paper_id"] for row in await scope_cursor.fetchall()}
+            candidate_ids = [pid for pid in candidate_ids if pid in allowed_ids]
+            if not candidate_ids:
+                return empty
+            source_paper_count = len(candidate_ids)
 
         nodes: dict[str, dict[str, Any]] = {}
         edges: dict[tuple[str, str, str], dict[str, Any]] = {}
@@ -2110,7 +2386,7 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
 
         placeholders = ", ".join("?" for _ in seed_ids)
         paper_cursor = await db.execute(
-            f"SELECT * FROM papers WHERE paper_id IN ({placeholders})",
+            f"SELECT p.* FROM papers p WHERE p.paper_id IN ({placeholders})",
             seed_ids,
         )
         paper_rows = await paper_cursor.fetchall()
@@ -2150,15 +2426,28 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
 
         atom_slugs = list(atom_info.keys())
         atom_placeholders = ", ".join("?" for _ in atom_slugs)
-        count_cursor = await db.execute(
-            f"""
-            SELECT atom_slug, COUNT(*) as cnt
-            FROM atom_paper_refs
-            WHERE atom_slug IN ({atom_placeholders})
-            GROUP BY atom_slug
-            """,
-            atom_slugs,
-        )
+        if paper_scope:
+            count_cursor = await db.execute(
+                f"""
+                SELECT apr.atom_slug, COUNT(DISTINCT apr.paper_id) as cnt
+                FROM atom_paper_refs apr
+                JOIN papers p ON p.paper_id = apr.paper_id
+                WHERE apr.atom_slug IN ({atom_placeholders})
+                  AND {paper_scope}
+                GROUP BY apr.atom_slug
+                """,
+                [*atom_slugs, *paper_scope_binds],
+            )
+        else:
+            count_cursor = await db.execute(
+                f"""
+                SELECT atom_slug, COUNT(*) as cnt
+                FROM atom_paper_refs
+                WHERE atom_slug IN ({atom_placeholders})
+                GROUP BY atom_slug
+                """,
+                atom_slugs,
+            )
         atom_counts = {
             row["atom_slug"]: row["cnt"] for row in await count_cursor.fetchall()
         }
@@ -2189,18 +2478,23 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
 
         if depth >= 3 and visible_atom_slugs:
             visible_placeholders = ", ".join("?" for _ in visible_atom_slugs)
+            external_where_parts = [
+                f"apr.atom_slug IN ({visible_placeholders})",
+                f"p.paper_id NOT IN ({placeholders})",
+            ]
+            external_binds: list[Any] = [*visible_atom_slugs, *seed_ids]
+            _with_paper_scope(external_where_parts, external_binds, "p")
             external_cursor = await db.execute(
                 f"""
                 SELECT p.*, COUNT(DISTINCT apr.atom_slug) as shared_atom_count
                 FROM atom_paper_refs apr
                 JOIN papers p ON p.paper_id = apr.paper_id
-                WHERE apr.atom_slug IN ({visible_placeholders})
-                  AND p.paper_id NOT IN ({placeholders})
+                WHERE {' AND '.join(external_where_parts)}
                 GROUP BY p.paper_id
                 ORDER BY shared_atom_count DESC, p.average_score DESC, p.year DESC
                 LIMIT {MAX_GRAPH_CONTEXT_PAPERS}
                 """,
-                [*visible_atom_slugs, *seed_ids],
+                external_binds,
             )
             external_rows = await external_cursor.fetchall()
             external_ids: list[str] = []
@@ -2242,7 +2536,7 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
             nodes = {
                 node_id: node
                 for node_id, node in nodes.items()
-                if node_id in connected_node_ids
+                if node_id in connected_node_ids or node.get("is_seed")
             }
 
         result = _finalize_network_graph(
@@ -2255,9 +2549,9 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
         )
         _set_paper_set_network_cache(cache_key, result)
         return result
-    except Exception:
+    except Exception as exc:
         logger.exception("paper_set_network failed")
-        return empty
+        return _graph_runtime_error("paper_set", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -2275,9 +2569,14 @@ async def field_overview() -> list[dict[str, Any]]:
         return []
     try:
         db = await _get_db()
+        paper_scope, paper_scope_binds = _paper_scope_where("p")
+        paper_where_sql = f" WHERE {paper_scope}" if paper_scope else ""
 
         # Gather per-field paper stats
-        cursor = await db.execute("SELECT fields, average_score FROM papers")
+        cursor = await db.execute(
+            f"SELECT p.fields, p.average_score FROM papers p{paper_where_sql}",
+            paper_scope_binds,
+        )
         rows = await cursor.fetchall()
 
         field_papers: dict[str, list[float | None]] = {}
@@ -2291,7 +2590,8 @@ async def field_overview() -> list[dict[str, Any]]:
             """
             SELECT apr.atom_slug, p.fields FROM atom_paper_refs apr
             JOIN papers p ON p.paper_id = apr.paper_id
-            """
+            """ + (f" WHERE {paper_scope}" if paper_scope else ""),
+            paper_scope_binds,
         )
         atom_rows = await atom_cursor.fetchall()
 
@@ -2311,9 +2611,8 @@ async def field_overview() -> list[dict[str, Any]]:
                 "avg_score": round(avg, 2) if avg is not None else None,
             })
         return results
-    except Exception:
-        logger.exception("field_overview failed")
-        return []
+    except Exception as exc:
+        _raise_resolver_runtime_error("field_overview", exc)
 
 
 async def year_distribution() -> list[dict[str, Any]]:
@@ -2321,13 +2620,16 @@ async def year_distribution() -> list[dict[str, Any]]:
         return []
     try:
         db = await _get_db()
+        where_parts = ["p.year IS NOT NULL"]
+        binds: list[Any] = []
+        _with_paper_scope(where_parts, binds, "p")
         cursor = await db.execute(
-            "SELECT year, COUNT(*) as cnt FROM papers WHERE year IS NOT NULL GROUP BY year ORDER BY year"
+            f"SELECT p.year, COUNT(*) as cnt FROM papers p WHERE {' AND '.join(where_parts)} GROUP BY p.year ORDER BY p.year",
+            binds,
         )
         return [{"year": r[0], "count": r[1]} for r in await cursor.fetchall()]
-    except Exception:
-        logger.exception("year_distribution failed")
-        return []
+    except Exception as exc:
+        _raise_resolver_runtime_error("year_distribution", exc)
 
 
 @_ttl_cache(300)
@@ -2338,6 +2640,7 @@ async def detect_gaps(limit: int = 20) -> dict[str, Any]:
         return empty
     try:
         db = await _get_db()
+        paper_scope, paper_scope_binds = _paper_scope_where("p")
 
         # --- Bridge atoms: atoms connected to papers from 3+ fields ---
         # We need to unpack the JSON fields array in Python since SQLite
@@ -2348,7 +2651,8 @@ async def detect_gaps(limit: int = 20) -> dict[str, Any]:
             FROM atoms a
             JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
             JOIN papers p ON p.paper_id = apr.paper_id
-            """
+            """ + (f" WHERE {paper_scope}" if paper_scope else ""),
+            paper_scope_binds,
         )
         rows = await cursor.fetchall()
 
@@ -2388,9 +2692,19 @@ async def detect_gaps(limit: int = 20) -> dict[str, Any]:
             """
             SELECT COUNT(*) FROM (
                 SELECT atom_slug FROM atom_paper_refs
-                GROUP BY atom_slug HAVING COUNT(DISTINCT paper_id) = 1
+                JOIN library_papers lp ON lp.paper_id = atom_paper_refs.paper_id
+                WHERE lp.library_id = ?
+                GROUP BY atom_slug HAVING COUNT(DISTINCT atom_paper_refs.paper_id) = 1
             )
             """
+            if _active_library_id() is not None
+            else """
+            SELECT COUNT(*) FROM (
+                SELECT atom_slug FROM atom_paper_refs
+                GROUP BY atom_slug HAVING COUNT(DISTINCT atom_paper_refs.paper_id) = 1
+            )
+            """,
+            [_active_library_id()] if _active_library_id() is not None else [],
         )
         total_orphan_atoms = (await orphan_count_cursor.fetchone())[0]
 
@@ -2421,9 +2735,8 @@ async def detect_gaps(limit: int = 20) -> dict[str, Any]:
             "weak_connections": weak_connections,
             "total_orphan_atoms": total_orphan_atoms,
         }
-    except Exception:
-        logger.exception("detect_gaps failed")
-        return empty
+    except Exception as exc:
+        _raise_resolver_runtime_error("detect_gaps", exc)
 
 
 @_ttl_cache(300)
@@ -2442,14 +2755,18 @@ async def get_trending_topics(window: int = 1, limit: int = 20) -> list[dict[str
 
     try:
         db = await _get_db()
+        paper_scope, paper_scope_binds = _paper_scope_where("p")
+        triage_scope, triage_scope_binds = _paper_scope_where("p")
 
         results: list[dict[str, Any]] = []
 
         # --- Field trends (only papers that HAVE fields data) ---
         cursor = await db.execute(
-            """SELECT year, fields FROM papers
+            """SELECT p.year, p.fields FROM papers p
                WHERE year IS NOT NULL
                  AND fields IS NOT NULL AND fields != '' AND fields != '[]'"""
+            + (f" AND {paper_scope}" if paper_scope else ""),
+            paper_scope_binds,
         )
         rows = await cursor.fetchall()
 
@@ -2502,8 +2819,11 @@ async def get_trending_topics(window: int = 1, limit: int = 20) -> list[dict[str
         method_cursor = await db.execute(
             """SELECT tc.methods, tc.year
                FROM triage_cards tc
+               JOIN papers p ON p.paper_id = tc.paper_id
                WHERE tc.year IS NOT NULL
                  AND tc.methods IS NOT NULL AND tc.methods != '' AND tc.methods != '[]'"""
+            + (f" AND {triage_scope}" if triage_scope else ""),
+            triage_scope_binds,
         )
         method_rows = await method_cursor.fetchall()
 
@@ -2558,6 +2878,8 @@ async def get_trending_topics(window: int = 1, limit: int = 20) -> list[dict[str
                JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
                JOIN papers p ON p.paper_id = apr.paper_id
                WHERE a.type = 'method' AND p.year IS NOT NULL"""
+            + (f" AND {paper_scope}" if paper_scope else ""),
+            paper_scope_binds,
         )
         atom_rows = await atom_cursor.fetchall()
 
@@ -2614,9 +2936,8 @@ async def get_trending_topics(window: int = 1, limit: int = 20) -> list[dict[str
         results.sort(key=lambda x: -abs(x["growth_rate"]))
         return results[:limit]
 
-    except Exception:
-        logger.exception("get_trending_topics failed")
-        return []
+    except Exception as exc:
+        _raise_resolver_runtime_error("get_trending_topics", exc)
 
 
 @_ttl_cache(300)
@@ -2631,22 +2952,89 @@ async def get_stats() -> dict[str, int]:
     try:
         db = await _get_db()
         result: dict[str, int] = {}
-        for key, sql in [
-            ("total_papers", "SELECT COUNT(*) FROM papers"),
-            ("total_cards", "SELECT COUNT(*) FROM papers WHERE has_card = 1"),
-            ("total_atoms", "SELECT COUNT(*) FROM atoms"),
-            ("total_mechanisms", "SELECT COUNT(*) FROM atoms WHERE type = 'mechanism'"),
-            ("total_methods", "SELECT COUNT(*) FROM atoms WHERE type = 'method'"),
-            ("total_datasets", "SELECT COUNT(*) FROM atoms WHERE type = 'dataset'"),
-            ("total_puzzles", "SELECT COUNT(*) FROM atoms WHERE type = 'puzzle'"),
-            ("total_ideas", "SELECT COUNT(*) FROM ideas"),
+        paper_scope, paper_scope_binds = _paper_scope_where("p")
+        content_library_id = _content_library_id()
+        for key, sql, binds in [
+            (
+                "total_papers",
+                "SELECT COUNT(*) FROM papers p" + (f" WHERE {paper_scope}" if paper_scope else ""),
+                paper_scope_binds,
+            ),
+            (
+                "total_cards",
+                "SELECT COUNT(*) FROM papers p WHERE p.has_card = 1" + (f" AND {paper_scope}" if paper_scope else ""),
+                paper_scope_binds,
+            ),
+            (
+                "total_atoms",
+                """
+                SELECT COUNT(DISTINCT a.slug)
+                FROM atoms a
+                JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+                JOIN papers p ON p.paper_id = apr.paper_id
+                """
+                + (f" WHERE {paper_scope}" if paper_scope else ""),
+                paper_scope_binds,
+            ),
+            (
+                "total_mechanisms",
+                """
+                SELECT COUNT(DISTINCT a.slug)
+                FROM atoms a
+                JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+                JOIN papers p ON p.paper_id = apr.paper_id
+                WHERE a.type = 'mechanism'
+                """
+                + (f" AND {paper_scope}" if paper_scope else ""),
+                paper_scope_binds,
+            ),
+            (
+                "total_methods",
+                """
+                SELECT COUNT(DISTINCT a.slug)
+                FROM atoms a
+                JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+                JOIN papers p ON p.paper_id = apr.paper_id
+                WHERE a.type = 'method'
+                """
+                + (f" AND {paper_scope}" if paper_scope else ""),
+                paper_scope_binds,
+            ),
+            (
+                "total_datasets",
+                """
+                SELECT COUNT(DISTINCT a.slug)
+                FROM atoms a
+                JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+                JOIN papers p ON p.paper_id = apr.paper_id
+                WHERE a.type = 'dataset'
+                """
+                + (f" AND {paper_scope}" if paper_scope else ""),
+                paper_scope_binds,
+            ),
+            (
+                "total_puzzles",
+                """
+                SELECT COUNT(DISTINCT a.slug)
+                FROM atoms a
+                JOIN atom_paper_refs apr ON a.slug = apr.atom_slug
+                JOIN papers p ON p.paper_id = apr.paper_id
+                WHERE a.type = 'puzzle'
+                """
+                + (f" AND {paper_scope}" if paper_scope else ""),
+                paper_scope_binds,
+            ),
+            (
+                "total_ideas",
+                "SELECT COUNT(*) FROM library_ideas WHERE library_id = ?",
+                [content_library_id],
+            ),
         ]:
-            cursor = await db.execute(sql)
+            cursor = await db.execute(sql, binds)
             result[key] = (await cursor.fetchone())[0]
         return result
-    except Exception:
-        logger.exception("get_stats failed")
-        return zeros
+    except Exception as exc:
+        _raise_resolver_runtime_error("get_stats", exc)
 
 
 async def get_whats_changed(since: str) -> dict[str, Any]:
@@ -2655,6 +3043,7 @@ async def get_whats_changed(since: str) -> dict[str, Any]:
         return {"new_papers": [], "new_atoms": [], "new_ideas": [], "updated_papers": []}
     try:
         db = await _get_db()
+        content_library_id = _content_library_id()
 
         # New papers (registered after 'since' date, approximated by paper_id or year)
         cursor = await db.execute(
@@ -2674,8 +3063,14 @@ async def get_whats_changed(since: str) -> dict[str, Any]:
 
         # New ideas
         cursor3 = await db.execute(
-            "SELECT * FROM ideas WHERE generated_date >= ? ORDER BY composite DESC LIMIT 20",
-            (since,),
+            """
+            SELECT *
+            FROM library_ideas
+            WHERE library_id = ? AND generated_date >= ?
+            ORDER BY composite DESC
+            LIMIT 20
+            """,
+            (content_library_id, since),
         )
         new_ideas = []
         for r in await cursor3.fetchall():
@@ -2686,8 +3081,14 @@ async def get_whats_changed(since: str) -> dict[str, Any]:
 
         # New digests
         cursor4 = await db.execute(
-            "SELECT date, content FROM digests WHERE date >= ? ORDER BY date DESC LIMIT 10",
-            (since,),
+            """
+            SELECT date, content
+            FROM library_digests
+            WHERE library_id = ? AND date >= ?
+            ORDER BY date DESC
+            LIMIT 10
+            """,
+            (content_library_id, since),
         )
         new_digests = [{"date": r["date"], "content": r["content"][:200]} for r in await cursor4.fetchall()]
 
@@ -2723,15 +3124,22 @@ async def get_whats_new(limit: int = 10) -> dict[str, Any]:
         return empty
     try:
         db = await _get_db()
+        paper_scope, paper_scope_binds = _paper_scope_where("p")
+        content_library_id = _content_library_id()
 
         # Total papers
-        cursor = await db.execute("SELECT COUNT(*) FROM papers")
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM papers p" + (f" WHERE {paper_scope}" if paper_scope else ""),
+            paper_scope_binds,
+        )
         total_papers = (await cursor.fetchone())[0]
 
         # Latest papers by ID (descending)
         cursor = await db.execute(
-            "SELECT * FROM papers ORDER BY paper_id DESC LIMIT ?",
-            (max(1, min(limit, 50)),),
+            "SELECT p.* FROM papers p"
+            + (f" WHERE {paper_scope}" if paper_scope else "")
+            + " ORDER BY p.paper_id DESC LIMIT ?",
+            paper_scope_binds + [max(1, min(limit, 50))],
         )
         rows = await cursor.fetchall()
         latest_papers = [_row_to_paper(r) for r in rows]
@@ -2747,7 +3155,12 @@ async def get_whats_new(limit: int = 10) -> dict[str, Any]:
         recent_ideas_count = 0
         try:
             cursor = await db.execute(
-                "SELECT COUNT(*) FROM ideas WHERE generated_date >= date('now', '-30 days')"
+                """
+                SELECT COUNT(*)
+                FROM library_ideas
+                WHERE library_id = ? AND generated_date >= date('now', '-30 days')
+                """,
+                (content_library_id,),
             )
             recent_ideas_count = (await cursor.fetchone())[0]
         except Exception:
@@ -3075,9 +3488,10 @@ async def get_digests(limit: int = 30) -> list[dict[str, Any]]:
         return []
     try:
         db = await _get_db()
+        scope_sql, scope_binds = _content_scope_where("ld")
         cursor = await db.execute(
-            "SELECT date, content FROM digests ORDER BY date DESC LIMIT ?",
-            (limit,),
+            f"SELECT ld.date, ld.content FROM library_digests ld WHERE {scope_sql} ORDER BY ld.date DESC LIMIT ?",
+            [*scope_binds, limit],
         )
         return [{"date": r["date"], "content": r["content"]} for r in await cursor.fetchall()]
     except Exception:
@@ -3091,9 +3505,10 @@ async def get_digest(date: str) -> dict[str, Any] | None:
         return None
     try:
         db = await _get_db()
+        scope_sql, scope_binds = _content_scope_where("ld")
         cursor = await db.execute(
-            "SELECT date, content FROM digests WHERE date = ?",
-            (date,),
+            f"SELECT ld.date, ld.content FROM library_digests ld WHERE {scope_sql} AND ld.date = ?",
+            [*scope_binds, date],
         )
         row = await cursor.fetchone()
         if row is None:
@@ -3196,8 +3611,12 @@ async def get_similar_atoms(atom_slug: str, limit: int = 10) -> list[dict]:
         if _db_exists():
             db = await _get_db()
             placeholders = ", ".join("?" for _ in slugs)
+            where_parts = [f"a.slug IN ({placeholders})"]
+            binds: list[Any] = list(slugs)
+            _with_atom_scope(where_parts, binds, "a")
             cursor = await db.execute(
-                f"SELECT * FROM atoms WHERE slug IN ({placeholders})", slugs,
+                "SELECT a.* FROM atoms a WHERE " + " AND ".join(where_parts),
+                binds,
             )
             rows = await cursor.fetchall()
             atoms = [_row_to_atom(r) for r in rows]
@@ -3222,6 +3641,12 @@ async def get_cooccurring_atoms(slug: str, limit: int = 10) -> list[dict[str, An
         return []
     try:
         db = await _get_db()
+        where_parts = ["apr1.atom_slug = ?", "apr2.atom_slug != ?"]
+        binds: list[Any] = [slug, slug]
+        paper_scope, paper_scope_binds = _paper_scope_where("p")
+        if paper_scope:
+            where_parts.append(paper_scope)
+            binds.extend(paper_scope_binds)
         cursor = await db.execute("""
             SELECT a2.slug, a2.title, a2.type, a2.description,
                    a2.evidence_strength, a2.when_to_use, a2.access, a2.url,
@@ -3229,11 +3654,14 @@ async def get_cooccurring_atoms(slug: str, limit: int = 10) -> list[dict[str, An
             FROM atom_paper_refs apr1
             JOIN atom_paper_refs apr2 ON apr1.paper_id = apr2.paper_id
             JOIN atoms a2 ON a2.slug = apr2.atom_slug
-            WHERE apr1.atom_slug = ? AND apr2.atom_slug != ?
+            JOIN papers p ON p.paper_id = apr2.paper_id
+            WHERE """
+            + " AND ".join(where_parts)
+            + """
             GROUP BY a2.slug
             ORDER BY co_count DESC
             LIMIT ?
-        """, (slug, slug, limit))
+        """, [*binds, limit])
         rows = await cursor.fetchall()
         return [
             {
@@ -3299,10 +3727,27 @@ async def research_search_papers(
 
         # 3. Fetch full paper metadata for all matched papers
         db = await _get_db()
+        paper_scope, paper_scope_binds = _paper_scope_where("p")
+
+        if paper_scope:
+            scoped_placeholders = ", ".join("?" for _ in search_paper_ids)
+            scope_cursor = await db.execute(
+                f"""
+                SELECT p.paper_id
+                FROM papers p
+                WHERE p.paper_id IN ({scoped_placeholders})
+                  AND {paper_scope}
+                """,
+                [*search_paper_ids, *paper_scope_binds],
+            )
+            allowed_ids = {row["paper_id"] for row in await scope_cursor.fetchall()}
+            search_paper_ids = [pid for pid in search_paper_ids if pid in allowed_ids]
+            if not search_paper_ids:
+                return empty
 
         placeholders = ", ".join("?" for _ in search_paper_ids)
         cursor = await db.execute(
-            f"SELECT * FROM papers WHERE paper_id IN ({placeholders})",
+            f"SELECT p.* FROM papers p WHERE p.paper_id IN ({placeholders})",
             search_paper_ids,
         )
         rows = await cursor.fetchall()
@@ -3868,11 +4313,11 @@ Respond with ONLY a JSON array (no markdown, no extra text). Each element:
 """
 
     try:
-        from rag import _get_client, _API_MODEL
+        from rag import _get_client, _get_model
 
-        client = _get_client()
+        client = _get_client("rag")
         response = await client.messages.create(
-            model=_API_MODEL,
+            model=_get_model("rag"),
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -5504,22 +5949,8 @@ async def get_paper_debates(paper_id: str) -> list[dict[str, Any]]:
     try:
         debates: list[dict[str, Any]] = []
         seen_titles: set[str] = set()
-
-        db = await _get_db()
-
-        # Load debate_map content
-        dm_cursor = await db.execute(
-            "SELECT content FROM field_maps WHERE slug = 'debate_map'"
-        )
-        dm_row = await dm_cursor.fetchone()
-        debate_map_text = dm_row["content"] if dm_row else ""
-
-        # Load research_landscape content
-        rl_cursor = await db.execute(
-            "SELECT content FROM field_maps WHERE slug = 'research_landscape'"
-        )
-        rl_row = await rl_cursor.fetchone()
-        landscape_text = rl_row["content"] if rl_row else ""
+        debate_map_text = (await get_field_map("debate_map") or {}).get("content", "")
+        landscape_text = (await get_field_map("research_landscape") or {}).get("content", "")
 
         # --- Parse debate_map ---
         if paper_id in debate_map_text:
@@ -5841,9 +6272,26 @@ async def topic_timeline(
                 score_map[h["entity_id"]] = h.get("rrf_score", h.get("rank", 0.0))
 
         db = await _get_db()
+        paper_scope, paper_scope_binds = _paper_scope_where("p")
+        if paper_scope:
+            scoped_placeholders = ", ".join("?" for _ in paper_ids)
+            scope_cursor = await db.execute(
+                f"""
+                SELECT p.paper_id
+                FROM papers p
+                WHERE p.paper_id IN ({scoped_placeholders})
+                  AND {paper_scope}
+                """,
+                [*paper_ids, *paper_scope_binds],
+            )
+            allowed_ids = {row["paper_id"] for row in await scope_cursor.fetchall()}
+            paper_ids = [pid for pid in paper_ids if pid in allowed_ids]
+            if not paper_ids:
+                return empty
+
         placeholders = ", ".join("?" for _ in paper_ids)
         cursor = await db.execute(
-            f"SELECT * FROM papers WHERE paper_id IN ({placeholders})",
+            f"SELECT p.* FROM papers p WHERE p.paper_id IN ({placeholders})",
             paper_ids,
         )
         rows = await cursor.fetchall()
@@ -5903,8 +6351,12 @@ async def get_field_taxonomy() -> list[dict[str, Any]]:
         db = await _get_db()
 
         # 1. Build field -> paper_ids mapping
+        where_parts = ["p.fields IS NOT NULL", "p.fields != ''", "p.fields != '[]'"]
+        binds: list[Any] = []
+        _with_paper_scope(where_parts, binds, "p")
         cursor = await db.execute(
-            "SELECT paper_id, fields FROM papers WHERE fields IS NOT NULL AND fields != '' AND fields != '[]'"
+            "SELECT p.paper_id, p.fields FROM papers p WHERE " + " AND ".join(where_parts),
+            binds,
         )
         rows = await cursor.fetchall()
 
@@ -5978,9 +6430,8 @@ async def get_field_taxonomy() -> list[dict[str, Any]]:
             })
 
         return results
-    except Exception:
-        logger.exception("get_field_taxonomy failed")
-        return []
+    except Exception as exc:
+        _raise_resolver_runtime_error("get_field_taxonomy", exc)
 
 
 async def get_field_detail(
@@ -6014,9 +6465,13 @@ async def get_field_detail(
         db = await _get_db()
 
         # 1. Find all paper_ids in this field (include jel for JEL extraction)
+        where_parts = ["p.fields LIKE ?"]
+        binds: list[Any] = [f'%"{field}"%']
+        _with_paper_scope(where_parts, binds, "p")
         cursor = await db.execute(
-            "SELECT paper_id, fields, year, jel FROM papers WHERE fields LIKE ?",
-            (f'%"{field}"%',),
+            "SELECT p.paper_id, p.fields, p.year, p.jel FROM papers p WHERE "
+            + " AND ".join(where_parts),
+            binds,
         )
         candidate_rows = await cursor.fetchall()
 
@@ -6158,9 +6613,8 @@ async def get_field_detail(
             "year_distribution": year_dist,
             "jel_codes": jel_codes,
         }
-    except Exception:
-        logger.exception("get_field_detail failed for field=%s", field)
-        return empty
+    except Exception as exc:
+        _raise_resolver_runtime_error(f"get_field_detail[{field}]", exc)
 
 
 async def get_available_fields() -> list[str]:

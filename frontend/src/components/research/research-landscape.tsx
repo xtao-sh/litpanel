@@ -15,6 +15,7 @@ import { SaturationCard } from "./saturation-card";
 import { LitReviewModal } from "./lit-review-modal";
 import { MethodAdvisor } from "./method-advisor";
 import type { ResearchLandscape as ResearchLandscapeType, ResearchPaperItem } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -35,6 +36,7 @@ interface ResearchLandscapeProps {
 // ---------------------------------------------------------------------------
 
 function KeyAuthorsCard({ papers }: { papers: ResearchPaperItem[] }) {
+  const { t } = useI18n();
   const authorCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     papers.forEach((p) => {
@@ -53,9 +55,9 @@ function KeyAuthorsCard({ papers }: { papers: ResearchPaperItem[] }) {
     <div className="paper-panel rounded-[1.5rem] p-5">
       <div className="mb-3 flex items-center gap-2">
         <Users className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-semibold text-foreground">Visible Authors</h3>
+        <h3 className="text-sm font-semibold text-foreground">{t("research.landscape.authorsTitle")}</h3>
         <span className="ml-auto text-[11px] text-muted-foreground">
-          from current results page
+          {t("research.landscape.authorsScope")}
         </span>
       </div>
       <div className="space-y-1">
@@ -118,27 +120,28 @@ export function ResearchLandscapePanel({
   graphHref,
   papers = [],
 }: ResearchLandscapeProps) {
+  const { t } = useI18n();
   const [litReviewOpen, setLitReviewOpen] = useState(false);
   const [methodAdvisorOpen, setMethodAdvisorOpen] = useState(false);
 
   const anchorItems = useMemo(() => {
     const items: { id: string; label: string }[] = [];
-    items.push({ id: "landscape-gaps", label: "Gaps" });
+    items.push({ id: "landscape-gaps", label: t("research.landscape.anchors.gaps") });
     if (allPaperIds.length > 0 && searchQuery) {
-      items.push({ id: "landscape-saturation", label: "Saturation" });
+      items.push({ id: "landscape-saturation", label: t("research.landscape.anchors.saturation") });
     }
-    items.push({ id: "landscape-methods", label: "Methods" });
+    items.push({ id: "landscape-methods", label: t("research.landscape.anchors.methods") });
     if (allPaperIds.length > 0 && searchQuery) {
-      items.push({ id: "landscape-consensus", label: "Consensus" });
+      items.push({ id: "landscape-consensus", label: t("research.landscape.anchors.consensus") });
     }
-    items.push({ id: "landscape-datasets", label: "Datasets" });
-    items.push({ id: "landscape-mechanisms", label: "Mechanisms" });
+    items.push({ id: "landscape-datasets", label: t("research.landscape.anchors.datasets") });
+    items.push({ id: "landscape-mechanisms", label: t("research.landscape.anchors.mechanisms") });
     if (papers.length > 0) {
-      items.push({ id: "landscape-authors", label: "Authors" });
+      items.push({ id: "landscape-authors", label: t("research.landscape.anchors.authors") });
     }
-    items.push({ id: "landscape-china", label: "China" });
+    items.push({ id: "landscape-china", label: t("research.landscape.anchors.china") });
     return items;
-  }, [allPaperIds.length, searchQuery, papers.length]);
+  }, [allPaperIds.length, searchQuery, papers.length, t]);
 
   if (loading) {
     return <LandscapeSkeleton />;
@@ -167,16 +170,12 @@ export function ResearchLandscapePanel({
 
       {allPaperIds.length > 0 && (
         <div className="paper-panel rounded-[1.5rem] p-4 text-sm text-muted-foreground">
-          <p className="section-kicker">Evidence scope</p>
+          <p className="section-kicker">{t("research.landscape.evidenceKicker")}</p>
           <p className="font-medium text-foreground">
-            Landscape scope
+            {t("research.landscape.landscapeScope")}
           </p>
           <p className="mt-1 leading-relaxed">
-            This panel summarizes the <span className="font-medium text-foreground">{allPaperIds.length.toLocaleString()}</span> paper
-            {allPaperIds.length !== 1 ? "s" : ""} in the current Research query. Method, dataset,
-            and mechanism counts are based on linked atoms attached to those papers. Gap items combine
-            explicit paper limitations and open questions with methods or datasets that appear in related
-            fields but not in this matched set.
+            {t("research.landscape.scopeBody", { count: allPaperIds.length.toLocaleString() })}
           </p>
         </div>
       )}
@@ -190,13 +189,13 @@ export function ResearchLandscapePanel({
               <Link href={graphHref ?? `/graph?q=${encodeURIComponent(searchQuery)}`}>
                 <Button variant="outline" size="sm" className="gap-1.5 rounded-full text-xs">
                   <GitBranch className="h-3.5 w-3.5" />
-                  View Research Graph
+                  {t("research.landscape.viewGraph")}
                 </Button>
               </Link>
               <Link href={`/ask?q=${encodeURIComponent(searchQuery)}`}>
                 <Button variant="outline" size="sm" className="gap-1.5 rounded-full text-xs">
                   <MessageSquare className="h-3.5 w-3.5" />
-                  Ask AI
+                  {t("research.landscape.askAI")}
                 </Button>
               </Link>
             </>
@@ -209,7 +208,7 @@ export function ResearchLandscapePanel({
             className="gap-1.5 rounded-full text-xs"
           >
             <FlaskConical className="h-3.5 w-3.5" />
-            {methodAdvisorOpen ? "Hide" : "Method"} Advisor
+            {methodAdvisorOpen ? t("research.landscape.hide") : t("research.landscape.methodAdvisor")}
           </Button>
           <Button
             variant="outline"
@@ -218,7 +217,7 @@ export function ResearchLandscapePanel({
             className="gap-1.5 rounded-full text-xs"
           >
             <FileText className="h-3.5 w-3.5" />
-            Generate Lit Review
+            {t("research.landscape.generateLitReview")}
           </Button>
         </div>
       )}

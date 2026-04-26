@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { TrendingTopic } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 interface TrendingTopicsProps {
   data: TrendingTopic[] | undefined;
@@ -25,6 +26,7 @@ function categoryBadgeClass(category: string): string {
 }
 
 export function TrendingTopics({ data, loading }: TrendingTopicsProps) {
+  const { t } = useI18n();
   const rising = data?.filter((t) => t.trend === "rising").slice(0, 5) ?? [];
   const declining = data
     ?.filter((t) => t.trend === "declining")
@@ -35,7 +37,7 @@ export function TrendingTopics({ data, loading }: TrendingTopicsProps) {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base font-semibold">
-          Trending Topics
+          {t("dashboard.trending.title")}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -68,7 +70,7 @@ export function TrendingTopics({ data, loading }: TrendingTopicsProps) {
             {rising.length > 0 && (
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                  Rising
+                  {t("dashboard.trending.rising")}
                 </h3>
                 <div className="space-y-0.5">
                   {rising.map((topic) => (
@@ -107,7 +109,7 @@ export function TrendingTopics({ data, loading }: TrendingTopicsProps) {
             {declining.length > 0 && (
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                  Declining
+                  {t("dashboard.trending.declining")}
                 </h3>
                 <div className="space-y-0.5">
                   {declining.map((topic) => (
@@ -144,7 +146,7 @@ export function TrendingTopics({ data, loading }: TrendingTopicsProps) {
 
             {rising.length === 0 && declining.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No trend data available yet.
+                {t("dashboard.trending.empty")}
               </p>
             )}
           </div>

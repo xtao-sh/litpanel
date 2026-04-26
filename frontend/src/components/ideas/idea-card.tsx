@@ -222,7 +222,10 @@ export function IdeaCard({ idea }: IdeaCardProps) {
   );
 
   return (
-    <Card className="paper-panel overflow-hidden rounded-[1.45rem] border border-border/75 bg-background/92 shadow-none transition-all duration-200 hover:-translate-y-px">
+    <Card
+      id={`idea-${idea.id}`}
+      className="paper-panel scroll-mt-24 overflow-hidden rounded-[1.45rem] border border-border/75 bg-background/92 shadow-none transition-all duration-200 hover:-translate-y-px"
+    >
       {/* Header */}
       <CardHeader className="space-y-2 pb-3">
         <div className="flex flex-wrap items-center gap-2">

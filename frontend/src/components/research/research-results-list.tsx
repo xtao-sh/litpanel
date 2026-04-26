@@ -6,6 +6,7 @@ import { useQuery, useMutation } from "@apollo/client/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FileText, GitCompareArrows, X, FolderPlus, Plus, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { appConfig } from "@/lib/app-config";
 import {
   GET_COLLECTIONS,
   ADD_TO_COLLECTION,
@@ -14,6 +15,7 @@ import {
 import type { ResearchPaperItem, Collection } from "@/lib/types";
 import { ExportMenu } from "@/components/shared/export-menu";
 import { LitReviewModal } from "@/components/research/lit-review-modal";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -35,6 +37,16 @@ function fieldBadgeClass(field: string): string {
     hash = (hash * 31 + field.charCodeAt(i)) | 0;
   }
   return colors[Math.abs(hash) % colors.length];
+}
+
+function getResearchSourceLabel(): string {
+  const sourceName = appConfig.sourceName.trim();
+  const paperLabel = appConfig.sourcePaperLabel.trim();
+  if (!sourceName || sourceName === "Source Library" || sourceName === "Local Library") {
+    return paperLabel || "Library source";
+  }
+  const singularPaperLabel = paperLabel.endsWith("s") ? paperLabel.slice(0, -1) : paperLabel;
+  return singularPaperLabel ? `${sourceName} ${singularPaperLabel}` : sourceName;
 }
 
 // ---------------------------------------------------------------------------
@@ -77,6 +89,7 @@ export function ResearchResultsList({
   compareHref,
 }: ResearchResultsListProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const [litReviewOpen, setLitReviewOpen] = useState(false);
 
@@ -105,8 +118,8 @@ export function ResearchResultsList({
     return (
       <div className="flex h-full flex-col items-center justify-center px-4 py-12 text-center">
         <div className="paper-panel rounded-[1.4rem] px-5 py-4">
-          <p className="section-kicker">Result set</p>
-          <p className="mt-2 text-sm text-muted-foreground">No papers found.</p>
+          <p className="section-kicker">{t("research.results.emptyKicker")}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t("research.results.emptyBody")}</p>
         </div>
       </div>
     );
@@ -119,6 +132,8 @@ export function ResearchResultsList({
         {papers.map((paper) => {
           const isCompareSelected = compareIds.has(paper.paperId);
           const isCompareDisabled = !isCompareSelected && compareIds.size >= 8;
+          const authorLabel = paper.authors.join(", ");
+          const sourceLabel = getResearchSourceLabel();
           return (
             <div
               key={paper.paperId}
@@ -149,37 +164,42 @@ export function ResearchResultsList({
               {/* Paper info button */}
               <button
                 type="button"
-                className="flex min-w-0 flex-1 flex-col gap-1.5"
+                className="flex min-w-0 flex-1 flex-col items-start gap-1.5 text-left"
                 onClick={() => onSelectPaper(paper.paperId)}
               >
                 {/* Title */}
-                <p className="font-display line-clamp-2 text-[1.05rem] leading-snug text-foreground">
+                <p className="w-full font-display line-clamp-2 text-left text-[1.05rem] leading-snug text-foreground">
                   {paper.title || paper.paperId}
                 </p>
 
                 {/* TLDR */}
                 {paper.tldr && (
-                  <p className="line-clamp-2 text-xs text-muted-foreground">
+                  <p className="w-full line-clamp-2 text-left text-xs text-muted-foreground">
                     {paper.tldr}
                   </p>
                 )}
 
-                {/* Meta row */}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                {/* Meta rows */}
+                <div className="flex w-full flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   {paper.year && <span className="tabular-nums">{paper.year}</span>}
-                  {paper.authors.length > 0 && (
-                    <>
-                      <span className="text-border">|</span>
-                      <span className="truncate">{paper.authors[0]}{paper.authors.length > 1 ? ` +${paper.authors.length - 1}` : ""}</span>
-                    </>
-                  )}
+                  <span className="rounded-full border border-border/70 bg-background/70 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                    {sourceLabel}
+                  </span>
                   {paper.hasCard && (
                     <FileText className="ml-auto h-3 w-3 shrink-0 text-primary/60" />
                   )}
                 </div>
+                {paper.authors.length > 0 && (
+                  <p
+                    title={authorLabel}
+                    className="w-full truncate text-xs text-muted-foreground"
+                  >
+                    {authorLabel}
+                  </p>
+                )}
 
                 {/* Field badges + score */}
-                <div className="flex items-center gap-1.5">
+                <div className="flex w-full items-center gap-1.5">
                   {paper.fields.slice(0, 2).map((f) => (
                     <span
                       key={f}
@@ -219,7 +239,7 @@ export function ResearchResultsList({
       {compareCount > 0 && (
         <div className="paper-panel mx-2 mb-2 flex items-center justify-between rounded-[1.1rem] px-3 py-2">
           <span className="text-[10px] font-medium text-foreground">
-            {compareCount} selected
+            {t("common.counts.selected", { count: compareCount })}
           </span>
           <div className="flex items-center gap-1.5">
             <button
@@ -232,7 +252,7 @@ export function ResearchResultsList({
               className="inline-flex items-center gap-1 rounded-full bg-foreground px-2.5 py-1 text-[10px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <GitCompareArrows className="h-2.5 w-2.5" />
-              Compare
+              {t("research.results.compare")}
             </button>
             <AddToCollectionInline paperIds={Array.from(compareIds)} />
             <button
@@ -240,15 +260,15 @@ export function ResearchResultsList({
               className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/85 px-2.5 py-1 text-[10px] font-medium text-foreground transition-colors hover:bg-background"
             >
               <BookOpen className="h-2.5 w-2.5" />
-              Lit Review
+              {t("research.results.litReview")}
             </button>
-            <ExportMenu paperIds={Array.from(compareIds)} label="Export" compact />
+            <ExportMenu paperIds={Array.from(compareIds)} label={t("common.actions.export")} compact />
             <button
               onClick={onClearCompare}
               className="inline-flex items-center gap-0.5 rounded-full px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
             >
               <X className="h-2.5 w-2.5" />
-              Clear
+              {t("common.actions.clear")}
             </button>
           </div>
         </div>
@@ -259,11 +279,15 @@ export function ResearchResultsList({
         <div className="flex items-center gap-2">
           <p className="text-xs text-muted-foreground">
             {total > 0
-              ? `${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, total)} of ${total}`
+              ? t("common.counts.rangeOfTotal", {
+                  start: (page - 1) * pageSize + 1,
+                  end: Math.min(page * pageSize, total),
+                  total,
+                })
               : ""}
           </p>
           {allPaperIds.length > 0 && (
-            <ExportMenu paperIds={allPaperIds} label="Export" compact />
+            <ExportMenu paperIds={allPaperIds} label={t("common.actions.export")} compact />
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -272,7 +296,7 @@ export function ResearchResultsList({
             disabled={page <= 1}
             onClick={() => onPageChange(page - 1)}
           >
-            Prev
+            {t("common.actions.previous")}
           </button>
           <span className="text-xs tabular-nums text-muted-foreground">
             {page}/{totalPages}
@@ -282,7 +306,7 @@ export function ResearchResultsList({
             disabled={page >= totalPages}
             onClick={() => onPageChange(page + 1)}
           >
-            Next
+            {t("common.actions.next")}
           </button>
         </div>
       </div>
@@ -305,6 +329,7 @@ export function ResearchResultsList({
 // ---------------------------------------------------------------------------
 
 function AddToCollectionInline({ paperIds }: { paperIds: string[] }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -366,13 +391,13 @@ function AddToCollectionInline({ paperIds }: { paperIds: string[] }) {
         className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/85 px-2.5 py-1 text-[10px] font-medium text-foreground transition-colors hover:bg-background"
       >
         <FolderPlus className="h-2.5 w-2.5" />
-        {added ? "Added!" : "Collection"}
+        {added ? t("research.results.added") : t("research.results.collection")}
       </button>
 
       {open && (
         <div className="paper-panel absolute right-0 bottom-full z-50 mb-2 w-56 rounded-[1rem] py-1">
           {collections.length === 0 && !creating && (
-            <p className="px-3 py-2 text-xs text-muted-foreground">No collections yet.</p>
+            <p className="px-3 py-2 text-xs text-muted-foreground">{t("research.results.noCollections")}</p>
           )}
           {collections.map((col) => (
             <button
@@ -393,7 +418,7 @@ function AddToCollectionInline({ paperIds }: { paperIds: string[] }) {
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="New collection"
+                  placeholder={t("research.results.newCollection")}
                   className="w-full rounded-[0.8rem] border border-input bg-background/85 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                   autoFocus
                   onKeyDown={(e) => {
@@ -409,7 +434,7 @@ function AddToCollectionInline({ paperIds }: { paperIds: string[] }) {
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-primary hover:bg-[color:oklch(var(--accent)/0.45)]"
               >
                 <Plus className="h-3 w-3" />
-                New Collection
+                {t("research.results.newCollection")}
               </button>
             )}
           </div>

@@ -8,11 +8,8 @@ import {
   ArrowRight,
   Clock3,
   Compass,
-  FileSearch,
   FolderOpen,
-  GitBranchPlus,
   Microscope,
-  Sparkles,
 } from "lucide-react";
 import {
   GET_STATS,
@@ -25,11 +22,10 @@ import {
   GET_PROJECTS,
 } from "@/lib/queries";
 import type { Stats, Idea, GapAnalysis, Project, TrendingTopic } from "@/lib/types";
-import { getDashboardProjectLabel, sortProjectsByUpdatedAt } from "@/lib/projects";
+import { sortProjectsByUpdatedAt } from "@/lib/projects";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { WhatsNewCard } from "@/components/dashboard/whats-new";
 import { StatsCards } from "@/components/dashboard/stats-cards";
@@ -42,6 +38,9 @@ import { GapAnalysisCard } from "@/components/dashboard/gap-analysis";
 import { TrendingTopics } from "@/components/dashboard/trending-topics";
 import { PersonalizedFeed } from "@/components/dashboard/personalized-feed";
 import { MethodFieldHeatmap } from "@/components/dashboard/method-field-heatmap";
+import { appConfig } from "@/lib/app-config";
+import { collectErrorMessages } from "@/components/shared/query-error-banner";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 interface FieldOverviewItem {
   field: string;
@@ -63,157 +62,16 @@ interface PaperItem {
   fields: string[];
 }
 
-function formatUpdatedAt(value: string) {
-  if (!value) return "Recently";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString();
-}
-
-function FeaturedProjectSkeleton() {
-  return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <Card className="rounded-xl shadow-sm">
-        <CardHeader className="pb-3">
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-7 w-72" />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-5/6" />
-          <div className="flex gap-2">
-            <Skeleton className="h-8 w-20" />
-            <Skeleton className="h-8 w-20" />
-            <Skeleton className="h-8 w-20" />
-          </div>
-        </CardContent>
-      </Card>
-      <Card className="rounded-xl shadow-sm">
-        <CardHeader className="pb-3">
-          <Skeleton className="h-5 w-28" />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-10 w-32" />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function FeaturedProjectSection({ project }: { project: Project }) {
-  return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <Card className="rounded-xl shadow-sm">
-        <CardHeader className="pb-3">
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="rounded-full bg-blue-50 px-2 py-1 font-medium text-blue-700">
-              {getDashboardProjectLabel(project)}
-            </span>
-            <span className="rounded-full bg-muted px-2 py-1 font-medium text-muted-foreground">
-              {project.paperCount} papers
-            </span>
-            <span className="rounded-full bg-muted px-2 py-1 font-medium text-muted-foreground">
-              Updated {formatUpdatedAt(project.updatedAt)}
-            </span>
-          </div>
-          <CardTitle className="text-xl font-semibold text-foreground">
-            {project.title}
-          </CardTitle>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {project.description || "Open the project to see its thematic overview, methods, gaps, and comparison matrix."}
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {project.originQuery && (
-            <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">Source query:</span> &ldquo;{project.originQuery}&rdquo;
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-1.5">
-            <Link
-              href={`/projects/${project.slug}`}
-              className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
-            >
-              Overview
-            </Link>
-            <Link
-              href={`/projects/${project.slug}/themes`}
-              className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
-            >
-              Themes
-            </Link>
-            <Link
-              href={`/projects/${project.slug}/methods`}
-              className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
-            >
-              Methods
-            </Link>
-            <Link
-              href={`/projects/${project.slug}/gaps`}
-              className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
-            >
-              Gaps
-            </Link>
-            <Link
-              href={`/projects/${project.slug}/matrix`}
-              className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
-            >
-              Matrix
-            </Link>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/projects/${project.slug}`}>
-                Open project
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </Link>
-            </Button>
-            {project.originQuery && (
-              <Button asChild variant="ghost" size="sm">
-                <Link href={`/research?q=${encodeURIComponent(project.originQuery)}`}>
-                  Reopen source research
-                </Link>
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="rounded-xl shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Project Workflow</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <div className="flex items-start gap-2">
-            <FileSearch className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            <p>Start in Research when you need to stabilize a topic and corpus.</p>
-          </div>
-          <div className="flex items-start gap-2">
-            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            <p>Use Themes and Gaps when the task is synthesis, not just retrieval.</p>
-          </div>
-          <div className="flex items-start gap-2">
-            <GitBranchPlus className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            <p>Open Matrix when you need side-by-side comparison across the included papers.</p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 export default function DashboardPage() {
+  const { t } = useI18n();
+
   return (
     <Suspense
       fallback={
         <div className="space-y-6">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Overview of the NBER Research Knowledge Base</p>
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t("dashboard.fallbackTitle")}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{t("dashboard.fallbackBody", { appName: appConfig.appName })}</p>
           </div>
           <div className="h-96 animate-pulse rounded-lg border border-border bg-muted" />
         </div>
@@ -226,6 +84,7 @@ export default function DashboardPage() {
 
 function DashboardContent() {
   const router = useRouter();
+  const { locale, t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
 
   function handleSearch(e: React.FormEvent) {
@@ -274,7 +133,7 @@ function DashboardContent() {
     variables: { window: 3, limit: 20 },
   });
 
-  const { data: projectsData, loading: projectsLoading, error: projectsError } = useQuery<{
+  const { data: projectsData, error: projectsError } = useQuery<{
     projects: Project[];
   }>(GET_PROJECTS);
 
@@ -291,28 +150,56 @@ function DashboardContent() {
 
   const anyError =
     statsError || fieldError || yearError || papersError || ideasError || gapError || trendingError || projectsError;
+  const combinedErrorMessage = collectErrorMessages([
+    statsError,
+    fieldError,
+    yearError,
+    papersError,
+    ideasError,
+    gapError,
+    trendingError,
+    projectsError,
+  ]);
+  const totalPapers = statsData?.stats?.totalPapers ?? 0;
+  const isEmptyCorpus = !statsLoading && totalPapers === 0;
 
   return (
     <div className="animate-in space-y-6">
       {/* Error banner */}
       {anyError && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <p className="font-medium">Some data failed to load. Please refresh the page.</p>
+          <p className="font-medium">{t("dashboard.errorTitle")}</p>
+          {combinedErrorMessage ? (
+            <p className="mt-1 text-xs text-red-600">{combinedErrorMessage}</p>
+          ) : null}
         </div>
       )}
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_360px]">
         <section className="space-y-6">
-          <div className="space-y-3">
-            <p className="section-kicker">Research Dashboard</p>
-            <h2 className="font-display text-[clamp(2rem,5vw,5.4rem)] text-foreground">
-              Follow live questions, then turn them into dossiers.
-            </h2>
-            <p className="max-w-2xl text-base leading-7 text-muted-foreground">
-              This workspace is built for researchers who need to track what is new, follow a method or dataset across papers,
-              and turn scattered evidence into a stable topic narrative.
-            </p>
-          </div>
+          {isEmptyCorpus && (
+            <Card className="paper-panel rounded-[1.6rem] border-dashed">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">{t("dashboard.emptyTitle")}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  {t("dashboard.emptyBody", { appName: appConfig.appName })}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild variant="outline" size="sm">
+                    <Link href="/setup">{t("dashboard.actions.openSetup")}</Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href="/pipeline">{t("dashboard.actions.openPipeline")}</Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href="/research">{t("dashboard.actions.openResearch")}</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <form
             onSubmit={handleSearch}
@@ -321,15 +208,15 @@ function DashboardContent() {
             <Input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Try a live question: hospital mergers, AI and labor, staggered DID..."
+              placeholder={t("dashboard.searchPlaceholder")}
               className="h-14 border-0 bg-transparent px-4 text-base shadow-none focus-visible:ring-0"
             />
             <Button type="submit" size="lg" className="h-12 rounded-2xl px-6">
-              Search the corpus
+              {t("dashboard.actions.searchCorpus")}
             </Button>
           </form>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Link
               href="/latest"
               className="group paper-panel flex items-center justify-between rounded-[1.25rem] px-4 py-3 transition-colors hover:bg-[color:oklch(var(--accent)/0.5)]"
@@ -338,7 +225,7 @@ function DashboardContent() {
                 <span className="group-hover:scale-105 transition-transform">
                   <Clock3 className="h-4 w-4 text-violet-700" />
                 </span>
-                Latest Research
+                {t("dashboard.actions.latestResearch")}
               </div>
               <ArrowRight className="h-3.5 w-3.5 text-violet-700" />
             </Link>
@@ -351,7 +238,7 @@ function DashboardContent() {
                 <span className="group-hover:scale-105 transition-transform">
                   <Microscope className="h-4 w-4 text-primary" />
                 </span>
-                Topic Workspace
+                {t("dashboard.actions.topicWorkspace")}
               </div>
               <ArrowRight className="h-3.5 w-3.5 text-primary" />
             </Link>
@@ -364,7 +251,7 @@ function DashboardContent() {
                 <span className="group-hover:scale-105 transition-transform">
                   <Compass className="h-4 w-4 text-emerald-700" />
                 </span>
-                Evidence Explorer
+                {t("dashboard.actions.evidenceExplorer")}
               </div>
               <ArrowRight className="h-3.5 w-3.5 text-emerald-700" />
             </Link>
@@ -377,7 +264,7 @@ function DashboardContent() {
                 <span className="group-hover:scale-105 transition-transform">
                   <FolderOpen className="h-4 w-4 text-amber-700" />
                 </span>
-                Dossiers
+                {t("dashboard.actions.dossiers")}
               </div>
               <ArrowRight className="h-3.5 w-3.5 text-amber-700" />
             </Link>
@@ -387,36 +274,47 @@ function DashboardContent() {
         <aside className="hidden xl:block paper-panel rounded-[1.75rem] p-5">
           <div className="space-y-4">
             <div>
-              <p className="section-kicker">Current signals</p>
-              <h3 className="font-display text-[1.8rem] text-foreground">What deserves attention now</h3>
+              <p className="section-kicker">{t("dashboard.signals.kicker")}</p>
+              <h3 className="font-display text-[1.8rem] text-foreground">{t("dashboard.signals.title")}</h3>
             </div>
 
             <div className="ink-rule" />
 
             <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-              <div>
-                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Corpus</p>
-                <p className="mt-1 font-display text-[2rem] text-foreground">
-                  {statsData?.stats?.totalPapers?.toLocaleString() ?? "…"}
-                </p>
-                <p className="text-sm text-muted-foreground">Indexed NBER papers in the working library.</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Atoms</p>
-                <p className="mt-1 font-display text-[2rem] text-foreground">
-                  {statsData?.stats?.totalAtoms?.toLocaleString() ?? "…"}
-                </p>
-                <p className="text-sm text-muted-foreground">Methods, mechanisms, datasets, and puzzles extracted for navigation.</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Lead dossier</p>
-                <p className="mt-1 text-base font-semibold text-foreground">
-                  {featuredProject?.title ?? "No dossier yet"}
+              <Link
+                href="/library"
+                className="group -mx-2 rounded-[1rem] px-2 py-1.5 transition-colors hover:bg-[color:oklch(var(--accent)/0.45)]"
+              >
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("dashboard.signals.corpus")}</p>
+                <p className="mt-1 font-display text-[2rem] text-foreground transition-colors group-hover:text-primary">
+                  {statsData?.stats?.totalPapers?.toLocaleString(locale) ?? "…"}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {featuredProject ? "Open the most recently updated review-ready project." : "Promote a stable paper set from Research into Projects."}
+                  {t("dashboard.signals.indexedPapers", { label: appConfig.corpusLabel })}
                 </p>
-              </div>
+              </Link>
+              <Link
+                href="/explorer?tab=atoms"
+                className="group -mx-2 rounded-[1rem] px-2 py-1.5 transition-colors hover:bg-[color:oklch(var(--accent)/0.45)]"
+              >
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("dashboard.signals.atoms")}</p>
+                <p className="mt-1 font-display text-[2rem] text-foreground transition-colors group-hover:text-primary">
+                  {statsData?.stats?.totalAtoms?.toLocaleString(locale) ?? "…"}
+                </p>
+                <p className="text-sm text-muted-foreground">{t("dashboard.signals.atomDescription")}</p>
+              </Link>
+              <Link
+                href={featuredProject ? `/projects/${featuredProject.slug}` : "/projects"}
+                className="group -mx-2 rounded-[1rem] px-2 py-1.5 transition-colors hover:bg-[color:oklch(var(--accent)/0.45)]"
+              >
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("dashboard.signals.leadDossier")}</p>
+                <p className="mt-1 text-base font-semibold text-foreground transition-colors group-hover:text-primary">
+                  {featuredProject?.title ?? t("dashboard.signals.noDossier")}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {featuredProject ? t("dashboard.signals.openDossier") : t("dashboard.signals.promoteDossier")}
+                </p>
+              </Link>
             </div>
           </div>
         </aside>
@@ -425,64 +323,36 @@ function DashboardContent() {
       {/* Mobile/tablet stat pills - visible below xl */}
       <div className="flex flex-wrap gap-3 xl:hidden">
         <div className="paper-panel rounded-full px-4 py-2 text-sm">
-          <span className="text-muted-foreground">Papers</span>{' '}
-          <span className="font-semibold">{statsData?.stats?.totalPapers?.toLocaleString() ?? '...'}</span>
+          <span className="text-muted-foreground">{t("dashboard.mobileStats.papers")}</span>{" "}
+          <span className="font-semibold">{statsData?.stats?.totalPapers?.toLocaleString(locale) ?? "..."}</span>
         </div>
         <div className="paper-panel rounded-full px-4 py-2 text-sm">
-          <span className="text-muted-foreground">Atoms</span>{' '}
-          <span className="font-semibold">{statsData?.stats?.totalAtoms?.toLocaleString() ?? '...'}</span>
+          <span className="text-muted-foreground">{t("dashboard.mobileStats.atoms")}</span>{" "}
+          <span className="font-semibold">{statsData?.stats?.totalAtoms?.toLocaleString(locale) ?? "..."}</span>
         </div>
         <div className="paper-panel rounded-full px-4 py-2 text-sm">
-          <span className="text-muted-foreground">Ideas</span>{' '}
-          <span className="font-semibold">{statsData?.stats?.totalIdeas?.toLocaleString() ?? '...'}</span>
+          <span className="text-muted-foreground">{t("dashboard.mobileStats.ideas")}</span>{" "}
+          <span className="font-semibold">{statsData?.stats?.totalIdeas?.toLocaleString(locale) ?? "..."}</span>
         </div>
       </div>
 
       <Tabs defaultValue="today" className="space-y-6">
         <TabsList className="h-auto rounded-full border border-border bg-[color:oklch(var(--card)/0.86)] p-1">
-          <TabsTrigger value="today">Today</TabsTrigger>
-          <TabsTrigger value="analytics">Corpus Analytics</TabsTrigger>
+          <TabsTrigger value="today">{t("dashboard.tabs.today")}</TabsTrigger>
+          <TabsTrigger value="analytics">{t("dashboard.tabs.analytics")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="today" className="space-y-6">
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_360px]">
-            <div className="space-y-6">
-              {projectsLoading ? (
-                <FeaturedProjectSkeleton />
-              ) : featuredProject ? (
-                <FeaturedProjectSection project={featuredProject} />
-              ) : (
-                <Card className="paper-panel rounded-[1.5rem] border-dashed">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Projects</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3 text-sm text-muted-foreground">
-                    <p>No project has been published yet. Start in Research, then promote a stable paper set into Projects.</p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild variant="outline" size="sm">
-                        <Link href="/research">Open Research</Link>
-                      </Button>
-                      <Button asChild variant="outline" size="sm">
-                        <Link href="/projects">Open Projects</Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+          <WhatsNewCard />
 
-              <TopPapers
-                papers={papersData?.papers?.items}
-                loading={papersLoading}
-              />
+          <TopPapers
+            papers={papersData?.papers?.items}
+            loading={papersLoading}
+          />
 
-              <PersonalizedFeed />
-            </div>
+          <ActiveIdeas ideas={ideasData?.ideas} loading={ideasLoading} />
 
-            <div className="space-y-6">
-              <WhatsNewCard />
-              <ActiveIdeas ideas={ideasData?.ideas} loading={ideasLoading} />
-            </div>
-          </div>
+          <PersonalizedFeed />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">

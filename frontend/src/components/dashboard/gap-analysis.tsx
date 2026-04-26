@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ArrowRight, Unlink } from "lucide-react";
 import type { GapAnalysis } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 interface GapAnalysisCardProps {
   data: GapAnalysis | undefined;
@@ -30,23 +31,25 @@ function getAtomBadgeVariant(type: string) {
 }
 
 export function GapAnalysisCard({ data, loading }: GapAnalysisCardProps) {
+  const { t } = useI18n();
+
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold">
-            Research Gaps &amp; Bridges
+            {t("dashboard.gapAnalysis.title")}
           </CardTitle>
           <Link
             href="/maps/frontier_gaps"
             className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
           >
-            Frontier Gaps
+            {t("dashboard.gapAnalysis.frontierGaps")}
             <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Corpus-wide structural signal based on atom links between papers and fields, not just deep-read cards.
+          {t("dashboard.gapAnalysis.body")}
         </p>
       </CardHeader>
       <CardContent>
@@ -78,9 +81,9 @@ export function GapAnalysisCard({ data, loading }: GapAnalysisCardProps) {
             {data.bridgeAtoms.length > 0 && (
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                  Bridge Atoms
+                  {t("dashboard.gapAnalysis.bridgeAtoms")}
                   <span className="ml-1 text-xs font-normal text-gray-400">
-                    (connecting 3+ fields)
+                    ({t("dashboard.gapAnalysis.connectingFields")})
                   </span>
                 </h3>
                 <TooltipProvider delayDuration={200}>
@@ -102,7 +105,10 @@ export function GapAnalysisCard({ data, loading }: GapAnalysisCardProps) {
                         </TooltipTrigger>
                         <TooltipContent side="bottom" className="max-w-64">
                           <p className="text-xs font-medium mb-1">
-                            Connects {atom.fieldCount} fields across {atom.paperCount} papers
+                            {t("dashboard.gapAnalysis.connects", {
+                              fieldCount: atom.fieldCount,
+                              paperCount: atom.paperCount,
+                            })}
                           </p>
                           <div className="flex flex-wrap gap-1">
                             {atom.connectedFields.map((f) => (
@@ -126,15 +132,15 @@ export function GapAnalysisCard({ data, loading }: GapAnalysisCardProps) {
             {data.weakConnections.length > 0 && (
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                  Underconnected Field Pairs
+                  {t("dashboard.gapAnalysis.weakPairs")}
                 </h3>
                 <div className="overflow-hidden rounded-lg border border-border">
                   <table className="min-w-full text-sm">
                     <thead>
                       <tr className="bg-muted/50 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        <th className="px-3 py-2.5">Field A</th>
-                        <th className="px-3 py-2.5">Field B</th>
-                        <th className="px-3 py-2.5 text-right">Shared Atoms</th>
+                        <th className="px-3 py-2.5">{t("dashboard.gapAnalysis.fieldA")}</th>
+                        <th className="px-3 py-2.5">{t("dashboard.gapAnalysis.fieldB")}</th>
+                        <th className="px-3 py-2.5 text-right">{t("dashboard.gapAnalysis.sharedAtoms")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -172,12 +178,9 @@ export function GapAnalysisCard({ data, loading }: GapAnalysisCardProps) {
                 <Unlink className="h-4 w-4 text-amber-600" />
               </div>
               <p className="text-sm text-foreground">
-                <span className="font-semibold">
-                  {data.totalOrphanAtoms.toLocaleString()}
-                </span>{" "}
-                atoms connected to only 1 paper
+                {t("dashboard.gapAnalysis.orphanAtoms", { count: data.totalOrphanAtoms.toLocaleString() })}
                 <span className="ml-1 text-xs text-muted-foreground">
-                  (potential expansion points)
+                  ({t("dashboard.gapAnalysis.expansionPoints")})
                 </span>
               </p>
             </div>

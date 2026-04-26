@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useQuery } from "@apollo/client/react";
+import { collectErrorMessages } from "@/components/shared/query-error-banner";
 import {
   Globe,
   FlaskConical,
@@ -17,6 +18,7 @@ import type { FieldMap } from "@/lib/types";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 // ---------------------------------------------------------------------------
 // Map metadata keyed by slug
@@ -24,28 +26,35 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const MAP_META: Record<
   string,
-  { description: string; icon: React.ComponentType<{ className?: string }> }
+  {
+    titleKey: string;
+    descriptionKey: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }
 > = {
   research_landscape: {
-    description:
-      "Key questions, methods, consensus, and debates organized by field",
+    titleKey: "maps.registry.researchLandscape.title",
+    descriptionKey: "maps.registry.researchLandscape.description",
     icon: Globe,
   },
   method_registry: {
-    description: "Catalog of econometric methods and their applications",
+    titleKey: "maps.registry.methodRegistry.title",
+    descriptionKey: "maps.registry.methodRegistry.description",
     icon: FlaskConical,
   },
   debate_map: {
-    description: "Active debates and competing findings in the literature",
+    titleKey: "maps.registry.debateMap.title",
+    descriptionKey: "maps.registry.debateMap.description",
     icon: Swords,
   },
   frontier_gaps: {
-    description:
-      "Identified gaps in the literature with feasibility assessments",
+    titleKey: "maps.registry.frontierGaps.title",
+    descriptionKey: "maps.registry.frontierGaps.description",
     icon: Compass,
   },
   idea_bank: {
-    description: "Map-level index of research ideas",
+    titleKey: "maps.registry.ideaBank.title",
+    descriptionKey: "maps.registry.ideaBank.description",
     icon: Lightbulb,
   },
 };
@@ -90,28 +99,27 @@ interface FieldMapsData {
 
 export default function FieldMapsPage() {
   const { data, loading, error } = useQuery<FieldMapsData>(GET_FIELD_MAPS);
+  const { t } = useI18n();
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="space-y-3">
-          <p className="section-kicker">Atlas Layer</p>
+          <p className="section-kicker">{t("maps.index.kicker")}</p>
           <div>
             <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
-              Field Maps
+              {t("maps.index.title")}
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
-              Read synthesized field briefs across the archive: landscapes,
-              methods, debates, frontier gaps, and idea banks.
+              {t("maps.index.body")}
             </p>
           </div>
         </div>
         <div className="rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
-          <p className="section-kicker">Reading Mode</p>
+          <p className="section-kicker">{t("maps.index.infoKicker")}</p>
           <p className="mt-2 text-sm leading-6 text-foreground/80">
-            Use maps to move from scattered papers toward higher-level field
-            structure and recurring research questions.
+            {t("maps.index.infoBody")}
           </p>
         </div>
       </div>
@@ -119,8 +127,9 @@ export default function FieldMapsPage() {
       {/* Error state */}
       {error && (
         <div className="paper-panel border-red-200/80 bg-red-50/80 p-4 shadow-none">
-          <p className="text-sm text-red-700">
-            Failed to load field maps. Please try again later.
+          <p className="text-sm font-medium text-red-700">{t("maps.index.errorTitle")}</p>
+          <p className="mt-1 text-xs text-red-700">
+            {collectErrorMessages([error]) || t("maps.index.errorBody")}
           </p>
         </div>
       )}
@@ -134,20 +143,22 @@ export default function FieldMapsPage() {
           {data.fieldMaps.map((map) => {
             const meta = MAP_META[map.slug];
             const Icon = meta?.icon ?? DefaultIcon;
-            const description =
-              meta?.description ?? "Synthesized field map overview";
+            const title = meta?.titleKey ? t(meta.titleKey) : map.title;
+            const description = meta?.descriptionKey
+              ? t(meta.descriptionKey)
+              : t("maps.registry.fallback.description");
 
             return (
               <Link key={map.slug} href={`/maps/${map.slug}`}>
                 <Card className="paper-panel group h-full cursor-pointer p-0 transition-all duration-200 hover:-translate-y-1">
                   <CardHeader className="border-b border-border/70 pb-4 pt-5">
-                    <p className="section-kicker mb-3">Field Brief</p>
+                    <p className="section-kicker mb-3">{t("maps.common.fieldBrief")}</p>
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.1rem] border border-border/70 bg-background/80 text-primary transition-colors group-hover:bg-accent/55">
                         <Icon className="h-5 w-5" />
                       </div>
                       <h3 className="font-display text-2xl tracking-tight text-foreground">
-                        {map.title}
+                        {title}
                       </h3>
                     </div>
                   </CardHeader>
@@ -156,7 +167,7 @@ export default function FieldMapsPage() {
                       {description}
                     </p>
                     <div className="flex items-center gap-1 text-xs font-medium uppercase tracking-[0.18em] text-primary opacity-0 transition-opacity group-hover:opacity-100">
-                      Open map <ArrowRight className="h-3 w-3" />
+                      {t("maps.index.openMap")} <ArrowRight className="h-3 w-3" />
                     </div>
                   </CardContent>
                 </Card>

@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { SEARCH } from "@/lib/queries";
 import type { SearchHit, SearchResult } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 const entityIcons: Record<string, React.ElementType> = {
   paper: FileText,
@@ -50,14 +51,6 @@ const entityBadgeVariant: Record<
   puzzle: "puzzle",
 };
 
-const groupLabels: Record<string, string> = {
-  paper: "Papers",
-  mechanism: "Mechanisms",
-  method: "Methods",
-  dataset: "Datasets",
-  puzzle: "Puzzles",
-};
-
 const groupOrder = ["paper", "mechanism", "method", "dataset", "puzzle"];
 
 interface CommandSearchProps {
@@ -67,6 +60,7 @@ interface CommandSearchProps {
 
 export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const [inputValue, setInputValue] = useState("");
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -165,9 +159,9 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
   const hasResults = hits.length > 0;
 
   return (
-    <CommandDialog open={open} onOpenChange={handleOpenChange} aria-label="Search the knowledge base">
+    <CommandDialog open={open} onOpenChange={handleOpenChange} aria-label={t("commandSearch.ariaLabel")}>
       <CommandInput
-        placeholder="Search papers, mechanisms, methods, datasets..."
+        placeholder={t("commandSearch.placeholder")}
         value={inputValue}
         onValueChange={handleInputChange}
       />
@@ -176,14 +170,14 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
         {loading && hasQuery && (
           <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Searching...</span>
+            <span>{t("commandSearch.searching")}</span>
           </div>
         )}
 
         {/* Error state */}
         {error && hasQuery && !loading && (
           <div className="py-8 text-center text-sm text-destructive">
-            Search unavailable. Please try again later.
+            {t("commandSearch.unavailable")}
           </div>
         )}
 
@@ -191,9 +185,9 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
         {!hasQuery && !loading && (
           <CommandEmpty>
             <div className="mx-auto max-w-sm space-y-2 px-4">
-              <p className="section-kicker">Quick lookup</p>
-              <p className="font-display text-[1.35rem] text-foreground">Start with a paper, method, dataset, or mechanism.</p>
-              <p>Type to search across the research graph and jump directly into the right evidence trail.</p>
+              <p className="section-kicker">{t("commandSearch.quickLookupKicker")}</p>
+              <p className="font-display text-[1.35rem] text-foreground">{t("commandSearch.quickLookupTitle")}</p>
+              <p>{t("commandSearch.quickLookupBody")}</p>
             </div>
           </CommandEmpty>
         )}
@@ -202,8 +196,8 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
         {hasQuery && !loading && !error && !hasResults && (
           <CommandEmpty>
             <div className="space-y-1 px-4">
-              <p className="section-kicker">No matches</p>
-              <p className="text-sm text-foreground">No results found for this query.</p>
+              <p className="section-kicker">{t("commandSearch.noMatchesKicker")}</p>
+              <p className="text-sm text-foreground">{t("commandSearch.noMatchesBody")}</p>
             </div>
           </CommandEmpty>
         )}
@@ -214,7 +208,7 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
             const items = grouped[type];
             const Icon = entityIcons[type] || FileText;
             return (
-              <CommandGroup key={type} heading={groupLabels[type] || type}>
+              <CommandGroup key={type} heading={t(`commandSearch.groups.${type}`)}>
                 {items.map((hit) => (
                   <CommandItem
                     key={`${hit.entityType}-${hit.entityId}-${hit.rank}`}
@@ -257,20 +251,20 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             <kbd className="rounded-full border border-border/75 bg-background/85 px-1.5 py-0.5 font-mono text-[10px]">&uarr;&darr;</kbd>
-            <span>Navigate</span>
+            <span>{t("commandSearch.footer.navigate")}</span>
           </span>
           <span className="inline-flex items-center gap-1">
             <kbd className="rounded-full border border-border/75 bg-background/85 px-1.5 py-0.5 font-mono text-[10px]">&crarr;</kbd>
-            <span>Open</span>
+            <span>{t("commandSearch.footer.open")}</span>
           </span>
           <span className="inline-flex items-center gap-1">
             <kbd className="rounded-full border border-border/75 bg-background/85 px-1.5 py-0.5 font-mono text-[10px]">esc</kbd>
-            <span>Close</span>
+            <span>{t("commandSearch.footer.close")}</span>
           </span>
         </div>
         {hasQuery && !loading && !error && hasResults && (
           <span className="text-xs text-muted-foreground">
-            {hits.length} of {total}
+            {t("commandSearch.footer.results", { count: hits.length })} / {total}
           </span>
         )}
       </div>

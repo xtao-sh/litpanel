@@ -1,5 +1,18 @@
 "use client";
 
+export function collectErrorMessages(
+  errors: Array<{ message?: string } | undefined | null>
+): string {
+  const unique = Array.from(
+    new Set(
+      errors
+        .map((error) => (error?.message ?? "").trim())
+        .filter(Boolean)
+    )
+  );
+  return unique.join(" ");
+}
+
 interface QueryErrorBannerProps {
   error: { message?: string } | undefined;
   message?: string;

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ArrowUpDown, ArrowUp, ArrowDown, GitCompareArrows, X } from "lucide-react";
 import { ExportMenu } from "@/components/shared/export-menu";
+import { useI18n } from "@/lib/i18n/locale-context";
 import type { Paper } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -86,7 +87,8 @@ function SortIcon({ column }: { column: { getIsSorted: () => false | "asc" | "de
 // Column definitions (without checkbox — added dynamically)
 // ---------------------------------------------------------------------------
 
-const dataColumns: ColumnDef<Paper>[] = [
+function createDataColumns(t: (key: string, vars?: Record<string, string | number>) => string): ColumnDef<Paper>[] {
+  return [
   {
     accessorKey: "paperId",
     header: ({ column }) => (
@@ -94,7 +96,7 @@ const dataColumns: ColumnDef<Paper>[] = [
         className="flex items-center text-left font-medium"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        ID
+        {t("explorer.columns.id")}
         <SortIcon column={column} />
       </button>
     ),
@@ -116,7 +118,7 @@ const dataColumns: ColumnDef<Paper>[] = [
         className="flex items-center text-left font-medium"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Title
+        {t("explorer.columns.title")}
         <SortIcon column={column} />
       </button>
     ),
@@ -167,7 +169,7 @@ const dataColumns: ColumnDef<Paper>[] = [
         className="flex items-center text-left font-medium"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Year
+        {t("explorer.columns.year")}
         <SortIcon column={column} />
       </button>
     ),
@@ -178,7 +180,7 @@ const dataColumns: ColumnDef<Paper>[] = [
   },
   {
     accessorKey: "fields",
-    header: "Fields",
+    header: t("explorer.columns.fields"),
     cell: ({ row }) => {
       const fields = row.original.fields;
       if (!fields || fields.length === 0) return <span className="text-gray-400 text-sm">-</span>;
@@ -219,7 +221,7 @@ const dataColumns: ColumnDef<Paper>[] = [
         className="flex items-center text-left font-medium"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Score
+        {t("explorer.columns.score")}
         <SortIcon column={column} />
       </button>
     ),
@@ -235,20 +237,27 @@ const dataColumns: ColumnDef<Paper>[] = [
   },
   {
     accessorKey: "triageDecision",
-    header: "Triage",
+    header: t("explorer.columns.triage"),
     cell: ({ row }) => {
       const decision = row.original.triageDecision;
       if (!decision) return <span className="text-gray-400 text-sm">-</span>;
       return (
         <Badge variant={triageBadgeVariant(decision)} className="text-xs">
-          {decision}
+          {decision === "DEEP_READ"
+            ? t("explorer.values.deepRead")
+            : decision === "SKIM"
+              ? t("explorer.values.skim")
+              : decision === "SKIP"
+                ? t("explorer.values.skip")
+                : decision}
         </Badge>
       );
     },
     enableSorting: false,
     size: 100,
   },
-];
+  ];
+}
 
 // ---------------------------------------------------------------------------
 // Table Component
@@ -283,6 +292,7 @@ export function PaperTable({
   onToggleCompare,
   onClearCompare,
 }: PaperTableProps) {
+  const { t } = useI18n();
   const router = useRouter();
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [localSelectedIds, setLocalSelectedIds] = React.useState<Set<string>>(new Set());
@@ -321,7 +331,7 @@ export function PaperTable({
         id: "select",
         header: () => (
           <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Sel
+            {t("explorer.columns.select")}
           </span>
         ),
         cell: ({ row }) => {
@@ -348,9 +358,9 @@ export function PaperTable({
         enableSorting: false,
         size: 40,
       },
-      ...dataColumns,
+      ...createDataColumns(t),
     ],
-    [selectedIds, toggleSelect]
+    [selectedIds, toggleSelect, t]
   );
 
   // TanStack Table exposes imperative instance methods; React Compiler skips memoization here by design.
@@ -376,7 +386,7 @@ export function PaperTable({
   if (data.length === 0) {
     return (
       <div className="flex h-64 flex-col items-center justify-center text-gray-500">
-        <p className="text-sm">No papers found matching your filters.</p>
+        <p className="text-sm">{t("explorer.empty.papers")}</p>
       </div>
     );
   }
@@ -456,7 +466,7 @@ export function PaperTable({
         {selectedCount > 0 && (
           <div className="sticky bottom-0 left-0 right-0 z-20 flex items-center justify-between gap-3 border-t border-blue-200 bg-blue-50 px-4 py-2.5 shadow-lg">
             <span className="text-sm font-medium text-blue-800">
-              {selectedCount} paper{selectedCount !== 1 ? "s" : ""} selected
+              {t("explorer.counts.selectedPapers", { count: selectedCount })}
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -471,15 +481,15 @@ export function PaperTable({
                 className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <GitCompareArrows className="h-3.5 w-3.5" />
-                Compare{!canCompare && selectedCount < 2 ? " (select 2+)" : ""}
+                {canCompare ? t("explorer.actions.compare") : t("explorer.actions.compareSelectMore")}
               </button>
-              <ExportMenu paperIds={Array.from(selectedIds)} label="Export" />
+              <ExportMenu paperIds={Array.from(selectedIds)} label={t("explorer.actions.export")} />
               <button
                 onClick={clearSelection}
                 className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-100"
               >
                 <X className="h-3.5 w-3.5" />
-                Clear
+                {t("explorer.actions.clear")}
               </button>
             </div>
           </div>
@@ -508,6 +518,7 @@ function Pagination({
   onPageChange: (page: number) => void;
   exportMenu?: React.ReactNode;
 }) {
+  const { t } = useI18n();
   const from = (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
 
@@ -516,8 +527,8 @@ function Pagination({
       <div className="flex items-center gap-3">
         <p className="text-sm text-muted-foreground">
           {total > 0
-            ? `${from}-${to} of ${total.toLocaleString()}`
-            : "No results"}
+            ? t("explorer.counts.rangeOfTotal", { start: from, end: to, total: total.toLocaleString() })
+            : t("explorer.counts.noResults")}
         </p>
         {exportMenu && total > 0 && exportMenu}
       </div>
@@ -527,7 +538,7 @@ function Pagination({
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
         >
-          Previous
+          {t("common.actions.previous")}
         </button>
         {generatePageNumbers(page, totalPages).map((p, i) =>
           p === "..." ? (
@@ -553,7 +564,7 @@ function Pagination({
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
         >
-          Next
+          {t("common.actions.next")}
         </button>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useQuery } from "@apollo/client/react";
+import { collectErrorMessages } from "@/components/shared/query-error-banner";
 import {
   ArrowRight,
   FileSearch,
@@ -327,7 +328,10 @@ export default function ProjectsPage() {
 
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          Failed to load projects.
+          <p className="font-medium">Failed to load projects.</p>
+          <p className="mt-1 text-xs text-red-700">
+            {collectErrorMessages([error]) || "Please refresh the page."}
+          </p>
         </div>
       )}
 

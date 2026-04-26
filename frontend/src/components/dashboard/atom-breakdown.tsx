@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Cog, FlaskConical, Database, HelpCircle } from "lucide-react";
 import type { Stats } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 interface AtomBreakdownProps {
   stats: Stats | undefined;
@@ -17,28 +18,28 @@ function formatNumber(n: number): string {
 const atomTypes = [
   {
     key: "totalMechanisms" as const,
-    label: "Mechanisms",
+    labelKey: "dashboard.atomBreakdown.mechanisms",
     icon: Cog,
     color: "text-orange-500",
     bg: "bg-orange-50",
   },
   {
     key: "totalMethods" as const,
-    label: "Methods",
+    labelKey: "dashboard.atomBreakdown.methods",
     icon: FlaskConical,
     color: "text-green-500",
     bg: "bg-green-50",
   },
   {
     key: "totalDatasets" as const,
-    label: "Datasets",
+    labelKey: "dashboard.atomBreakdown.datasets",
     icon: Database,
     color: "text-purple-500",
     bg: "bg-purple-50",
   },
   {
     key: "totalPuzzles" as const,
-    label: "Puzzles",
+    labelKey: "dashboard.atomBreakdown.puzzles",
     icon: HelpCircle,
     color: "text-red-500",
     bg: "bg-red-50",
@@ -46,11 +47,13 @@ const atomTypes = [
 ];
 
 export function AtomBreakdown({ stats, loading }: AtomBreakdownProps) {
+  const { t } = useI18n();
+
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base font-semibold">
-          Atom Type Distribution
+          {t("dashboard.atomBreakdown.title")}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -73,7 +76,7 @@ export function AtomBreakdown({ stats, loading }: AtomBreakdownProps) {
                     {formatNumber(stats[at.key])}
                   </span>
                   <span className="text-xs text-gray-500 mt-0.5">
-                    {at.label}
+                    {t(at.labelKey)}
                   </span>
                 </>
               )}

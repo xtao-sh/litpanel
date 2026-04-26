@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResponsiveBar } from "@nivo/bar";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 interface YearDatum {
   year: number;
@@ -37,10 +38,12 @@ const nivoTheme = {
 };
 
 export function YearChart({ data, loading }: YearChartProps) {
+  const { t } = useI18n();
+
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-semibold">Papers by Year</CardTitle>
+        <CardTitle className="text-base font-semibold">{t("dashboard.yearChart.title")}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="h-[350px]">
@@ -70,7 +73,7 @@ export function YearChart({ data, loading }: YearChartProps) {
                 tickRotation: -45,
               }}
               axisLeft={{
-                legend: "Papers",
+                legend: t("dashboard.yearChart.axisPapers"),
                 legendPosition: "middle",
                 legendOffset: -45,
               }}

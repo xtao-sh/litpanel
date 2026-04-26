@@ -286,19 +286,27 @@ function GraphPageInner() {
           variables: { paperId, depth: currentDepth },
         });
         const net = result.data?.paperNetwork;
+        const runtimeError = net?.errorMessage || result.error?.message;
 
-        if (!net || net.nodes.length === 0) {
+        if (runtimeError) {
+          setErrorMsg(runtimeError);
+          setSearchMessage(net?.warningMessage ?? null);
+          setGraphData(null);
+        } else if (!net || net.nodes.length === 0) {
           setErrorMsg("No results found for that paper ID.");
+          setSearchMessage(net?.warningMessage ?? null);
           setGraphData(null);
         } else {
           const paperNodeCount = net.nodes.filter((node) => node.type === "paper").length;
           setErrorMsg(null);
           setSearchMessage(
-            paperNodeCount <= 1
+            net.warningMessage
+              ? net.warningMessage
+              : paperNodeCount <= 1
               ? `"${nextContext?.label ?? paperId}" is currently linked only to atoms that are unique to this paper in the knowledge base, so depth 2 and 3 will match depth 1. Try topic keywords to open a broader paper-set graph.`
               : net.nodes.length <= 1 || net.edges.length === 0
                 ? `"${nextContext?.label ?? paperId}" does not yet have structured graph links. Try topic keywords to open a broader paper-set graph.`
-              : null
+                : null
           );
           setGraphData(net);
           setGraphContext({
@@ -324,14 +332,22 @@ function GraphPageInner() {
           variables: { slug, depth: currentDepth },
         });
         const net = result.data?.atomNeighborhood;
+        const runtimeError = net?.errorMessage || result.error?.message;
 
-        if (!net || net.nodes.length === 0) {
+        if (runtimeError) {
+          setErrorMsg(runtimeError);
+          setSearchMessage(net?.warningMessage ?? null);
+          setGraphData(null);
+        } else if (!net || net.nodes.length === 0) {
           setErrorMsg("No results found for that atom slug.");
+          setSearchMessage(net?.warningMessage ?? null);
           setGraphData(null);
         } else {
           setErrorMsg(null);
           setSearchMessage(
-            net.nodes.length <= 1 || net.edges.length === 0
+            net.warningMessage
+              ? net.warningMessage
+              : net.nodes.length <= 1 || net.edges.length === 0
               ? `"${nextContext?.label ?? slug}" does not yet connect to a larger visible neighborhood.`
               : null
           );
@@ -359,12 +375,19 @@ function GraphPageInner() {
           variables: { paperIds: scope.paperIds, depth: currentDepth },
         });
         const net = result.data?.paperSetNetwork;
+        const runtimeError = net?.errorMessage || result.error?.message;
 
-        if (!net || net.nodes.length === 0) {
+        if (runtimeError) {
+          setErrorMsg(runtimeError);
+          setSearchMessage(net?.warningMessage ?? null);
+          setGraphData(null);
+        } else if (!net || net.nodes.length === 0) {
           setErrorMsg("No graphable structure was found for the current paper set.");
+          setSearchMessage(net?.warningMessage ?? null);
           setGraphData(null);
         } else {
           setErrorMsg(null);
+          setSearchMessage(net.warningMessage ?? null);
           setGraphData(net);
           setGraphContext({
             label: scope.label,
@@ -407,6 +430,9 @@ function GraphPageInner() {
             offset: 0,
           },
         });
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
         const paperIds = result.data?.researchPapers?.allPaperIds ?? [];
 
         if (paperIds.length === 0) {
@@ -671,6 +697,27 @@ function GraphPageInner() {
       .sort((a, b) => b.count - a.count);
   }, [graphData, selectedNode]);
 
+  const paperSetDiagnostics = useMemo(() => {
+    if (!graphData || graphData.mode !== "paper_set") return null;
+
+    const paperNodes = graphData.nodes.filter((node) => node.type === "paper");
+    const seedPaperNodes = paperNodes.filter((node) => node.isSeed);
+    const seedIds = new Set(seedPaperNodes.map((node) => node.id));
+    const connectedSeedIds = new Set<string>();
+
+    graphData.edges.forEach((edge) => {
+      if (seedIds.has(edge.source)) connectedSeedIds.add(edge.source);
+      if (seedIds.has(edge.target)) connectedSeedIds.add(edge.target);
+    });
+
+    return {
+      paperNodeCount: paperNodes.length,
+      seedPaperCount: seedPaperNodes.length,
+      contextualPaperCount: Math.max(0, paperNodes.length - seedPaperNodes.length),
+      isolatedSeedCount: Math.max(0, seedPaperNodes.length - connectedSeedIds.size),
+    };
+  }, [graphData]);
+
   const graphSummary = useMemo(() => {
     if (!graphData) return null;
 
@@ -680,17 +727,25 @@ function GraphPageInner() {
       const truncationNote = graphData.truncated
         ? ` Showing the first ${graphData.seedCount} seed papers to keep the graph readable.`
         : "";
+      const isolationNote =
+        paperSetDiagnostics && paperSetDiagnostics.isolatedSeedCount > 0
+          ? ` ${paperSetDiagnostics.isolatedSeedCount} seed paper${paperSetDiagnostics.isolatedSeedCount === 1 ? " is" : "s are"} currently isolated because they do not share visible atoms with the connected core.`
+          : "";
       const depthNote =
         depth === 1
           ? "Depth 1 keeps only atoms shared within the current seed set."
           : depth === 2
-            ? "Depth 2 adds all atoms attached to the current seed papers."
-            : "Depth 3 adds contextual outside papers linked through the visible atoms.";
-      return `${label} · ${sourcePaperCount.toLocaleString()} matched papers · ${graphData.seedCount} seed papers · ${graphData.totalPaperNodes} paper nodes in view.${truncationNote} ${depthNote}`;
+            ? paperSetDiagnostics && paperSetDiagnostics.paperNodeCount === paperSetDiagnostics.seedPaperCount
+              ? "Depth 2 added atoms around the seed papers, but no additional paper nodes surfaced in the current library."
+              : "Depth 2 adds all atoms attached to the current seed papers."
+            : paperSetDiagnostics && paperSetDiagnostics.contextualPaperCount === 0
+              ? "Depth 3 looked for outside papers through the visible atoms, but none were found yet."
+              : `Depth 3 adds contextual outside papers linked through the visible atoms. ${paperSetDiagnostics?.contextualPaperCount ?? 0} outside paper${paperSetDiagnostics?.contextualPaperCount === 1 ? "" : "s"} added in this view.`;
+      return `${label} · ${sourcePaperCount.toLocaleString()} matched papers · ${graphData.seedCount} seed papers · ${graphData.totalPaperNodes} paper nodes in view.${truncationNote} ${depthNote}${isolationNote}`;
     }
 
     return searchMessage;
-  }, [depth, graphContext, graphData, paperSetScope, searchMessage]);
+  }, [depth, graphContext, graphData, paperSetDiagnostics, paperSetScope, searchMessage]);
 
   const disabledDepths = useMemo(() => {
     if (!graphData) return new Set<number>();
@@ -709,11 +764,15 @@ function GraphPageInner() {
       return depth === 1
         ? "Depth 1 keeps only atoms shared within the current seed set."
         : depth === 2
-          ? "Depth 2 adds all atoms attached to the visible seed papers."
-          : "Depth 3 adds outside papers linked through the visible atoms.";
+          ? paperSetDiagnostics && paperSetDiagnostics.paperNodeCount === paperSetDiagnostics.seedPaperCount
+            ? "Depth 2 expanded the seed papers into their attached atoms, but it did not reveal any additional paper nodes."
+            : "Depth 2 adds all atoms attached to the visible seed papers."
+          : paperSetDiagnostics && paperSetDiagnostics.contextualPaperCount === 0
+            ? "Depth 3 tried to bring in outside papers through the visible atoms, but none were found in the current library."
+            : `Depth 3 adds outside papers linked through the visible atoms. ${paperSetDiagnostics?.contextualPaperCount ?? 0} outside paper${paperSetDiagnostics?.contextualPaperCount === 1 ? "" : "s"} are currently visible.`;
     }
     return null;
-  }, [depth, graphData]);
+  }, [depth, graphData, paperSetDiagnostics]);
 
   return (
     <div className="-m-6 flex h-[calc(100vh-4rem)] flex-col lg:-m-8">

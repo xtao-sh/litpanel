@@ -16,6 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -33,8 +34,8 @@ function relevancePct(score: number): string {
   return `${Math.round(score * 100)}%`;
 }
 
-function truncateTitle(title: string | null, max: number = 60): string {
-  if (!title) return "Untitled";
+function truncateTitle(title: string | null, fallback: string, max: number = 60): string {
+  if (!title) return fallback;
   if (title.length <= max) return title;
   return title.slice(0, max - 1) + "\u2026";
 }
@@ -44,6 +45,7 @@ function truncateTitle(title: string | null, max: number = 60): string {
 // ---------------------------------------------------------------------------
 
 export function PersonalizedFeed() {
+  const { t } = useI18n();
   const { data, loading } = useQuery<{
     personalizedFeed: RecommendedPaper[];
   }>(GET_PERSONALIZED_FEED, { variables: { limit: 8 } });
@@ -56,7 +58,7 @@ export function PersonalizedFeed() {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
           <Sparkles className="h-4 w-4 text-amber-500" style={{ strokeWidth: 1.75 }} />
-          Recommended for You
+          {t("dashboard.personalized.title")}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -76,26 +78,26 @@ export function PersonalizedFeed() {
               <Search className="h-5 w-5 text-muted-foreground" />
             </div>
             <p className="text-sm text-muted-foreground max-w-xs">
-              Bookmark some papers to get personalized recommendations.
+              {t("dashboard.personalized.empty")}
             </p>
             <Link
               href="/explorer"
               className="text-sm font-medium text-primary hover:underline"
             >
-              Go to Explorer
+              {t("dashboard.actions.goToExplorer")}
             </Link>
           </div>
         ) : (
           <TooltipProvider delayDuration={300}>
             {!hasRelevance && (
               <p className="mb-3 text-xs text-muted-foreground">
-                Showing top-rated papers. Bookmark papers to personalize this feed.
+                {t("dashboard.personalized.fallback")}
               </p>
             )}
             <div className="space-y-0.5">
               {papers.map((paper) => {
-                const fullTitle = paper.title || "Untitled";
-                const displayTitle = truncateTitle(paper.title);
+                const fullTitle = paper.title || t("dashboard.common.untitled");
+                const displayTitle = truncateTitle(paper.title, t("dashboard.common.untitled"));
                 const needsTooltip = fullTitle.length > 60;
 
                 const rowContent = (
@@ -124,7 +126,7 @@ export function PersonalizedFeed() {
                       )}
                       {hasRelevance && paper.relevanceScore > 0 && (
                         <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                          {relevancePct(paper.relevanceScore)} match
+                          {t("dashboard.personalized.match", { pct: relevancePct(paper.relevanceScore) })}
                         </span>
                       )}
                       <span

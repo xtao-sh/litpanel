@@ -9,6 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 interface PaperItem {
   paperId: string;
@@ -31,18 +32,20 @@ function scoreBadgeColor(score: number | null): string {
   return "bg-muted text-muted-foreground";
 }
 
-function truncateTitle(title: string | null, max: number = 65): string {
-  if (!title) return "Untitled";
+function truncateTitle(title: string | null, fallback: string, max: number = 65): string {
+  if (!title) return fallback;
   if (title.length <= max) return title;
   return title.slice(0, max - 1) + "\u2026";
 }
 
 export function TopPapers({ papers, loading }: TopPapersProps) {
+  const { t } = useI18n();
+
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base font-semibold">
-          Highest Rated Papers
+          {t("dashboard.topPapers.title")}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -60,8 +63,8 @@ export function TopPapers({ papers, loading }: TopPapersProps) {
           ) : (
             <div className="space-y-0.5">
               {papers.map((paper, idx) => {
-                const fullTitle = paper.title || "Untitled";
-                const displayTitle = truncateTitle(paper.title);
+                const fullTitle = paper.title || t("dashboard.topPapers.untitled");
+                const displayTitle = truncateTitle(paper.title, t("dashboard.topPapers.untitled"));
                 const needsTooltip = fullTitle.length > 65;
 
                 const rowContent = (

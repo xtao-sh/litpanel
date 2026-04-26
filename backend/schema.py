@@ -1,4 +1,4 @@
-"""Strawberry GraphQL schema for the NBER research knowledge base."""
+"""Strawberry GraphQL schema for the research knowledge base."""
 
 from __future__ import annotations
 
@@ -445,6 +445,8 @@ class NetworkGraph:
     seed_count: int = 0
     total_paper_nodes: int = 0
     truncated: bool = False
+    error_message: Optional[str] = None
+    warning_message: Optional[str] = None
 
 
 @strawberry.type
@@ -1480,6 +1482,8 @@ class Query:
             seed_count=data.get("seed_count", 0),
             total_paper_nodes=data.get("total_paper_nodes", 0),
             truncated=data.get("truncated", False),
+            error_message=data.get("error_message"),
+            warning_message=data.get("warning_message"),
         )
 
     @strawberry.field
@@ -1514,6 +1518,8 @@ class Query:
             seed_count=data.get("seed_count", 0),
             total_paper_nodes=data.get("total_paper_nodes", 0),
             truncated=data.get("truncated", False),
+            error_message=data.get("error_message"),
+            warning_message=data.get("warning_message"),
         )
 
     @strawberry.field
@@ -1548,6 +1554,8 @@ class Query:
             seed_count=data.get("seed_count", 0),
             total_paper_nodes=data.get("total_paper_nodes", 0),
             truncated=data.get("truncated", False),
+            error_message=data.get("error_message"),
+            warning_message=data.get("warning_message"),
         )
 
     # ---- Dashboard aggregations ----

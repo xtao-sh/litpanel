@@ -10,6 +10,7 @@ import { GET_PAPER_DETAIL, GET_ATOM_DETAIL } from "@/lib/queries";
 import { X, ExternalLink } from "lucide-react";
 import type { Paper, Atom, Idea } from "@/lib/types";
 import { SectionContent } from "@/components/paper/section-content";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 // ---------------------------------------------------------------------------
 // Query result types
@@ -52,6 +53,7 @@ interface DetailPanelProps {
 // ---------------------------------------------------------------------------
 
 export function DetailPanel({ item, onClose }: DetailPanelProps) {
+  const { t } = useI18n();
   // Close on Escape key
   useEffect(() => {
     if (!item) return;
@@ -75,8 +77,8 @@ export function DetailPanel({ item, onClose }: DetailPanelProps) {
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
           <div>
-            <p className="section-kicker">Inspection</p>
-            <h3 className="font-display text-2xl tracking-tight text-foreground">Details</h3>
+            <p className="section-kicker">{t("explorer.detail.kicker")}</p>
+            <h3 className="font-display text-2xl tracking-tight text-foreground">{t("explorer.detail.title")}</h3>
           </div>
           <button
             onClick={onClose}
@@ -95,7 +97,7 @@ export function DetailPanel({ item, onClose }: DetailPanelProps) {
         </ScrollArea>
 
         <div className="border-t border-border/50 px-4 py-2 text-center">
-          <span className="text-[10px] text-muted-foreground">Press <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">Esc</kbd> to close</span>
+          <span className="text-[10px] text-muted-foreground">{t("explorer.detail.escToClose")}</span>
         </div>
       </div>
     </aside>
@@ -107,6 +109,7 @@ export function DetailPanel({ item, onClose }: DetailPanelProps) {
 // ---------------------------------------------------------------------------
 
 function PaperDetail({ paperId }: { paperId: string }) {
+  const { t } = useI18n();
   const { data, loading } = useQuery<PaperDetailResult>(GET_PAPER_DETAIL, {
     variables: { id: paperId },
   });
@@ -115,7 +118,7 @@ function PaperDetail({ paperId }: { paperId: string }) {
 
   const paper = data?.paper;
   if (!paper) {
-    return <p className="text-sm text-muted-foreground">Paper not found.</p>;
+    return <p className="text-sm text-muted-foreground">{t("explorer.detail.paperNotFound")}</p>;
   }
 
   return (
@@ -133,21 +136,21 @@ function PaperDetail({ paperId }: { paperId: string }) {
 
       {paper.authors && paper.authors.length > 0 && (
         <div>
-          <Label>Authors</Label>
+          <Label>{t("explorer.detail.authors")}</Label>
           <p className="text-sm text-muted-foreground">{paper.authors.join(", ")}</p>
         </div>
       )}
 
       {paper.year && (
         <div>
-          <Label>Year</Label>
+          <Label>{t("explorer.detail.year")}</Label>
           <p className="text-sm text-muted-foreground">{paper.year}</p>
         </div>
       )}
 
       {paper.fields && paper.fields.length > 0 && (
         <div>
-          <Label>Fields</Label>
+          <Label>{t("explorer.detail.fields")}</Label>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {paper.fields.map((f) => (
               <Badge key={f} variant="paper" className="text-xs">
@@ -161,7 +164,7 @@ function PaperDetail({ paperId }: { paperId: string }) {
       <div className="flex gap-6">
         {paper.averageScore != null && (
           <div>
-            <Label>Average Score</Label>
+            <Label>{t("explorer.detail.averageScore")}</Label>
             <p
               className={`text-lg font-semibold tabular-nums ${
                 paper.averageScore >= 4
@@ -178,13 +181,19 @@ function PaperDetail({ paperId }: { paperId: string }) {
 
         {paper.triageDecision && (
           <div>
-            <Label>Triage</Label>
+            <Label>{t("explorer.detail.triage")}</Label>
             <div className="mt-0.5">
               <Badge
                 variant={triageBadgeVariant(paper.triageDecision)}
                 className="text-xs"
               >
-                {paper.triageDecision}
+                {paper.triageDecision === "DEEP_READ"
+                  ? t("explorer.values.deepRead")
+                  : paper.triageDecision === "SKIM"
+                    ? t("explorer.values.skim")
+                    : paper.triageDecision === "SKIP"
+                      ? t("explorer.values.skip")
+                      : paper.triageDecision}
               </Badge>
             </div>
           </div>
@@ -193,7 +202,7 @@ function PaperDetail({ paperId }: { paperId: string }) {
 
       {paper.scores && paper.scores.length > 0 && (
         <div>
-          <Label>Dimension Scores</Label>
+          <Label>{t("explorer.detail.dimensionScores")}</Label>
           <div className="mt-1 space-y-1">
             {paper.scores.map((s) => (
               <div key={s.dimension} className="flex items-center justify-between text-sm">
@@ -207,7 +216,7 @@ function PaperDetail({ paperId }: { paperId: string }) {
 
       {paper.hasCard && paper.sections && paper.sections.length > 0 && (
         <div>
-          <Label>Research Card</Label>
+          <Label>{t("explorer.detail.researchCard")}</Label>
           <div className="mt-1 space-y-3">
             {paper.sections.slice(0, 3).map((sec) => (
               <div key={sec.section}>
@@ -230,7 +239,7 @@ function PaperDetail({ paperId }: { paperId: string }) {
                 href={`/paper/${paper.paperId}`}
                 className="inline-block text-sm text-primary hover:underline"
               >
-                View full card ({paper.sections.length} sections)
+                {t("explorer.actions.viewFullCard", { count: paper.sections.length })}
               </Link>
             )}
           </div>
@@ -245,6 +254,7 @@ function PaperDetail({ paperId }: { paperId: string }) {
 // ---------------------------------------------------------------------------
 
 function AtomDetail({ slug }: { slug: string }) {
+  const { t } = useI18n();
   const { data, loading } = useQuery<AtomDetailResult>(GET_ATOM_DETAIL, {
     variables: { slug },
   });
@@ -254,7 +264,7 @@ function AtomDetail({ slug }: { slug: string }) {
   const atom = data?.atom;
 
   if (!atom) {
-    return <p className="text-sm text-muted-foreground">Atom not found.</p>;
+    return <p className="text-sm text-muted-foreground">{t("explorer.detail.atomNotFound")}</p>;
   }
 
   return (
@@ -268,33 +278,33 @@ function AtomDetail({ slug }: { slug: string }) {
           <ExternalLink className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
         </Link>
         <div className="mt-1.5">
-          <Badge variant={atomTypeVariant(atom.type)} className="text-xs capitalize">
-            {atom.type}
+          <Badge variant={atomTypeVariant(atom.type)} className="text-xs">
+            {t(`explorer.values.${atom.type}`)}
           </Badge>
         </div>
       </div>
 
       {atom.description && (
         <div>
-          <Label>Description</Label>
+          <Label>{t("explorer.detail.description")}</Label>
           <SectionContent content={atom.description} />
         </div>
       )}
 
       {atom.evidenceStrength && (
         <div>
-          <Label>Evidence Strength</Label>
+          <Label>{t("explorer.detail.evidenceStrength")}</Label>
           <span
             className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${evidenceBadgeClass(atom.evidenceStrength)}`}
           >
-            {atom.evidenceStrength}
+            {t(`explorer.values.${atom.evidenceStrength}`)}
           </span>
         </div>
       )}
 
       {atom.whenToUse && (
         <div>
-          <Label>When to Use</Label>
+          <Label>{t("explorer.detail.whenToUse")}</Label>
           <SectionContent content={atom.whenToUse} />
         </div>
       )}
@@ -302,7 +312,7 @@ function AtomDetail({ slug }: { slug: string }) {
       {atom.papers && atom.papers.length > 0 && (
         <div>
           <Label>
-            Related Papers ({atom.paperCount})
+            {t("explorer.detail.relatedPapers", { count: atom.paperCount })}
           </Label>
           <div className="mt-1 space-y-2">
             {atom.papers.slice(0, 10).map((p) => (
@@ -315,7 +325,7 @@ function AtomDetail({ slug }: { slug: string }) {
                 <div className="mt-0.5 flex gap-3 text-xs text-muted-foreground">
                   {p.year && <span>{p.year}</span>}
                   {p.averageScore != null && (
-                    <span>Score: {p.averageScore.toFixed(1)}</span>
+                    <span>{t("explorer.detail.score", { score: p.averageScore.toFixed(1) })}</span>
                   )}
                 </div>
               </Link>
@@ -325,7 +335,7 @@ function AtomDetail({ slug }: { slug: string }) {
                 href={`/atom/${atom.slug}`}
                 className="inline-block text-sm text-primary hover:underline"
               >
-                View all {atom.paperCount} papers
+                {t("explorer.actions.viewAllPapers", { count: atom.paperCount })}
               </Link>
             )}
           </div>
@@ -340,6 +350,7 @@ function AtomDetail({ slug }: { slug: string }) {
 // ---------------------------------------------------------------------------
 
 function IdeaDetail({ idea }: { idea: Idea }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-5">
       <div>
@@ -349,24 +360,24 @@ function IdeaDetail({ idea }: { idea: Idea }) {
 
       {idea.status && (
         <div>
-          <Label>Status</Label>
+          <Label>{t("explorer.detail.status")}</Label>
           <span
             className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${statusBadgeClass(idea.status)}`}
           >
-            {idea.status}
+            {t(`explorer.values.${idea.status}`)}
           </span>
         </div>
       )}
 
       <div className="grid grid-cols-3 gap-3">
-        <ScoreCell label="Novelty" value={idea.novelty} />
-        <ScoreCell label="Feasibility" value={idea.feasibility} />
-        <ScoreCell label="Impact" value={idea.impact} />
+        <ScoreCell label={t("explorer.detail.novelty")} value={idea.novelty} />
+        <ScoreCell label={t("explorer.detail.feasibility")} value={idea.feasibility} />
+        <ScoreCell label={t("explorer.detail.impact")} value={idea.impact} />
       </div>
 
       {idea.composite != null && (
         <div>
-          <Label>Composite Score</Label>
+          <Label>{t("explorer.detail.compositeScore")}</Label>
           <p className="text-xl font-semibold tabular-nums text-foreground">
             {idea.composite.toFixed(1)}
           </p>
@@ -375,14 +386,14 @@ function IdeaDetail({ idea }: { idea: Idea }) {
 
       {idea.generatedDate && (
         <div>
-          <Label>Generated</Label>
+          <Label>{t("explorer.detail.generated")}</Label>
           <p className="text-sm text-muted-foreground">{idea.generatedDate}</p>
         </div>
       )}
 
       {idea.sourcePapers && idea.sourcePapers.length > 0 && (
         <div>
-          <Label>Source Papers</Label>
+          <Label>{t("explorer.detail.sourcePapers")}</Label>
           <div className="mt-1 space-y-1">
             {idea.sourcePapers.map((pid) => (
               <Link
@@ -399,7 +410,7 @@ function IdeaDetail({ idea }: { idea: Idea }) {
 
       {idea.content && (
         <div>
-          <Label>Content</Label>
+          <Label>{t("explorer.detail.content")}</Label>
           <SectionContent content={idea.content} />
         </div>
       )}

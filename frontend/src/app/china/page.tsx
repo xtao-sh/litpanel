@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -209,6 +210,7 @@ function DashboardSkeleton() {
 // ---------------------------------------------------------------------------
 
 export default function ChinaDashboardPage() {
+  const { t } = useI18n();
   const { data, loading, error } = useQuery<{ chinaDashboard: ChinaDashboard }>(
     GET_CHINA_DASHBOARD
   );
@@ -285,7 +287,7 @@ export default function ChinaDashboardPage() {
           </div>
         </div>
         <div className="rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
-          <p className="section-kicker">Use This View</p>
+          <p className="section-kicker">{t("common.pageInfo")}</p>
           <p className="mt-2 text-sm leading-6 text-foreground/80">
             Start here when you want to separate directly portable findings from
             ideas that require local adaptation.

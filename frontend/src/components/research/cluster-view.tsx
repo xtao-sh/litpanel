@@ -9,6 +9,7 @@ import { ChevronDown, FileText, Layers, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CLUSTER_PAPERS } from "@/lib/queries";
 import type { PaperCluster } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -68,6 +69,7 @@ export function ClusterView({
   getPaperExplorerHref,
   paperClickMode = "select",
 }: ClusterViewProps) {
+  const { t } = useI18n();
   const [collapsedClusters, setCollapsedClusters] = useState<Set<number>>(
     new Set()
   );
@@ -97,9 +99,9 @@ export function ClusterView({
       <div className="flex h-full flex-col items-center justify-center px-4 py-12 text-center">
         <div className="paper-panel rounded-[1.4rem] px-5 py-4">
           <Layers className="mx-auto mb-2 h-6 w-6 text-primary/60" />
-          <p className="section-kicker">Cluster view</p>
+          <p className="section-kicker">{t("research.cluster.kicker")}</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Need at least 4 papers to cluster.
+            {t("research.cluster.tooFew")}
           </p>
         </div>
       </div>
@@ -131,9 +133,9 @@ export function ClusterView({
     return (
       <div className="flex h-full flex-col items-center justify-center px-4 py-12 text-center">
         <div className="paper-panel rounded-[1.4rem] px-5 py-4">
-          <p className="section-kicker">Cluster view</p>
+          <p className="section-kicker">{t("research.cluster.kicker")}</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Could not cluster papers. Try a broader search.
+            {t("research.cluster.empty")}
           </p>
         </div>
       </div>
@@ -146,8 +148,10 @@ export function ClusterView({
       <div className="paper-panel mx-2 mb-2 flex items-center gap-2 rounded-[1.15rem] px-3 py-2">
         <Layers className="h-3.5 w-3.5 text-primary/70" />
         <span className="text-xs text-muted-foreground">
-          {clusters.length} cluster{clusters.length !== 1 ? "s" : ""} across{" "}
-          {allPaperIds.length} papers
+          {t("research.cluster.summary", {
+            clusters: clusters.length,
+            papers: allPaperIds.length,
+          })}
         </span>
       </div>
 
@@ -185,8 +189,9 @@ export function ClusterView({
                   {cluster.label}
                 </span>
                 <span className={cn("text-[10px] font-medium", color.text)}>
-                  {cluster.paperCount} paper
-                  {cluster.paperCount !== 1 ? "s" : ""}
+                  {t(cluster.paperCount === 1 ? "research.cluster.paperCount" : "research.cluster.paperCountPlural", {
+                    count: cluster.paperCount,
+                  })}
                 </span>
                 <ChevronDown
                   className={cn(
@@ -227,7 +232,7 @@ export function ClusterView({
                         <Link
                           href={getAtomExplorerHref(atom.slug)}
                           className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground"
-                          title="Open this cluster atom in Explorer"
+                          title={t("research.cluster.openAtomExplorer")}
                         >
                           <Search className="h-3 w-3" />
                         </Link>
@@ -268,7 +273,7 @@ export function ClusterView({
                             href={getPaperDetailHref(paper.paperId)}
                             className="font-display block line-clamp-1 text-[1rem] text-foreground hover:text-primary"
                           >
-                            {paper.title ?? "Untitled"}
+                            {paper.title ?? t("research.cluster.untitled")}
                           </Link>
                         ) : (
                           <button
@@ -276,7 +281,7 @@ export function ClusterView({
                             className="font-display block text-left text-[1rem] text-foreground hover:text-primary"
                             onClick={() => onSelectPaper(paper.paperId)}
                           >
-                            {paper.title ?? "Untitled"}
+                            {paper.title ?? t("research.cluster.untitled")}
                           </button>
                         )}
                         <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
@@ -296,7 +301,7 @@ export function ClusterView({
                                 href={getPaperDetailHref(paper.paperId)}
                                 className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
                               >
-                                Detail
+                                {t("research.cluster.detail")}
                               </Link>
                             )}
                             {getPaperExplorerHref && (
@@ -305,7 +310,7 @@ export function ClusterView({
                                 className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] font-medium text-sky-700 transition-colors hover:bg-sky-100"
                               >
                                 <Search className="h-3 w-3" />
-                                Explorer
+                                {t("research.cluster.explorer")}
                               </Link>
                             )}
                           </div>

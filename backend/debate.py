@@ -15,7 +15,8 @@ import logging
 import re
 from typing import AsyncGenerator
 
-from rag import _get_client, _API_MODEL, _fetch_full_content, _truncate
+from llm_runtime import LLMConfigurationError, LLMConnectionError, LLMStatusError
+from rag import _fetch_full_content, _get_client, _get_model, _truncate
 import resolvers
 
 logger = logging.getLogger("debate")
@@ -85,6 +86,23 @@ VERDICT_PROMPT = (
 )
 
 
+def _debate_error_payload(stage: str, exc: Exception) -> dict[str, str]:
+    if isinstance(exc, LLMConfigurationError):
+        message = str(exc)
+    elif isinstance(exc, LLMConnectionError):
+        message = f"The debate model could not reach its AI provider during {stage}. Check the provider base URL and network connection."
+    elif isinstance(exc, LLMStatusError):
+        message = f"The debate AI provider returned an API error during {stage}: HTTP {exc.status_code}."
+    else:
+        raw = str(exc).strip()
+        message = raw or f"Debate failed during {stage}."
+    return {
+        "type": "error",
+        "stage": stage,
+        "message": message,
+    }
+
+
 async def _fetch_paper_content(paper_id: str) -> str:
     """Fetch full content for a paper by wrapping it in a hit-like dict."""
     paper = await resolvers.get_paper(paper_id)
@@ -107,7 +125,7 @@ async def run_debate(
 ) -> AsyncGenerator[str, None]:
     """Run multi-agent debate. Yields SSE-ready JSON strings."""
 
-    client = _get_client()  # raises ValueError if no API key
+    client = _get_client("debate")  # raises ValueError if no API key
 
     # 1. Retrieve context
     context_items: list[dict] = []
@@ -201,7 +219,7 @@ async def run_debate(
             agent_text_parts: list[str] = []
             try:
                 async with client.messages.stream(
-                    model=_API_MODEL,
+                    model=_get_model("debate"),
                     max_tokens=1500,
                     system=agent["system"],
                     messages=[{"role": "user", "content": user_msg}],
@@ -211,9 +229,8 @@ async def run_debate(
                         yield json.dumps({"type": "chunk", "text": text})
             except Exception as e:
                 logger.exception("Agent %s failed in round %d", role, round_num)
-                error_text = f"[Agent error: {e}]"
-                agent_text_parts.append(error_text)
-                yield json.dumps({"type": "chunk", "text": error_text})
+                yield json.dumps(_debate_error_payload(f"{agent['label']} in round {round_num}", e))
+                return
 
             full_text = "".join(agent_text_parts)
             transcript.append({
@@ -245,7 +262,7 @@ async def run_debate(
     synthesis_parts: list[str] = []
     try:
         async with client.messages.stream(
-            model=_API_MODEL,
+            model=_get_model("debate"),
             max_tokens=2000,
             system=AGENT_ROLES["moderator"]["system"],
             messages=[{"role": "user", "content": user_msg}],
@@ -255,9 +272,8 @@ async def run_debate(
                 yield json.dumps({"type": "chunk", "text": text})
     except Exception as e:
         logger.exception("Moderator synthesis failed")
-        error_text = f"[Synthesis error: {e}]"
-        synthesis_parts.append(error_text)
-        yield json.dumps({"type": "chunk", "text": error_text})
+        yield json.dumps(_debate_error_payload("moderator synthesis", e))
+        return
 
     yield json.dumps({"type": "agent_done", "role": "moderator", "round": 0})
     yield json.dumps({"type": "synthesis_done"})
@@ -265,7 +281,7 @@ async def run_debate(
     # 5. Extract verdict (non-streaming)
     try:
         verdict_response = await client.messages.create(
-            model=_API_MODEL,
+            model=_get_model("debate"),
             max_tokens=500,
             system="You extract structured verdicts from debate syntheses. Respond with ONLY valid JSON.",
             messages=[{

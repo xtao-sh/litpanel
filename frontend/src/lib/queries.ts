@@ -37,6 +37,8 @@ export const NETWORK_GRAPH_FIELDS = gql`
     seedCount
     totalPaperNodes
     truncated
+    errorMessage
+    warningMessage
   }
 `;
 

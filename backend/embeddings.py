@@ -13,7 +13,6 @@ import warnings
 from pathlib import Path
 from typing import Optional
 
-import aiosqlite
 import numpy as np
 
 logger = logging.getLogger("embeddings")
@@ -193,43 +192,58 @@ _paper_index: Optional[dict] = None   # {"ids": [...], "vectors": np.ndarray, "i
 _atom_index: Optional[dict] = None
 
 
-async def load_index():
-    """Load all embeddings into memory. Call once at startup."""
+def reload_index_sync() -> None:
+    """Reload all embeddings from SQLite into the in-memory search indexes."""
     global _paper_index, _atom_index
 
     db_path = get_db_path()
     if not Path(db_path).exists():
-        logger.warning("Database not found at %s — skipping embedding load", db_path)
+        logger.warning("Database not found at %s — clearing embedding indexes", db_path)
+        _paper_index = None
+        _atom_index = None
         return
 
-    async with aiosqlite.connect(str(db_path)) as db:
-        # Load paper embeddings
-        cursor = await db.execute(
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
             "SELECT entity_id, vector FROM embeddings WHERE entity_type = 'paper'"
-        )
-        rows = await cursor.fetchall()
+        ).fetchall()
         if rows:
-            ids = [r[0] for r in rows]
-            vecs = np.array([np.frombuffer(r[1], dtype=np.float32) for r in rows])
-            id_to_idx = {eid: i for i, eid in enumerate(ids)}
-            _paper_index = {"ids": ids, "vectors": vecs, "id_to_idx": id_to_idx}
-            logger.info(f"Loaded {len(ids)} paper embeddings into memory ({vecs.shape})")
+            ids = [r["entity_id"] for r in rows]
+            vecs = np.array([np.frombuffer(r["vector"], dtype=np.float32) for r in rows])
+            _paper_index = {
+                "ids": ids,
+                "vectors": vecs,
+                "id_to_idx": {eid: i for i, eid in enumerate(ids)},
+            }
+            logger.info("Reloaded %d paper embeddings into memory (%s)", len(ids), vecs.shape)
         else:
+            _paper_index = None
             logger.info("No paper embeddings found in database")
 
-        # Load atom embeddings
-        cursor = await db.execute(
+        rows = conn.execute(
             "SELECT entity_id, vector FROM embeddings WHERE entity_type = 'atom'"
-        )
-        rows = await cursor.fetchall()
+        ).fetchall()
         if rows:
-            ids = [r[0] for r in rows]
-            vecs = np.array([np.frombuffer(r[1], dtype=np.float32) for r in rows])
-            id_to_idx = {eid: i for i, eid in enumerate(ids)}
-            _atom_index = {"ids": ids, "vectors": vecs, "id_to_idx": id_to_idx}
-            logger.info(f"Loaded {len(ids)} atom embeddings into memory ({vecs.shape})")
+            ids = [r["entity_id"] for r in rows]
+            vecs = np.array([np.frombuffer(r["vector"], dtype=np.float32) for r in rows])
+            _atom_index = {
+                "ids": ids,
+                "vectors": vecs,
+                "id_to_idx": {eid: i for i, eid in enumerate(ids)},
+            }
+            logger.info("Reloaded %d atom embeddings into memory (%s)", len(ids), vecs.shape)
         else:
+            _atom_index = None
             logger.info("No atom embeddings found in database")
+    finally:
+        conn.close()
+
+
+async def load_index():
+    """Load all embeddings into memory. Call once at startup."""
+    await asyncio.to_thread(reload_index_sync)
 
 
 def is_loaded() -> bool:

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, Suspense } from "react";
+import React, { useState, useCallback, useMemo, useEffect, Suspense, useDeferredValue } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useLazyQuery } from "@apollo/client/react";
 import {
@@ -15,6 +15,10 @@ import {
   Trash2,
   ArrowLeft,
   FileText,
+  GitBranch,
+  Search,
+  Database,
+  RefreshCw,
 } from "lucide-react";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -44,17 +48,80 @@ import {
   TOGGLE_BOOKMARK,
   SET_READING_STATUS,
 } from "@/lib/queries";
-import type { Paper, NoteItem, Collection } from "@/lib/types";
+import { getApiUrl, readErrorMessage } from "@/lib/api";
+import { getStoredActiveLibraryId, resolveInitialLibraryId, setStoredActiveLibraryId } from "@/lib/libraries";
+import type { Paper, NoteItem, Collection, Library as LibraryInfo } from "@/lib/types";
 import { LitReviewModal } from "@/components/research/lit-review-modal";
 import { ExportMenu } from "@/components/shared/export-menu";
 import { NoteRenderer, extractNoteReferences } from "@/components/shared/note-renderer";
 import { QueryErrorBanner } from "@/components/shared/query-error-banner";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const PAGE_SIZE = 20;
+const API_URL = getApiUrl();
+
+const EXTRACTION_DIMENSIONS = [
+  { key: "metadata", labelKey: "library.coverage.metadata" },
+  { key: "summary", labelKey: "library.coverage.summary" },
+  { key: "research_question", labelKey: "library.coverage.question" },
+  { key: "methods_data", labelKey: "library.coverage.methods" },
+  { key: "findings", labelKey: "library.coverage.findings" },
+  { key: "writing_style", labelKey: "library.coverage.style" },
+  { key: "argument_logic", labelKey: "library.coverage.logic" },
+  { key: "relations", labelKey: "library.coverage.relations" },
+] as const;
+
+type PaperManagerColumnKey =
+  | "id"
+  | "year"
+  | "score"
+  | "authors"
+  | "venue"
+  | "coverage"
+  | "feedback"
+  | "status"
+  | "profile"
+  | "fields"
+  | "imported"
+  | "updated";
+
+const PAPER_MANAGER_COLUMNS: Array<{
+  key: PaperManagerColumnKey;
+  labelKey: string;
+  width: string;
+}> = [
+  { key: "id", labelKey: "library.columns.id", width: "110px" },
+  { key: "year", labelKey: "library.columns.year", width: "80px" },
+  { key: "score", labelKey: "library.columns.score", width: "90px" },
+  { key: "authors", labelKey: "library.columns.authors", width: "190px" },
+  { key: "venue", labelKey: "library.columns.venue", width: "170px" },
+  { key: "coverage", labelKey: "library.columns.coverage", width: "160px" },
+  { key: "feedback", labelKey: "library.columns.feedback", width: "130px" },
+  { key: "status", labelKey: "library.columns.status", width: "120px" },
+  { key: "profile", labelKey: "library.columns.profile", width: "160px" },
+  { key: "fields", labelKey: "library.columns.fields", width: "140px" },
+  { key: "imported", labelKey: "library.columns.imported", width: "120px" },
+  { key: "updated", labelKey: "library.columns.updated", width: "150px" },
+];
+
+const DEFAULT_VISIBLE_COLUMNS: Record<PaperManagerColumnKey, boolean> = {
+  id: true,
+  year: true,
+  score: true,
+  authors: true,
+  venue: true,
+  coverage: true,
+  feedback: true,
+  status: true,
+  profile: false,
+  fields: true,
+  imported: true,
+  updated: true,
+};
 
 const STATUS_TABS = [
   { value: "all", label: "All" },
@@ -96,11 +163,1161 @@ function TableSkeleton() {
 }
 
 function EmptyState({ icon: Icon, message }: { icon: React.ElementType; message: string }) {
+  const { t } = useI18n();
+
   return (
     <div className="paper-panel flex flex-col items-center justify-center py-16 text-center">
       <Icon className="mb-3 h-10 w-10 text-muted-foreground" />
-      <p className="font-display text-2xl tracking-tight text-foreground">Nothing here yet</p>
+      <p className="font-display text-2xl tracking-tight text-foreground">{t("common.emptyTitle")}</p>
       <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">{message}</p>
+    </div>
+  );
+}
+
+interface PaperManagerRow {
+  paper_id: string;
+  title: string | null;
+  authors: string[];
+  year: number | null;
+  fields: string[];
+  triage_decision: string | null;
+  average_score: number | null;
+  has_card: boolean;
+  imported_at: string | null;
+  updated_at: string | null;
+  reading_status: string | null;
+  processing_status: string;
+  reading_profile: string;
+  venue: string | null;
+  source_url: string | null;
+  analysis_focuses: string[];
+  extraction_status: Record<string, boolean>;
+  feedback_count: number;
+  attention_feedback_count: number;
+  latest_feedback_type: string | null;
+}
+
+interface PaperManagerResponse {
+  items: PaperManagerRow[];
+  total: number;
+  field_options: Array<{ value: string; count: number }>;
+  library?: {
+    id: number;
+    name: string;
+    discipline: string;
+    paper_count: number;
+  };
+}
+
+interface PaperManagerFeedbackItem {
+  id: number;
+  library_id: number;
+  paper_id: string;
+  dimension_key: string;
+  feedback_type: string;
+  rating: number | null;
+  comment: string;
+  action_status: string;
+  created_at: string;
+}
+
+function processingTone(status: string): string {
+  switch (status) {
+    case "completed":
+      return "bg-green-50 text-green-700 border-green-200";
+    case "triaged":
+    case "indexed":
+      return "bg-blue-50 text-blue-700 border-blue-200";
+    case "pending":
+      return "bg-amber-50 text-amber-700 border-amber-200";
+    case "error":
+    case "pdf_error":
+    case "timeout":
+      return "bg-red-50 text-red-700 border-red-200";
+    default:
+      return "bg-muted text-muted-foreground border-border";
+  }
+}
+
+function formatProcessingLabel(status: string): string {
+  return status.replace(/_/g, " ");
+}
+
+function formatReadingProfile(value: string, fallback: string): string {
+  if (!value) return fallback;
+  return value.replace(/_/g, " ");
+}
+
+function formatFeedbackLabel(value: string | null | undefined, fallback: string): string {
+  if (!value) return fallback;
+  return value.replace(/_/g, " ");
+}
+
+function feedbackTone(attentionCount: number, feedbackCount: number): string {
+  if (attentionCount > 0) return "bg-red-50 text-red-700 border-red-200";
+  if (feedbackCount > 0) return "bg-slate-50 text-slate-700 border-slate-200";
+  return "bg-muted text-muted-foreground border-border";
+}
+
+function ExtractionDots({ extractionStatus }: { extractionStatus: Record<string, boolean> }) {
+  const { t } = useI18n();
+  const extractedLabels = EXTRACTION_DIMENSIONS
+    .filter(({ key }) => Boolean(extractionStatus[key]))
+    .map(({ labelKey }) => t(labelKey));
+  const missingLabels = EXTRACTION_DIMENSIONS
+    .filter(({ key }) => !Boolean(extractionStatus[key]))
+    .map(({ labelKey }) => t(labelKey));
+  const activeCount = extractedLabels.length;
+  const tooltip = [
+    t("library.coverage.legendShort"),
+    `${t("library.coverage.extracted")}: ${
+      extractedLabels.length ? extractedLabels.join(", ") : t("library.coverage.none")
+    }`,
+    `${t("library.coverage.missing")}: ${
+      missingLabels.length ? missingLabels.join(", ") : t("library.coverage.none")
+    }`,
+  ].join("\n");
+
+  return (
+    <div className="flex items-center gap-2 whitespace-nowrap" title={tooltip}>
+      <div className="flex flex-nowrap items-center gap-1.5">
+        {EXTRACTION_DIMENSIONS.map(({ key, labelKey }) => {
+          const active = Boolean(extractionStatus[key]);
+          const label = t(labelKey);
+          return (
+            <span
+              key={key}
+              title={`${label}: ${active ? t("library.coverage.extracted") : t("library.coverage.missing")}`}
+              className={`h-2.5 w-2.5 shrink-0 rounded-full border ${
+                active
+                  ? "border-blue-500 bg-blue-500"
+                  : "border-border bg-background"
+              }`}
+            />
+          );
+        })}
+      </div>
+      <span className="text-[11px] text-muted-foreground">
+        {t("library.coverage.count", {
+          count: activeCount,
+          total: EXTRACTION_DIMENSIONS.length,
+        })}
+      </span>
+    </div>
+  );
+}
+
+function PaperManagerTab() {
+  const { t } = useI18n();
+  const [libraries, setLibraries] = useState<LibraryInfo[]>([]);
+  const [selectedLibraryId, setSelectedLibraryId] = useState<number | null>(null);
+  const [papers, setPapers] = useState<PaperManagerRow[]>([]);
+  const [fieldOptions, setFieldOptions] = useState<Array<{ value: string; count: number }>>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [librariesLoading, setLibrariesLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const [fieldFilter, setFieldFilter] = useState("all");
+  const [yearMin, setYearMin] = useState("");
+  const [yearMax, setYearMax] = useState("");
+  const [processingStatus, setProcessingStatus] = useState("all");
+  const [readingProfile, setReadingProfile] = useState("all");
+  const [coverageFilter, setCoverageFilter] = useState("all");
+  const [feedbackFilter, setFeedbackFilter] = useState("all");
+  const [hasCardFilter, setHasCardFilter] = useState("all");
+  const [sort, setSort] = useState("updated_desc");
+  const [selectedPaperIds, setSelectedPaperIds] = useState<Set<string>>(new Set());
+  const [visibleColumns, setVisibleColumns] =
+    useState<Record<PaperManagerColumnKey, boolean>>(DEFAULT_VISIBLE_COLUMNS);
+  const [batchReadingProfile, setBatchReadingProfile] = useState("auto");
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchMessage, setBatchMessage] = useState("");
+  const [relationsLoading, setRelationsLoading] = useState(false);
+  const [relationsMessage, setRelationsMessage] = useState("");
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [feedbackDialogPaper, setFeedbackDialogPaper] = useState<PaperManagerRow | null>(null);
+  const [feedbackDialogItems, setFeedbackDialogItems] = useState<PaperManagerFeedbackItem[]>([]);
+  const [feedbackDialogLoading, setFeedbackDialogLoading] = useState(false);
+  const [feedbackDialogError, setFeedbackDialogError] = useState("");
+  const [feedbackActionLoadingId, setFeedbackActionLoadingId] = useState<number | null>(null);
+  const [feedbackDialogMessage, setFeedbackDialogMessage] = useState("");
+  const [feedbackDialogReprocessLoading, setFeedbackDialogReprocessLoading] = useState(false);
+  const [doiInput, setDoiInput] = useState("");
+  const [doiLoading, setDoiLoading] = useState(false);
+  const [doiMessage, setDoiMessage] = useState("");
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [reloadNonce, setReloadNonce] = useState(0);
+
+  const selectedLibrary =
+    libraries.find((library) => library.id === selectedLibraryId) ?? null;
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadLibraries() {
+      setLibrariesLoading(true);
+      try {
+        const response = await fetch(`${API_URL}/api/libraries`);
+        if (!response.ok) {
+          throw new Error(await readErrorMessage(response, "Failed to load libraries"));
+        }
+        const data = await response.json();
+        const nextLibraries = (data.libraries ?? []) as LibraryInfo[];
+        if (!active) return;
+        setLibraries(nextLibraries);
+        const initialLibraryId =
+          resolveInitialLibraryId(nextLibraries) ?? getStoredActiveLibraryId();
+        setSelectedLibraryId(initialLibraryId);
+        setStoredActiveLibraryId(initialLibraryId);
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : "Failed to load libraries.");
+      } finally {
+        if (active) setLibrariesLoading(false);
+      }
+    }
+
+    loadLibraries();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedLibraryId) return;
+    let active = true;
+
+    async function loadPapers() {
+      setLoading(true);
+      setError("");
+      try {
+        const params = new URLSearchParams();
+        if (deferredSearchQuery.trim()) params.set("q", deferredSearchQuery.trim());
+        if (fieldFilter !== "all") params.set("field", fieldFilter);
+        if (yearMin.trim()) params.set("year_min", yearMin.trim());
+        if (yearMax.trim()) params.set("year_max", yearMax.trim());
+        if (processingStatus !== "all") params.set("processing_status", processingStatus);
+        if (readingProfile !== "all") params.set("reading_profile", readingProfile);
+        if (coverageFilter !== "all") params.set("coverage", coverageFilter);
+        if (feedbackFilter !== "all") params.set("feedback", feedbackFilter);
+        if (hasCardFilter !== "all") params.set("has_card", hasCardFilter === "yes" ? "true" : "false");
+        params.set("sort", sort);
+        params.set("limit", String(PAGE_SIZE));
+        params.set("offset", String((page - 1) * PAGE_SIZE));
+
+        const response = await fetch(
+          `${API_URL}/api/libraries/${selectedLibraryId}/papers?${params.toString()}`
+        );
+        if (!response.ok) {
+          throw new Error(await readErrorMessage(response, "Failed to load library papers"));
+        }
+        const data = (await response.json()) as PaperManagerResponse;
+        if (!active) return;
+        setPapers(data.items ?? []);
+        setTotal(data.total ?? 0);
+        setFieldOptions(data.field_options ?? []);
+      } catch (err) {
+        if (!active) return;
+        setPapers([]);
+        setTotal(0);
+        setError(err instanceof Error ? err.message : "Failed to load library papers.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadPapers();
+    return () => {
+      active = false;
+    };
+  }, [
+    selectedLibraryId,
+    deferredSearchQuery,
+    fieldFilter,
+    yearMin,
+    yearMax,
+    processingStatus,
+    readingProfile,
+    coverageFilter,
+    feedbackFilter,
+    hasCardFilter,
+    sort,
+    page,
+    reloadNonce,
+  ]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    selectedLibraryId,
+    deferredSearchQuery,
+    fieldFilter,
+    yearMin,
+    yearMax,
+    processingStatus,
+    readingProfile,
+    coverageFilter,
+    feedbackFilter,
+    hasCardFilter,
+    sort,
+  ]);
+
+  useEffect(() => {
+    const visiblePaperIds = new Set(papers.map((paper) => paper.paper_id));
+    setSelectedPaperIds((current) => {
+      const next = new Set<string>();
+      current.forEach((paperId) => {
+        if (visiblePaperIds.has(paperId)) {
+          next.add(paperId);
+        }
+      });
+      return next;
+    });
+  }, [papers]);
+
+  const visiblePaperIds = useMemo(() => papers.map((paper) => paper.paper_id), [papers]);
+  const allVisibleSelected =
+    visiblePaperIds.length > 0 && visiblePaperIds.every((paperId) => selectedPaperIds.has(paperId));
+  const tableGridTemplate = useMemo(() => {
+    const dynamicColumns = PAPER_MANAGER_COLUMNS
+      .filter((column) => visibleColumns[column.key])
+      .map((column) => column.width);
+    return ["44px", "minmax(0,2.1fr)", ...dynamicColumns].join(" ");
+  }, [visibleColumns]);
+
+  const visibleColumnCount = useMemo(
+    () => PAPER_MANAGER_COLUMNS.filter((column) => visibleColumns[column.key]).length,
+    [visibleColumns]
+  );
+
+  const togglePaperSelection = useCallback((paperId: string, checked: boolean) => {
+    setSelectedPaperIds((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(paperId);
+      } else {
+        next.delete(paperId);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleAllVisible = useCallback((checked: boolean) => {
+    setSelectedPaperIds((current) => {
+      const next = new Set(current);
+      if (checked) {
+        visiblePaperIds.forEach((paperId) => next.add(paperId));
+      } else {
+        visiblePaperIds.forEach((paperId) => next.delete(paperId));
+      }
+      return next;
+    });
+  }, [visiblePaperIds]);
+
+  const toggleColumn = useCallback((column: PaperManagerColumnKey, checked: boolean) => {
+    setVisibleColumns((current) => ({ ...current, [column]: checked }));
+  }, []);
+
+  const handleBatchReprocess = useCallback(async () => {
+    if (!selectedLibraryId || selectedPaperIds.size === 0) return;
+    setBatchLoading(true);
+    setBatchMessage("");
+    try {
+      const response = await fetch(`${API_URL}/api/libraries/${selectedLibraryId}/papers/reprocess`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paper_ids: Array.from(selectedPaperIds),
+          reading_profile: batchReadingProfile,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, "Failed to re-run extraction"));
+      }
+      const payload = await response.json();
+      setBatchMessage(
+        `Reprocessed ${payload.processed ?? 0} paper(s), failed ${payload.failed ?? 0}.`
+      );
+      setSelectedPaperIds(new Set());
+      setReloadNonce((value) => value + 1);
+    } catch (err) {
+      setBatchMessage(err instanceof Error ? err.message : "Failed to re-run extraction.");
+    } finally {
+      setBatchLoading(false);
+    }
+  }, [batchReadingProfile, selectedLibraryId, selectedPaperIds]);
+
+  const handleBuildRelations = useCallback(async () => {
+    if (!selectedLibraryId) return;
+    if (selectedPaperIds.size < 2) {
+      setRelationsMessage(t("library.actions.selectAtLeastTwoForRelations"));
+      return;
+    }
+    setRelationsLoading(true);
+    setRelationsMessage("");
+    const paperIds = Array.from(selectedPaperIds);
+    try {
+      const response = await fetch(`${API_URL}/api/pipeline/build-relations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          library_id: selectedLibraryId,
+          force_rebuild: true,
+          paper_ids: paperIds,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, t("library.actions.relationsFailed")));
+      }
+      const payload = await response.json();
+      if (payload.error) {
+        setRelationsMessage(String(payload.error));
+      } else {
+        const processed =
+          typeof payload.linker?.processed === "number"
+            ? payload.linker.processed
+            : typeof payload.completed_papers === "number"
+              ? payload.completed_papers
+              : paperIds.length;
+        setRelationsMessage(t("library.actions.relationsBuiltForSelected", { count: processed }));
+      }
+      setReloadNonce((value) => value + 1);
+    } catch (err) {
+      setRelationsMessage(err instanceof Error ? err.message : t("library.actions.relationsFailed"));
+    } finally {
+      setRelationsLoading(false);
+    }
+  }, [selectedLibraryId, selectedPaperIds, t]);
+
+  const handleImportDoi = useCallback(async () => {
+    if (!selectedLibraryId || !doiInput.trim()) return;
+    setDoiLoading(true);
+    setDoiMessage("");
+    try {
+      const response = await fetch(`${API_URL}/api/libraries/${selectedLibraryId}/papers/from-doi`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doi: doiInput.trim() }),
+      });
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, "Failed to import DOI"));
+      }
+      const payload = await response.json();
+      setDoiMessage(t("library.actions.doiImported", { id: payload.paper?.paper_id ?? doiInput.trim() }));
+      setDoiInput("");
+      setReloadNonce((value) => value + 1);
+    } catch (err) {
+      setDoiMessage(err instanceof Error ? err.message : t("library.actions.doiImportFailed"));
+    } finally {
+      setDoiLoading(false);
+    }
+  }, [doiInput, selectedLibraryId, t]);
+
+  const handleOpenFeedback = useCallback(async (paper: PaperManagerRow) => {
+    if (!selectedLibraryId) return;
+    setFeedbackDialogPaper(paper);
+    setFeedbackDialogOpen(true);
+    setFeedbackDialogLoading(true);
+    setFeedbackDialogError("");
+    setFeedbackDialogMessage("");
+    setFeedbackDialogItems([]);
+    try {
+      const response = await fetch(
+        `${API_URL}/api/papers/${encodeURIComponent(paper.paper_id)}/feedback?library_id=${selectedLibraryId}&limit=10`
+      );
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, "Failed to load feedback"));
+      }
+      const payload = await response.json();
+      setFeedbackDialogItems((payload.items ?? []) as PaperManagerFeedbackItem[]);
+    } catch (err) {
+      setFeedbackDialogError(err instanceof Error ? err.message : "Failed to load feedback.");
+    } finally {
+      setFeedbackDialogLoading(false);
+    }
+  }, [selectedLibraryId]);
+
+  const handleResolveFeedback = useCallback(async (feedbackId: number) => {
+    if (!selectedLibraryId || !feedbackDialogPaper) return;
+    setFeedbackActionLoadingId(feedbackId);
+    setFeedbackDialogError("");
+    setFeedbackDialogMessage("");
+    try {
+      const response = await fetch(`${API_URL}/api/feedback/${feedbackId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          library_id: selectedLibraryId,
+          action_status: "resolved",
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, "Failed to update feedback"));
+      }
+      setFeedbackDialogItems((current) =>
+        current.map((item) =>
+          item.id === feedbackId ? { ...item, action_status: "resolved" } : item
+        )
+      );
+      setFeedbackDialogMessage("Feedback marked as resolved.");
+      setReloadNonce((value) => value + 1);
+    } catch (err) {
+      setFeedbackDialogError(err instanceof Error ? err.message : "Failed to update feedback.");
+    } finally {
+      setFeedbackActionLoadingId(null);
+    }
+  }, [feedbackDialogPaper, selectedLibraryId]);
+
+  const handleReprocessDialogPaper = useCallback(async () => {
+    if (!selectedLibraryId || !feedbackDialogPaper) return;
+    setFeedbackDialogReprocessLoading(true);
+    setFeedbackDialogError("");
+    setFeedbackDialogMessage("");
+    try {
+      const response = await fetch(
+        `${API_URL}/api/papers/${encodeURIComponent(feedbackDialogPaper.paper_id)}/reprocess`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            library_id: selectedLibraryId,
+            reading_profile: feedbackDialogPaper.reading_profile || "auto",
+          }),
+        }
+      );
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, "Failed to re-run extraction"));
+      }
+      await response.json();
+      setFeedbackDialogMessage("Re-run completed for this paper.");
+      setReloadNonce((value) => value + 1);
+    } catch (err) {
+      setFeedbackDialogError(err instanceof Error ? err.message : "Failed to re-run extraction.");
+    } finally {
+      setFeedbackDialogReprocessLoading(false);
+    }
+  }, [feedbackDialogPaper, selectedLibraryId]);
+
+  if (librariesLoading) return <TableSkeleton />;
+  if (!selectedLibraryId || libraries.length === 0) {
+    return (
+      <EmptyState
+        icon={Database}
+        message={t("library.noLibraries")}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-4 border-b border-border px-4 py-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-background px-4">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={t("library.searchPlaceholder")}
+              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+          <Button
+            type="button"
+            onClick={() => setImportDialogOpen(true)}
+            className="h-11 shrink-0 rounded-full gap-2 lg:ml-auto"
+          >
+            <FileText className="h-4 w-4" />
+            {t("library.actions.addPdf")}
+          </Button>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <select
+            value={fieldFilter}
+            onChange={(event) => setFieldFilter(event.target.value)}
+            className="h-10 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+          >
+            <option value="all">{t("library.filters.allFields")}</option>
+            {fieldOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.value} ({option.count})
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={processingStatus}
+            onChange={(event) => setProcessingStatus(event.target.value)}
+            className="h-10 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+          >
+            <option value="all">{t("library.filters.allStatuses")}</option>
+            <option value="pending">{t("library.filters.pending")}</option>
+            <option value="triaged">{t("library.filters.triaged")}</option>
+            <option value="completed">{t("library.filters.completed")}</option>
+            <option value="error">{t("library.filters.error")}</option>
+            <option value="pdf_error">{t("library.filters.pdfError")}</option>
+            <option value="timeout">{t("library.filters.timeout")}</option>
+            <option value="indexed">{t("library.filters.indexedOnly")}</option>
+          </select>
+
+          <select
+            value={readingProfile}
+            onChange={(event) => setReadingProfile(event.target.value)}
+            className="h-10 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+          >
+            <option value="all">{t("library.filters.allProfiles")}</option>
+            <option value="auto">{t("library.filters.auto")}</option>
+            <option value="metadata_only">{t("library.filters.metadataOnly")}</option>
+            <option value="title_abstract">{t("library.filters.titleAbstract")}</option>
+            <option value="full_content">{t("library.filters.fullContent")}</option>
+            <option value="style_logic">{t("library.filters.styleLogic")}</option>
+          </select>
+
+          <select
+            value={hasCardFilter}
+            onChange={(event) => setHasCardFilter(event.target.value)}
+            className="h-10 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+          >
+            <option value="all">{t("library.filters.allExtractionStates")}</option>
+            <option value="yes">{t("library.filters.hasCard")}</option>
+            <option value="no">{t("library.filters.noCardYet")}</option>
+          </select>
+
+          <select
+            value={coverageFilter}
+            onChange={(event) => setCoverageFilter(event.target.value)}
+            className="h-10 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+          >
+            <option value="all">{t("library.filters.allCoverageLevels")}</option>
+            <option value="core_ready">{t("library.filters.coreReady")}</option>
+            <option value="partial">{t("library.filters.partial")}</option>
+            <option value="minimal">{t("library.filters.minimal")}</option>
+            <option value="relations_ready">{t("library.filters.relationsReady")}</option>
+          </select>
+
+          <select
+            value={feedbackFilter}
+            onChange={(event) => setFeedbackFilter(event.target.value)}
+            className="h-10 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+          >
+            <option value="all">{t("library.filters.allFeedbackStates")}</option>
+            <option value="has_feedback">{t("library.filters.hasFeedback")}</option>
+            <option value="needs_attention">{t("library.filters.needsAttention")}</option>
+            <option value="good">{t("library.filters.good")}</option>
+            <option value="too_shallow">{t("library.filters.tooShallow")}</option>
+            <option value="incorrect">{t("library.filters.incorrect")}</option>
+            <option value="missing">{t("library.filters.missing")}</option>
+            <option value="format_issue">{t("library.filters.formatIssue")}</option>
+          </select>
+
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value)}
+            className="h-10 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+          >
+            <option value="updated_desc">{t("library.filters.recentlyUpdated")}</option>
+            <option value="imported_desc">{t("library.filters.recentlyImported")}</option>
+            <option value="year_desc">{t("library.filters.newestPapers")}</option>
+            <option value="year_asc">{t("library.filters.oldestPapers")}</option>
+            <option value="score_desc">{t("library.filters.highestScore")}</option>
+            <option value="title_asc">{t("library.filters.titleAZ")}</option>
+          </select>
+
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              value={yearMin}
+              onChange={(event) => setYearMin(event.target.value)}
+              placeholder={t("library.filters.yearFrom")}
+              className="h-10 min-w-0 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+            />
+            <input
+              type="number"
+              value={yearMax}
+              onChange={(event) => setYearMax(event.target.value)}
+              placeholder={t("library.filters.yearTo")}
+              className="h-10 min-w-0 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-background px-3">
+            <input
+              type="text"
+              value={doiInput}
+              onChange={(event) => setDoiInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void handleImportDoi();
+                }
+              }}
+              placeholder={t("library.actions.doiPlaceholder")}
+              className="w-full bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+            />
+            <button
+              type="button"
+              onClick={() => void handleImportDoi()}
+              disabled={doiLoading || !doiInput.trim()}
+              className="shrink-0 text-xs font-medium text-primary disabled:text-muted-foreground"
+            >
+              {doiLoading ? t("library.actions.importing") : t("library.actions.addDoi")}
+            </button>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSearchQuery("");
+              setFieldFilter("all");
+              setYearMin("");
+              setYearMax("");
+              setProcessingStatus("all");
+              setReadingProfile("all");
+              setCoverageFilter("all");
+              setFeedbackFilter("all");
+              setHasCardFilter("all");
+              setSort("updated_desc");
+              setSelectedPaperIds(new Set());
+              setBatchMessage("");
+              setPage(1);
+            }}
+            className="h-10 rounded-full gap-1.5"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            {t("library.actions.reset")}
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-b border-border/70 px-4 py-3 text-xs text-muted-foreground">
+        <span className="rounded-full border border-border bg-background px-3 py-1.5">
+          {t("library.status.discipline")}:{" "}
+          <span className="text-foreground">{selectedLibrary?.discipline || t("library.uncategorized")}</span>
+        </span>
+        <span className="rounded-full border border-border bg-background px-3 py-1.5">
+          {t("library.visiblePapers", { count: total })}
+        </span>
+        <span className="rounded-full border border-border bg-background px-3 py-1.5">
+          {t("library.totalInLibrary", { count: selectedLibrary?.paper_count ?? 0 })}
+        </span>
+      </div>
+
+      {doiMessage ? (
+        <div className="px-4">
+          <p className="text-xs text-muted-foreground">{doiMessage}</p>
+        </div>
+      ) : null}
+
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("library.importDialog.title")}</DialogTitle>
+            <DialogDescription>
+              {t("library.importDialog.body")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+              {t("common.actions.cancel")}
+            </Button>
+            <Button asChild>
+              <Link href="/pipeline">{t("library.importDialog.openPipeline")}</Link>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {error && <QueryErrorBanner error={{ message: error }} message={t("library.errors.failedToLoadPaperManager")} />}
+
+      {loading ? (
+        <TableSkeleton />
+      ) : papers.length === 0 ? (
+        <EmptyState
+          icon={Database}
+          message={t("library.emptyFiltered")}
+        />
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-y border-border bg-muted/20 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <label
+                className="flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5"
+                title={t("library.actions.selectVisibleHelp")}
+              >
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={(event) => toggleAllVisible(event.target.checked)}
+                  className="rounded border-border"
+                />
+                {t("library.actions.selectVisible")}
+              </label>
+              <span className="rounded-full border border-border bg-background px-3 py-1.5">
+                {t("library.actions.selectedCount", { count: selectedPaperIds.size })}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <ExportMenu
+                paperIds={Array.from(selectedPaperIds)}
+                label={t("library.actions.exportReferences")}
+              />
+              <details className="relative">
+                <summary
+                  className="flex h-10 cursor-pointer list-none items-center justify-center rounded-xl border border-border bg-background px-3 text-sm text-foreground whitespace-nowrap"
+                  title={t("library.columns.showColumnsHelp")}
+                >
+                  {t("library.columns.showColumns", { count: visibleColumnCount })}
+                </summary>
+                <div className="absolute right-0 z-20 mt-2 min-w-[220px] rounded-2xl border border-border bg-card p-3 shadow-xl">
+                  <div className="space-y-2">
+                    {PAPER_MANAGER_COLUMNS.map((column) => (
+                      <label
+                        key={column.key}
+                        className="flex items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-sm text-foreground hover:bg-muted/60"
+                      >
+                        <span>{t(column.labelKey)}</span>
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns[column.key]}
+                          onChange={(event) => toggleColumn(column.key, event.target.checked)}
+                          className="rounded border-border"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </details>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleBuildRelations}
+                disabled={relationsLoading || selectedPaperIds.size < 2}
+                className="gap-1.5 whitespace-nowrap"
+                title={t("library.actions.buildRelationsHelp")}
+              >
+                <GitBranch className={`h-3.5 w-3.5 ${relationsLoading ? "animate-pulse" : ""}`} />
+                {relationsLoading ? t("library.actions.buildingRelations") : t("library.actions.buildRelations")}
+              </Button>
+              <select
+                value={batchReadingProfile}
+                onChange={(event) => setBatchReadingProfile(event.target.value)}
+                className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+                disabled={batchLoading}
+              >
+                <option value="auto">{t("library.filters.auto")}</option>
+                <option value="metadata_only">{t("library.filters.metadataOnly")}</option>
+                <option value="title_abstract">{t("library.filters.titleAbstract")}</option>
+                <option value="full_content">{t("library.filters.fullContent")}</option>
+                <option value="style_logic">{t("library.filters.styleLogic")}</option>
+              </select>
+              <Button
+                type="button"
+                onClick={handleBatchReprocess}
+                disabled={batchLoading || selectedPaperIds.size === 0}
+                className="gap-1.5"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${batchLoading ? "animate-spin" : ""}`} />
+                {batchLoading ? t("library.actions.rerunning") : t("library.actions.rerunSelected")}
+              </Button>
+            </div>
+          </div>
+
+          {batchMessage ? (
+            <div className="px-4 pt-3">
+              <p className="text-xs text-muted-foreground">{batchMessage}</p>
+            </div>
+          ) : null}
+
+          {relationsMessage ? (
+            <div className="px-4">
+              <p className="text-xs text-muted-foreground">{relationsMessage}</p>
+            </div>
+          ) : null}
+
+          <div className="overflow-x-auto">
+            <div className="min-w-[1500px]">
+              <div
+                className="grid gap-3 border-b border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+                style={{ gridTemplateColumns: tableGridTemplate }}
+              >
+                <span />
+                <span>{t("library.columns.paper")}</span>
+                {visibleColumns.id ? <span>{t("library.columns.id")}</span> : null}
+                {visibleColumns.year ? <span>{t("library.columns.year")}</span> : null}
+                {visibleColumns.score ? <span>{t("library.columns.score")}</span> : null}
+                {visibleColumns.authors ? <span>{t("library.columns.authors")}</span> : null}
+                {visibleColumns.venue ? <span>{t("library.columns.venue")}</span> : null}
+                {visibleColumns.coverage ? <span>{t("library.columns.coverage")}</span> : null}
+                {visibleColumns.feedback ? <span>{t("library.columns.feedback")}</span> : null}
+                {visibleColumns.status ? <span>{t("library.columns.status")}</span> : null}
+                {visibleColumns.profile ? <span>{t("library.columns.profile")}</span> : null}
+                {visibleColumns.fields ? <span>{t("library.columns.fields")}</span> : null}
+                {visibleColumns.imported ? <span>{t("library.columns.imported")}</span> : null}
+                {visibleColumns.updated ? <span>{t("library.columns.updated")}</span> : null}
+              </div>
+              <div className="divide-y divide-border">
+                {papers.map((paper) => (
+                  <div
+                    key={paper.paper_id}
+                    className="grid gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+                    style={{ gridTemplateColumns: tableGridTemplate }}
+                  >
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedPaperIds.has(paper.paper_id)}
+                        onChange={(event) => togglePaperSelection(paper.paper_id, event.target.checked)}
+                        className="rounded border-border"
+                      />
+                    </div>
+
+                    <div className="flex min-w-0 items-center">
+                      <Link
+                        href={`/paper/${paper.paper_id}`}
+                        className="block truncate text-sm font-medium text-foreground hover:text-blue-600"
+                      >
+                        {paper.title || paper.paper_id}
+                      </Link>
+                    </div>
+
+                    {visibleColumns.id ? (
+                      <div className="flex items-center font-mono text-[11px] text-muted-foreground">
+                        {paper.paper_id}
+                      </div>
+                    ) : null}
+
+                    {visibleColumns.year ? (
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        {paper.year ?? "—"}
+                      </div>
+                    ) : null}
+
+                    {visibleColumns.score ? (
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        {paper.average_score != null ? (
+                          <span title={t("library.paperMeta.scoreHelp")}>
+                            {paper.average_score.toFixed(1)}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </div>
+                    ) : null}
+
+                    {visibleColumns.authors ? (
+                      <div className="flex min-w-0 items-center">
+                        <span className="truncate text-xs text-muted-foreground" title={paper.authors.join(", ")}>
+                          {paper.authors.length > 0
+                            ? `${paper.authors.slice(0, 3).join(", ")}${paper.authors.length > 3 ? " et al." : ""}`
+                            : "—"}
+                        </span>
+                      </div>
+                    ) : null}
+
+                    {visibleColumns.venue ? (
+                      <div className="flex min-w-0 items-center">
+                        <span className="truncate text-xs text-muted-foreground" title={paper.venue ?? undefined}>
+                          {paper.venue || "—"}
+                        </span>
+                      </div>
+                    ) : null}
+
+                    {visibleColumns.coverage ? (
+                      <div className="flex items-center">
+                        <ExtractionDots extractionStatus={paper.extraction_status} />
+                      </div>
+                    ) : null}
+
+                    {visibleColumns.feedback ? (
+                      <div className="flex items-center">
+                        <div className="space-y-1">
+                          <span
+                            className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${feedbackTone(
+                              paper.attention_feedback_count,
+                              paper.feedback_count
+                            )}`}
+                          >
+                            {paper.attention_feedback_count > 0
+                              ? t("library.feedback.attention", { count: paper.attention_feedback_count })
+                              : paper.feedback_count > 0
+                                ? formatFeedbackLabel(paper.latest_feedback_type, t("library.feedback.hasFeedback"))
+                                : t("library.feedback.none")}
+                          </span>
+                          {paper.feedback_count > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleOpenFeedback(paper)}
+                              className="block text-[11px] text-blue-600 hover:text-blue-700"
+                            >
+                              {t("library.feedback.viewCount", { count: paper.feedback_count })}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {visibleColumns.status ? (
+                      <div className="flex items-center">
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${processingTone(paper.processing_status)}`}>
+                          {formatProcessingLabel(paper.processing_status)}
+                        </span>
+                      </div>
+                    ) : null}
+
+                    {visibleColumns.profile ? (
+                      <div className="flex items-center">
+                        <span className="text-xs text-muted-foreground">
+                          {formatReadingProfile(paper.reading_profile, t("library.profile.notSet"))}
+                        </span>
+                      </div>
+                    ) : null}
+
+                    {visibleColumns.fields ? (
+                      <div className="flex items-center">
+                        <div className="flex flex-wrap gap-1">
+                          {paper.fields.slice(0, 2).map((item) => (
+                            <Badge key={item} variant="paper" className="text-[10px] px-1.5 py-0">
+                              {item}
+                            </Badge>
+                          ))}
+                          {paper.fields.length > 2 ? (
+                            <span className="text-[11px] text-muted-foreground">
+                              +{paper.fields.length - 2}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {visibleColumns.imported ? (
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        {paper.imported_at ? new Date(paper.imported_at).toLocaleDateString() : "—"}
+                      </div>
+                    ) : null}
+
+                    {visibleColumns.updated ? (
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        {paper.updated_at ? new Date(paper.updated_at).toLocaleString() : "—"}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <Pagination
+            page={page}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
+
+          <Dialog open={feedbackDialogOpen} onOpenChange={setFeedbackDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  Feedback for {feedbackDialogPaper?.paper_id ?? "paper"}
+                </DialogTitle>
+                <DialogDescription>
+                  Review the latest extraction feedback before deciding whether to re-run this paper or rebuild relations.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-xs text-muted-foreground">
+                  {feedbackDialogPaper?.title || "Review extraction feedback and decide the next action."}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={handleReprocessDialogPaper}
+                  disabled={feedbackDialogReprocessLoading || !feedbackDialogPaper}
+                >
+                  <RefreshCw
+                    className={`h-3.5 w-3.5 ${feedbackDialogReprocessLoading ? "animate-spin" : ""}`}
+                  />
+                  {feedbackDialogReprocessLoading ? "Re-running..." : "Re-run this paper"}
+                </Button>
+              </div>
+
+              {feedbackDialogMessage ? (
+                <p className="text-xs text-muted-foreground">{feedbackDialogMessage}</p>
+              ) : null}
+
+              {feedbackDialogLoading ? (
+                <div className="space-y-2 py-2">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : feedbackDialogError ? (
+                <p className="text-sm text-red-600">{feedbackDialogError}</p>
+              ) : feedbackDialogItems.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No feedback found for this paper.</p>
+              ) : (
+                <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
+                  {feedbackDialogItems.map((item) => (
+                    <div key={item.id} className="rounded-xl border border-border p-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-[10px]">
+                          {item.dimension_key ? formatFeedbackLabel(item.dimension_key, "General") : "General"}
+                        </Badge>
+                        <Badge variant="secondary" className="text-[10px]">
+                          {formatFeedbackLabel(item.feedback_type, t("library.feedback.hasFeedback"))}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px]">
+                          {formatFeedbackLabel(item.action_status, "Open")}
+                        </Badge>
+                        {item.rating ? (
+                          <span className="text-[11px] text-muted-foreground">{item.rating}/5</span>
+                        ) : null}
+                        <span className="text-[11px] text-muted-foreground">
+                          {new Date(item.created_at).toLocaleString()}
+                        </span>
+                      </div>
+                      {item.comment ? (
+                        <p className="mt-2 text-sm leading-6 text-foreground">{item.comment}</p>
+                      ) : (
+                        <p className="mt-2 text-sm text-muted-foreground">No comment provided.</p>
+                      )}
+                      {item.action_status !== "resolved" ? (
+                        <div className="mt-3 flex justify-end">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void handleResolveFeedback(item.id)}
+                            disabled={feedbackActionLoadingId === item.id}
+                          >
+                            {feedbackActionLoadingId === item.id ? "Updating..." : "Resolve"}
+                          </Button>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <DialogFooter>
+                {feedbackDialogPaper ? (
+                  <Button asChild variant="outline">
+                    <Link href={`/paper/${feedbackDialogPaper.paper_id}`}>Open paper</Link>
+                  </Button>
+                ) : null}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </div>
   );
 }
@@ -482,9 +1699,8 @@ function NotesTab() {
               ? `/atom/${note.entityId}`
               : "#";
           return (
-            <Link
+            <div
               key={`${note.entityType}-${note.entityId}`}
-              href={href}
               className="block px-4 py-3 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-2 mb-1">
@@ -508,11 +1724,14 @@ function NotesTab() {
                     {new Date(note.updatedAt).toLocaleDateString()}
                   </span>
                 )}
+                <Link href={href} className="text-[10px] text-blue-600 hover:text-blue-700">
+                  Open
+                </Link>
               </div>
               <div className="text-sm text-muted-foreground line-clamp-2">
                 <NoteRenderer content={note.note} />
               </div>
-            </Link>
+            </div>
           );
         })}
       </div>
@@ -885,55 +2104,52 @@ function CollectionsTab() {
 // ---------------------------------------------------------------------------
 
 function LibraryContent() {
-  const [activeTab, setActiveTab] = useState("bookmarks");
+  const [activeTab, setActiveTab] = useState("papers");
+  const { t } = useI18n();
 
   return (
     <div className="space-y-5">
-      <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="paper-panel p-6">
         <div className="space-y-3">
-          <p className="section-kicker">Personal Archive</p>
           <div>
             <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
-              Library
+              {t("library.heroTitle")}
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
-              Keep bookmarks, reading states, notes, and collections in one
-              place while you move from paper-level inspection to working corpora.
+            <p className="mt-2 text-sm leading-6 text-muted-foreground sm:text-[15px]">
+              {t("library.heroBody")} {t("library.appCardBody")}
             </p>
           </div>
-        </div>
-        <div className="rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
-          <p className="section-kicker">Workflow</p>
-          <p className="mt-2 text-sm leading-6 text-foreground/80">
-            Bookmark in Paper Detail, annotate in Notes, then convert stable
-            sets into Collections or Research Drafts.
-          </p>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="h-11 gap-1 p-1">
+          <TabsTrigger value="papers" className="gap-1.5 px-4 text-sm">
+            <Database className="h-3.5 w-3.5" />
+            {t("library.tabs.papers")}
+          </TabsTrigger>
           <TabsTrigger value="bookmarks" className="gap-1.5 px-4 text-sm">
             <Bookmark className="h-3.5 w-3.5" />
-            Bookmarks
+            {t("library.tabs.bookmarks")}
           </TabsTrigger>
           <TabsTrigger value="reading" className="gap-1.5 px-4 text-sm">
             <BookOpen className="h-3.5 w-3.5" />
-            Reading List
+            {t("library.tabs.reading")}
           </TabsTrigger>
           <TabsTrigger value="notes" className="gap-1.5 px-4 text-sm">
             <StickyNote className="h-3.5 w-3.5" />
-            Notes
+            {t("library.tabs.notes")}
           </TabsTrigger>
           <TabsTrigger value="collections" className="gap-1.5 px-4 text-sm">
             <FolderOpen className="h-3.5 w-3.5" />
-            Collections
+            {t("library.tabs.collections")}
           </TabsTrigger>
         </TabsList>
       </Tabs>
 
       <Card className="paper-panel overflow-hidden p-0">
         <CardContent className="p-0">
+          {activeTab === "papers" && <PaperManagerTab />}
           {activeTab === "bookmarks" && <BookmarksTab />}
           {activeTab === "reading" && <ReadingListTab />}
           {activeTab === "notes" && <NotesTab />}
@@ -949,17 +2165,19 @@ function LibraryContent() {
 // ---------------------------------------------------------------------------
 
 export default function LibraryPage() {
+  const { t } = useI18n();
+
   return (
     <Suspense
       fallback={
         <div className="space-y-5">
           <div className="paper-panel space-y-3 px-6 py-6">
-            <p className="section-kicker">Personal Archive</p>
+            <p className="section-kicker">{t("library.operationsKicker")}</p>
             <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
-              Library
+              {t("library.heroTitle")}
             </h2>
             <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
-              Your bookmarks, reading list, notes, and collections.
+              {t("library.fallbackBody")}
             </p>
           </div>
           <div className="paper-panel h-96 animate-pulse bg-muted/40" />

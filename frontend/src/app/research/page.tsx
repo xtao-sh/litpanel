@@ -50,6 +50,7 @@ import type {
   ResearchFilter,
   ResearchSessionItem,
 } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 type ResearchViewMode = "list" | "cluster" | "timeline";
 
@@ -64,6 +65,8 @@ function ViewModeToggle({
   onChange,
   className = "",
 }: ViewModeToggleProps) {
+  const { t } = useI18n();
+
   return (
     <div className={`paper-panel flex items-center gap-1 rounded-[1.2rem] px-2 py-1.5 shrink-0 ${className}`}>
       <button
@@ -72,7 +75,7 @@ function ViewModeToggle({
         onClick={() => onChange("list")}
       >
         <List className="h-3 w-3" />
-        List
+        {t("research.viewModes.list")}
       </button>
       <button
         type="button"
@@ -80,7 +83,7 @@ function ViewModeToggle({
         onClick={() => onChange("cluster")}
       >
         <Layers className="h-3 w-3" />
-        Clusters
+        {t("research.viewModes.cluster")}
       </button>
       <button
         type="button"
@@ -88,7 +91,7 @@ function ViewModeToggle({
         onClick={() => onChange("timeline")}
       >
         <Clock className="h-3 w-3" />
-        Timeline
+        {t("research.viewModes.timeline")}
       </button>
     </div>
   );
@@ -158,6 +161,7 @@ export default function ResearchPage() {
 function ResearchPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useI18n();
   const initialQuery = (searchParams.get("q") ?? "").trim();
   const initialFilters: ResearchFilter = {
     fields: parseStringArray(searchParams.get("field")),
@@ -360,11 +364,11 @@ function ResearchPageInner() {
       });
       router.push(`/projects/${slug}`);
     } catch (err) {
-      setProjectError(err instanceof Error ? err.message : "Failed to create Research Draft.");
+      setProjectError(err instanceof Error ? err.message : t("research.errors.createDraftFailed"));
     } finally {
       setCreatingProject(false);
     }
-  }, [allPaperIds, creatingProject, filters, router, sort, submittedQuery]);
+  }, [allPaperIds, creatingProject, filters, router, sort, submittedQuery, t]);
 
   const handleRestoreSession = useCallback((session: ResearchSessionItem) => {
     setQuery(session.query);
@@ -653,32 +657,32 @@ function ResearchPageInner() {
           <Search className="h-8 w-8 text-primary/35" />
         </div>
 
-        <p className="section-kicker mb-2">Topic workspace</p>
+        <p className="section-kicker mb-2">{t("research.empty.kicker")}</p>
         <h1 className="font-display mb-2 text-[clamp(2.8rem,5vw,4.5rem)] text-foreground">
-          Research Mode
+          {t("research.empty.title")}
         </h1>
         <p className="mb-8 max-w-2xl text-center text-sm text-muted-foreground">
-          Explore a topic, map the literature, and discover what&apos;s missing.
+          {t("research.empty.subtitle")}
         </p>
 
         <div className="paper-panel mb-6 w-full rounded-[1.8rem] p-5 text-left">
           <p className="text-sm font-medium text-foreground">
-            Research is the first step in the workflow
+            {t("research.empty.workflowTitle")}
           </p>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Start here when you have a topic question. Once the paper set stabilizes, inspect evidence in Explorer or capture it in Projects as a Research Draft.
+            {t("research.empty.workflowBody")}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm">
               <Link href="/explorer?tab=papers">
                 <Compass className="mr-1.5 h-3.5 w-3.5" />
-                Open Explorer
+                {t("research.empty.openExplorer")}
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm">
               <Link href="/projects">
                 <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
-                Open Projects
+                {t("research.empty.openProjects")}
               </Link>
             </Button>
           </div>
@@ -698,7 +702,7 @@ function ResearchPageInner() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search a research topic..."
+              placeholder={t("research.empty.searchPlaceholder")}
               className="flex h-14 w-full rounded-[1.3rem] border border-input bg-background/75 pl-12 pr-4 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               autoFocus
             />
@@ -709,7 +713,7 @@ function ResearchPageInner() {
         {sessions.length > 0 && (
           <div className="w-full mb-6">
             <p className="mb-3 text-sm font-medium text-muted-foreground">
-              Recent Sessions:
+              {t("research.empty.recentSessions")}
             </p>
             <div className="grid gap-2">
               {sessions.slice(0, 5).map((session) => (
@@ -730,27 +734,27 @@ function ResearchPageInner() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <Badge variant="secondary" className="text-[10px]">
-                      {session.paperIds.length} papers
+                      {t("common.counts.papers", { count: session.paperIds.length })}
                     </Badge>
                     <span className="text-[10px] text-muted-foreground">
                       {new Date(session.updatedAt).toLocaleDateString()}
                     </span>
                     {confirmDeleteId === session.id ? (
                       <div className="flex items-center gap-1 text-xs" onClick={(e) => e.stopPropagation()}>
-                        <span className="text-red-600">Delete?</span>
+                        <span className="text-red-600">{t("research.empty.deletePrompt")}</span>
                         <button
                           type="button"
                           onClick={(e) => { handleDeleteSession(session.id, e); setConfirmDeleteId(null); }}
                           className="text-red-600 font-medium hover:underline"
                         >
-                          Yes
+                          {t("common.actions.yes")}
                         </button>
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}
                           className="text-muted-foreground hover:underline"
                         >
-                          No
+                          {t("common.actions.no")}
                         </button>
                       </div>
                     ) : (
@@ -758,7 +762,7 @@ function ResearchPageInner() {
                         type="button"
                         className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 transition-all"
                         onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(session.id); }}
-                        title="Delete session"
+                        title={t("research.empty.deleteSession")}
                       >
                         <Trash2 className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
                       </button>
@@ -772,7 +776,7 @@ function ResearchPageInner() {
 
         {/* Example queries */}
         <div className="w-full">
-          <p className="mb-3 text-sm font-medium text-muted-foreground">Try:</p>
+          <p className="mb-3 text-sm font-medium text-muted-foreground">{t("research.empty.try")}</p>
           <div className="grid gap-2">
             {EXAMPLE_QUERIES.map((example) => (
               <button
@@ -795,17 +799,17 @@ function ResearchPageInner() {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="flex h-[calc(100vh-5rem)] flex-col bg-[radial-gradient(circle_at_top_left,rgba(126,87,65,0.06),transparent_28%),linear-gradient(180deg,rgba(248,244,236,0.55),rgba(248,244,236,0.12))]">
+    <div className="flex min-h-[calc(100vh-5rem)] flex-col bg-[radial-gradient(circle_at_top_left,rgba(126,87,65,0.06),transparent_28%),linear-gradient(180deg,rgba(248,244,236,0.55),rgba(248,244,236,0.12))]">
       {/* Error banner */}
       {(papersError || landscapeError || projectError) && (
         <div className="mx-4 mt-2 flex items-center gap-2 rounded-[1rem] border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>
             {papersError
-              ? `Search failed: ${papersError.message}`
+              ? t("research.errors.searchFailed", { message: papersError.message })
               : landscapeError
-                ? `Landscape analysis failed: ${landscapeError.message}`
-                : `Research Draft creation failed: ${projectError}`}
+                ? t("research.errors.landscapeFailed", { message: landscapeError.message })
+                : t("research.errors.draftFailed", { message: projectError ?? "" })}
           </span>
         </div>
       )}
@@ -824,17 +828,17 @@ function ResearchPageInner() {
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm font-medium text-foreground">
-                Topic-first discovery belongs here
+                {t("research.workflow.title")}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Use Research to define the paper set, Explorer to inspect records, and Projects when the set is stable enough for synthesis.
+                {t("research.workflow.body")}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild variant="outline" size="sm">
                 <Link href={explorerHref}>
                   <Compass className="mr-1.5 h-3.5 w-3.5" />
-                  Inspect in Explorer
+                  {t("research.workflow.inspectExplorer")}
                 </Link>
               </Button>
               <Button
@@ -847,12 +851,12 @@ function ResearchPageInner() {
                 ) : (
                   <FolderPlus className="mr-1.5 h-3.5 w-3.5" />
                 )}
-                Create Research Draft
+                {creatingProject ? t("research.workflow.creatingDraft") : t("research.workflow.createDraft")}
               </Button>
               <Button asChild variant="outline" size="sm">
                 <Link href="/projects">
                   <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
-                  Open Projects
+                  {t("research.workflow.openProjects")}
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                 </Link>
               </Button>
@@ -866,10 +870,10 @@ function ResearchPageInner() {
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm font-medium text-foreground">
-                {compareCount} paper{compareCount !== 1 ? "s" : ""} selected for comparison
+                {t(compareCount === 1 ? "research.compare.selected" : "research.compare.selectedPlural", { count: compareCount })}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Selection stays available while you switch between list, cluster, and timeline views.
+                {t("research.compare.body")}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -882,10 +886,10 @@ function ResearchPageInner() {
                   }
                 }}
               >
-                Compare Selected
+                {t("research.compare.compareSelected")}
               </Button>
               <Button variant="outline" size="sm" onClick={handleClearCompare}>
-                Clear
+                {t("common.actions.clear")}
               </Button>
             </div>
           </div>
@@ -910,7 +914,7 @@ function ResearchPageInner() {
                   type="text"
                   value={sessionTitle}
                   onChange={(e) => setSessionTitle(e.target.value)}
-                  placeholder="Session name..."
+                  placeholder={t("research.saveSession.placeholder")}
                   className="h-7 w-36 rounded-md border border-input px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                   autoFocus
                   onKeyDown={(e) => {
@@ -924,7 +928,7 @@ function ResearchPageInner() {
                   onClick={handleSaveSession}
                   disabled={!sessionTitle.trim()}
                 >
-                  Save
+                  {t("common.actions.save")}
                 </Button>
                 <Button
                   variant="ghost"
@@ -932,7 +936,7 @@ function ResearchPageInner() {
                   className="h-7 px-1.5 text-xs"
                   onClick={() => setSaveDialogOpen(false)}
                 >
-                  Cancel
+                  {t("common.actions.cancel")}
                 </Button>
               </div>
             ) : (
@@ -946,7 +950,7 @@ function ResearchPageInner() {
                 }}
               >
                 <Save className="h-3.5 w-3.5" />
-                Save
+                {t("common.actions.save")}
               </Button>
             )
           ) : undefined
@@ -957,28 +961,25 @@ function ResearchPageInner() {
       <div className="paper-panel mx-4 mt-2 rounded-[1.35rem] px-4 py-3 lg:px-6">
         <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <div className="space-y-1">
-            <p className="section-kicker">Working scope</p>
+            <p className="section-kicker">{t("research.scope.kicker")}</p>
             <p className="text-sm font-medium text-foreground">
-              Analyzing <span className="font-semibold">{allPaperIds.length.toLocaleString()}</span> matched paper
-              {allPaperIds.length !== 1 ? "s" : ""} for &ldquo;{submittedQuery}&rdquo;
+              {t("research.scope.analyzing", { count: allPaperIds.length.toLocaleString(), query: submittedQuery })}
             </p>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              Landscape cards below are computed from the current matched paper set. Methods, datasets,
-              and mechanisms come from linked atoms; gap summaries combine paper limitations and open
-              questions with methods or datasets used in sibling-field papers but absent from this set.
+              {t("research.scope.body")}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="rounded-full bg-background/80 px-2.5 py-1 text-muted-foreground border border-border">
-              Showing {visibleRangeStart}-{visibleRangeEnd} of {papersTotal.toLocaleString()}
+              {t("research.scope.showing", { start: visibleRangeStart, end: visibleRangeEnd, total: papersTotal.toLocaleString() })}
             </span>
             {activeFilterCount > 0 && (
               <span className="rounded-full bg-background/80 px-2.5 py-1 text-muted-foreground border border-border">
-                {activeFilterCount} active filter{activeFilterCount !== 1 ? "s" : ""}
+                {t(activeFilterCount === 1 ? "research.scope.activeFilters" : "research.scope.activeFiltersPlural", { count: activeFilterCount })}
               </span>
             )}
             <span className="rounded-full bg-background/80 px-2.5 py-1 text-muted-foreground border border-border">
-              View: {viewMode}
+              {t("research.scope.view", { view: t(`research.viewModes.${viewMode}`) })}
             </span>
           </div>
         </div>
@@ -989,24 +990,24 @@ function ResearchPageInner() {
         <Tabs value={mobileTab} onValueChange={setMobileTab}>
           <TabsList className="paper-panel mx-4 mt-2 h-10 gap-1 rounded-[1.2rem] p-1">
             <TabsTrigger value="results" className="px-4 text-xs">
-              Results
+              {t("research.tabs.results")}
             </TabsTrigger>
             <TabsTrigger value="landscape" className="px-4 text-xs">
-              Landscape
+              {t("research.tabs.landscape")}
             </TabsTrigger>
             <TabsTrigger value="chat" className="px-4 text-xs">
-              Chat
+              {t("research.tabs.chat")}
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="results" className="h-[calc(100vh-14rem)] overflow-hidden px-4 pb-4">
+          <TabsContent value="results" className="min-h-[calc(100vh-14rem)] px-4 pb-4">
             {allPaperIds.length >= 4 && (
               <ViewModeToggle className="px-1" viewMode={viewMode} onChange={handleViewModeChange} />
             )}
             {renderResultsContent()}
           </TabsContent>
 
-          <TabsContent value="landscape" className="h-[calc(100vh-14rem)] overflow-y-auto px-4 pb-4">
+          <TabsContent value="landscape" className="min-h-[calc(100vh-14rem)] px-4 pb-4">
             <ResearchLandscapePanel
               landscape={landscape}
               loading={landscapeLoading && allPaperIds.length > 0}
@@ -1018,7 +1019,7 @@ function ResearchPageInner() {
             />
           </TabsContent>
 
-          <TabsContent value="chat" className="h-[calc(100vh-14rem)]">
+          <TabsContent value="chat" className="min-h-[calc(100vh-14rem)]">
             <ResearchChat
               open={true}
               onToggle={handleChatToggle}

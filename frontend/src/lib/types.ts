@@ -176,6 +176,87 @@ export interface NetworkGraph {
   seedCount: number;
   totalPaperNodes: number;
   truncated: boolean;
+  errorMessage?: string | null;
+  warningMessage?: string | null;
+}
+
+export interface Library {
+  id: number;
+  slug: string;
+  name: string;
+  discipline: string;
+  description: string;
+  papers_dir: string;
+  knowledge_base_dir: string;
+  agent_db_path: string;
+  paper_count: number;
+  field_map_count: number;
+  idea_count: number;
+  digest_count: number;
+  import_batch_count: number;
+  latest_idea_date: string | null;
+  latest_digest_date: string | null;
+}
+
+export interface ImportBatchFile {
+  id: number;
+  batch_id: number;
+  filename: string;
+  paper_id: string;
+  status: string;
+  detail: string;
+  created_at: string;
+}
+
+export interface ImportBatch {
+  id: number;
+  library_id: number;
+  library_name: string;
+  source_type: string;
+  source_label: string;
+  total_files: number;
+  imported_files: number;
+  skipped_files: number;
+  failed_files: number;
+  created_at: string;
+  files: ImportBatchFile[];
+}
+
+export interface AIProviderCatalogItem {
+  key: string;
+  label: string;
+  api_style: string;
+  default_base_url: string;
+  default_model: string;
+  description: string;
+}
+
+export interface AIStepCatalogItem {
+  key: string;
+  label: string;
+  group: string;
+  description: string;
+  default_provider: string;
+}
+
+export interface AIProviderSetting {
+  provider: string;
+  label: string;
+  api_style: string;
+  base_url: string;
+  api_key: string;
+  api_key_hint: string;
+  has_key: boolean;
+  keychain_account?: string;
+  default_model: string;
+  enabled: boolean;
+  clear_api_key?: boolean;
+}
+
+export interface AIStepConfig {
+  step: string;
+  provider: string;
+  model: string;
 }
 
 export interface Stats {

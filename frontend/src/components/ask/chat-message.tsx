@@ -93,7 +93,10 @@ export function ChatMessage({ message, userQuestion, defaultContextExpanded }: C
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
-    navigator.clipboard.writeText(message.content);
+    if (!navigator.clipboard?.writeText) return;
+    navigator.clipboard.writeText(message.content).catch(() => {
+      // Clipboard access can be blocked in embedded browsers.
+    });
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }

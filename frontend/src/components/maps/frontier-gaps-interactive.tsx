@@ -3,7 +3,9 @@
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@apollo/client/react";
+import { collectErrorMessages } from "@/components/shared/query-error-banner";
 import { GET_FRONTIER_GAPS } from "@/lib/queries";
+import { useI18n } from "@/lib/i18n/locale-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -44,12 +46,13 @@ const FEASIBILITY_COLORS: Record<FeasibilityLevel, string> = {
 // ---------------------------------------------------------------------------
 
 function FeasibilityBadge({ feasibility }: { feasibility: string }) {
+  const { t } = useI18n();
   const level = parseFeasibilityLevel(feasibility);
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${FEASIBILITY_COLORS[level]}`}
     >
-      {level} Feasibility
+      {t(`maps.frontier.feasibility.${level.toLowerCase()}`)}
     </span>
   );
 }
@@ -85,11 +88,11 @@ function WhatIsNeeded({ text }: { text: string }) {
 
 type SortOption = "default" | "high-first" | "low-first" | "most-papers";
 
-const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: "default", label: "Default" },
-  { value: "high-first", label: "High Feasibility First" },
-  { value: "low-first", label: "Low Feasibility First" },
-  { value: "most-papers", label: "Most Papers" },
+const SORT_OPTIONS: { value: SortOption; labelKey: string }[] = [
+  { value: "default", labelKey: "maps.frontier.sort.default" },
+  { value: "high-first", labelKey: "maps.frontier.sort.highFirst" },
+  { value: "low-first", labelKey: "maps.frontier.sort.lowFirst" },
+  { value: "most-papers", labelKey: "maps.frontier.sort.mostPapers" },
 ];
 
 const FEASIBILITY_ORDER: Record<FeasibilityLevel, number> = {
@@ -115,6 +118,7 @@ function SummaryBar({
   sortOption: SortOption;
   onSortChange: (option: SortOption) => void;
 }) {
+  const { t } = useI18n();
   const counts = useMemo(() => {
     let high = 0;
     let medium = 0;
@@ -132,20 +136,22 @@ function SummaryBar({
     <div className="space-y-3">
       {/* Counts bar */}
       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        <span className="font-semibold text-foreground">{counts.total} gaps total</span>
+        <span className="font-semibold text-foreground">
+          {t("maps.frontier.counts.total", { count: counts.total })}
+        </span>
         <span className="text-border">|</span>
         <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${FEASIBILITY_COLORS.High}`}>
-          {counts.high} High
+          {t("maps.frontier.counts.high", { count: counts.high })}
         </span>
         <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${FEASIBILITY_COLORS.Medium}`}>
-          {counts.medium} Medium
+          {t("maps.frontier.counts.medium", { count: counts.medium })}
         </span>
         <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${FEASIBILITY_COLORS.Low}`}>
-          {counts.low} Low
+          {t("maps.frontier.counts.low", { count: counts.low })}
         </span>
         <span className="text-border">|</span>
         <span className="text-xs italic">
-          Promising research frontiers where significant contributions could be made
+          {t("maps.frontier.summary")}
         </span>
       </div>
 
@@ -154,7 +160,7 @@ function SummaryBar({
         {/* Filter buttons */}
         <div className="flex items-center gap-1.5">
           <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-medium text-muted-foreground mr-1">Filter:</span>
+          <span className="text-xs font-medium text-muted-foreground mr-1">{t("maps.frontier.filter.label")}</span>
           {(["All", "High", "Medium", "Low"] as const).map((level) => (
             <button
               key={level}
@@ -165,14 +171,14 @@ function SummaryBar({
                   : "bg-muted/50 text-muted-foreground border-border hover:bg-muted"
               }`}
             >
-              {level}
+              {t(`maps.frontier.filter.${level.toLowerCase()}`)}
             </button>
           ))}
         </div>
 
         {/* Sort dropdown */}
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">Sort:</span>
+          <span className="text-xs font-medium text-muted-foreground">{t("maps.frontier.sort.label")}</span>
           <select
             value={sortOption}
             onChange={(e) => onSortChange(e.target.value as SortOption)}
@@ -180,7 +186,7 @@ function SummaryBar({
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
-                {opt.label}
+                {t(opt.labelKey)}
               </option>
             ))}
           </select>
@@ -205,6 +211,7 @@ function GapCard({
   paperTitleMap: Map<string, string>;
   relatedGaps: { gapIndex: number; gapTitle: string }[];
 }) {
+  const { t } = useI18n();
   return (
     <div className="rounded-xl border border-border bg-background shadow-sm hover:shadow-md transition-shadow">
       {/* Header */}
@@ -234,7 +241,7 @@ function GapCard({
             <div className="flex items-center gap-2 mb-1.5">
               <AlertTriangle className="h-4 w-4 text-amber-600" />
               <span className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-                Why it matters
+                {t("maps.frontier.sections.why")}
               </span>
             </div>
             <p className="text-sm text-amber-900/80 leading-relaxed">
@@ -248,7 +255,7 @@ function GapCard({
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               <FileText className="h-3.5 w-3.5" />
-              What is needed
+              {t("maps.frontier.sections.needed")}
             </div>
             <WhatIsNeeded text={gap.whatIsNeeded} />
           </div>
@@ -259,7 +266,7 @@ function GapCard({
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               <Sparkles className="h-3.5 w-3.5" />
-              Closest papers
+              {t("maps.frontier.sections.closestPapers")}
             </div>
             <div className="flex flex-wrap gap-1.5">
               {gap.closestPaperIds.map((id) => {
@@ -285,7 +292,7 @@ function GapCard({
         {gap.feasibility && (
           <div className="rounded-lg bg-muted/50 px-4 py-3">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              <span className="font-semibold text-foreground/70">Feasibility: </span>
+              <span className="font-semibold text-foreground/70">{t("maps.frontier.sections.feasibility")} </span>
               {gap.feasibility}
             </p>
           </div>
@@ -295,14 +302,14 @@ function GapCard({
         {relatedGaps.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <Link2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="text-xs text-muted-foreground font-medium">Related:</span>
+            <span className="text-xs text-muted-foreground font-medium">{t("maps.frontier.sections.related")}</span>
             {relatedGaps.map((rg) => (
               <span
                 key={rg.gapIndex}
                 className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700"
                 title={rg.gapTitle}
               >
-                Gap {rg.gapIndex + 1}
+                {t("maps.frontier.relatedGap", { index: rg.gapIndex + 1 })}
               </span>
             ))}
           </div>
@@ -316,7 +323,7 @@ function GapCard({
           >
             <Button variant="outline" size="sm" className="gap-1.5 text-xs">
               <Search className="h-3.5 w-3.5" />
-              Explore this gap
+              {t("maps.frontier.actions.explore")}
             </Button>
           </Link>
           <Link
@@ -325,7 +332,7 @@ function GapCard({
           >
             <Button variant="outline" size="sm" className="gap-1.5 text-xs">
               <Lightbulb className="h-3.5 w-3.5" />
-              Start an idea
+              {t("maps.frontier.actions.startIdea")}
             </Button>
           </Link>
         </div>
@@ -362,6 +369,7 @@ function GapsSkeleton() {
 // ---------------------------------------------------------------------------
 
 export function FrontierGapsInteractive() {
+  const { t } = useI18n();
   const { data, loading, error } = useQuery<{
     frontierGaps: FrontierGap[];
   }>(GET_FRONTIER_GAPS);
@@ -458,7 +466,10 @@ export function FrontierGapsInteractive() {
   if (error) {
     return (
       <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-        Failed to load frontier gaps data.
+        <p className="font-medium">{t("maps.frontier.errors.failedTitle")}</p>
+        <p className="mt-1 text-xs text-red-700">
+          {collectErrorMessages([error]) || t("maps.frontier.errors.failedBody")}
+        </p>
       </div>
     );
   }
@@ -468,7 +479,7 @@ export function FrontierGapsInteractive() {
   if (gaps.length === 0) {
     return (
       <p className="text-sm text-muted-foreground italic">
-        No frontier gaps data available.
+        {t("maps.frontier.empty.noData")}
       </p>
     );
   }
@@ -487,7 +498,7 @@ export function FrontierGapsInteractive() {
       {/* Gap cards */}
       {processedGaps.length === 0 ? (
         <p className="text-sm text-muted-foreground italic">
-          No gaps match the selected filter.
+          {t("maps.frontier.empty.noMatches")}
         </p>
       ) : (
         processedGaps.map(({ gap, originalIndex }) => (

@@ -9,6 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, X, SlidersHorizontal, User, ChevronDown, ChevronUp, Atom } from "lucide-react";
 import { GET_AUTHOR_SUGGESTIONS, GET_AVAILABLE_METHODS, GET_AVAILABLE_FIELDS, GET_ATOMS, GET_AVAILABLE_THEMES } from "@/lib/queries";
+import { useI18n } from "@/lib/i18n/locale-context";
 import type { ScoreDimensionFilter } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -42,6 +43,11 @@ const ATOM_TYPES = ["mechanism", "method", "dataset", "puzzle"];
 const EVIDENCE_OPTIONS = ["strong", "moderate", "weak"];
 const ACCESS_OPTIONS = ["public", "restricted", "administrative", "commercial"];
 const IDEA_STATUSES = ["new", "developing", "promoted", "killed"];
+
+function translateValue(t: (key: string, vars?: Record<string, string | number>) => string, value: string): string {
+  const key = value === "DEEP_READ" ? "deepRead" : value === "SKIM" ? "skim" : value === "SKIP" ? "skip" : value;
+  return t(`explorer.values.${key}`);
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -173,6 +179,7 @@ function AuthorSearch({
   selected: string[];
   onChange: (authors: string[]) => void;
 }) {
+  const { t } = useI18n();
   const [inputValue, setInputValue] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -242,7 +249,7 @@ function AuthorSearch({
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Authors
+          {t("explorer.filters.authors")}
         </h4>
         {selected.length > 0 && (
           <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
@@ -263,7 +270,7 @@ function AuthorSearch({
               setShowDropdown(true);
             }
           }}
-          placeholder="Search authors..."
+          placeholder={t("explorer.filters.authorPlaceholder")}
           className="h-8 w-full rounded-md border border-input bg-background pl-7 pr-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
         {showDropdown && suggestions.length > 0 && (
@@ -320,6 +327,7 @@ function MethodFilter({
   selected: string[];
   onChange: (methods: string[]) => void;
 }) {
+  const { t } = useI18n();
   const [showAll, setShowAll] = useState(false);
 
   const { data } = useQuery<{ availableMethods: string[] }>(
@@ -350,7 +358,7 @@ function MethodFilter({
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Methods
+          {t("explorer.filters.methods")}
         </h4>
         {selected.length > 0 && (
           <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
@@ -380,8 +388,8 @@ function MethodFilter({
           onClick={() => setShowAll(!showAll)}
         >
           {showAll
-            ? "Show fewer"
-            : `Show all ${allMethods.length} methods`}
+            ? t("explorer.filters.showFewer")
+            : t("explorer.filters.showAllMethods", { count: allMethods.length })}
         </button>
       )}
     </div>
@@ -406,6 +414,7 @@ function AtomSearch({
   selected: string[];
   onChange: (slugs: string[]) => void;
 }) {
+  const { t } = useI18n();
   const [inputValue, setInputValue] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -475,7 +484,7 @@ function AtomSearch({
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Atoms
+          {t("explorer.filters.atoms")}
         </h4>
         {selected.length > 0 && (
           <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
@@ -496,7 +505,7 @@ function AtomSearch({
               setShowDropdown(true);
             }
           }}
-          placeholder="Search atoms..."
+          placeholder={t("explorer.filters.atomPlaceholder")}
           className="h-8 w-full rounded-md border border-input bg-background pl-7 pr-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
         {showDropdown && suggestions.length > 0 && (
@@ -513,7 +522,7 @@ function AtomSearch({
                 <span
                   className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium ${ATOM_TYPE_COLORS[atom.type] || "bg-gray-100 text-gray-800"}`}
                 >
-                  {atom.type}
+                  {translateValue(t, atom.type)}
                 </span>
                 <span className="truncate flex-1">{atom.title}</span>
                 <span className="shrink-0 text-[10px] text-muted-foreground">
@@ -545,7 +554,7 @@ function AtomSearch({
       )}
       {selected.length > 0 && (
         <p className="text-[10px] text-muted-foreground">
-          Papers must match ALL selected atoms.
+          {t("explorer.filters.atomsMustMatchAll")}
         </p>
       )}
     </div>
@@ -565,6 +574,7 @@ function DynamicFieldFilter({
   selected: string[];
   onChange: (fields: string[]) => void;
 }) {
+  const { t } = useI18n();
   const [showAll, setShowAll] = useState(false);
   const [fieldSearch, setFieldSearch] = useState("");
 
@@ -597,7 +607,7 @@ function DynamicFieldFilter({
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Fields
+          {t("explorer.filters.fields")}
         </h4>
         {selected.length > 0 && (
           <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
@@ -612,7 +622,7 @@ function DynamicFieldFilter({
             type="text"
             value={fieldSearch}
             onChange={(e) => setFieldSearch(e.target.value)}
-            placeholder="Filter fields..."
+            placeholder={t("explorer.filters.fieldPlaceholder")}
             className="h-7 w-full rounded-md border border-input bg-background pl-6 pr-2 text-[11px] placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
@@ -631,7 +641,9 @@ function DynamicFieldFilter({
           </label>
         ))}
         {fieldSearch.trim() && filteredFields.length === 0 && (
-          <p className="text-[11px] text-muted-foreground">No fields match "{fieldSearch.trim()}"</p>
+          <p className="text-[11px] text-muted-foreground">
+            {t("explorer.empty.noFields", { query: fieldSearch.trim() })}
+          </p>
         )}
       </div>
       {!fieldSearch.trim() && allFields.length > TOP_FIELDS_LIMIT && (
@@ -639,7 +651,7 @@ function DynamicFieldFilter({
           className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
           onClick={() => setShowAll(!showAll)}
         >
-          {showAll ? "Show fewer" : `Show all ${allFields.length} fields`}
+          {showAll ? t("explorer.filters.showFewer") : t("explorer.filters.showAllFields", { count: allFields.length })}
         </button>
       )}
     </div>
@@ -686,6 +698,7 @@ function ScoreDimensionFilterSection({
   selected: ScoreDimensionFilter[];
   onChange: (dims: ScoreDimensionFilter[]) => void;
 }) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const activeCount = selected.length;
 
@@ -723,7 +736,7 @@ function ScoreDimensionFilterSection({
       >
         <div className="flex items-center gap-2">
           <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Score Dimensions
+            {t("explorer.filters.scoreDimensions")}
           </h4>
           {activeCount > 0 && (
             <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
@@ -761,7 +774,7 @@ function ScoreDimensionFilterSection({
                           : "bg-muted text-muted-foreground hover:bg-accent/70"
                       }`}
                     >
-                      {opt.label}
+                      {opt.value === 0 ? t("explorer.filters.any") : opt.label}
                     </button>
                   ))}
                 </div>
@@ -785,6 +798,7 @@ function PaperFilterControls({
   filters: PaperFilters;
   onChange: (f: PaperFilters) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-5">
       <AtomSearch
@@ -809,7 +823,7 @@ function PaperFilterControls({
 
       <div className="space-y-2">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Year Range
+          {t("explorer.filters.yearRange")}
         </h4>
         <Slider
           min={2000}
@@ -832,7 +846,7 @@ function PaperFilterControls({
 
       <div className="space-y-2">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Score Range
+          {t("explorer.filters.scoreRange")}
         </h4>
         <Slider
           min={1}
@@ -854,15 +868,16 @@ function PaperFilterControls({
       </div>
 
       <CheckboxGroup
-        label="Triage Decision"
+        label={t("explorer.filters.triageDecision")}
         options={TRIAGE_OPTIONS}
         selected={filters.triageDecision}
         onChange={(triageDecision) => onChange({ ...filters, triageDecision })}
+        formatLabel={(v) => translateValue(t, v)}
       />
 
       <div className="space-y-2">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Has Card
+          {t("explorer.filters.hasCard")}
         </h4>
         <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground/80 hover:text-foreground transition-colors">
           <Checkbox
@@ -871,7 +886,7 @@ function PaperFilterControls({
               onChange({ ...filters, hasCard: checked ? true : null })
             }
           />
-          <span>Only papers with cards</span>
+          <span>{t("explorer.filters.onlyWithCards")}</span>
         </label>
       </div>
 
@@ -894,6 +909,7 @@ function AtomFilterControls({
   filters: AtomFilters;
   onChange: (f: AtomFilters) => void;
 }) {
+  const { t } = useI18n();
   const showAccessFilter =
     filters.types.length === 0 || filters.types.includes("dataset");
 
@@ -911,25 +927,25 @@ function AtomFilterControls({
   return (
     <div className="space-y-5">
       <CheckboxGroup
-        label="Type"
+        label={t("explorer.filters.type")}
         options={ATOM_TYPES}
         selected={filters.types}
         onChange={(types) => onChange({ ...filters, types, theme: "" })}
-        formatLabel={(v) => v.charAt(0).toUpperCase() + v.slice(1)}
+        formatLabel={(v) => translateValue(t, v)}
       />
 
       {/* Theme dropdown filter */}
       {availableThemes.length > 0 && (
         <div className="space-y-2">
           <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Theme
+            {t("explorer.filters.theme")}
           </label>
           <select
             value={filters.theme}
             onChange={(e) => onChange({ ...filters, theme: e.target.value })}
             className="w-full h-8 rounded border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
-            <option value="">All themes</option>
+            <option value="">{t("explorer.filters.allThemes")}</option>
             {availableThemes.map((t) => (
               <option key={t} value={t}>
                 {t}
@@ -940,21 +956,21 @@ function AtomFilterControls({
       )}
 
       <CheckboxGroup
-        label="Evidence Strength"
+        label={t("explorer.filters.evidenceStrength")}
         options={EVIDENCE_OPTIONS}
         selected={filters.evidenceStrength}
         onChange={(evidenceStrength) =>
           onChange({ ...filters, evidenceStrength })
         }
-        formatLabel={(v) => v.charAt(0).toUpperCase() + v.slice(1)}
+        formatLabel={(v) => translateValue(t, v)}
       />
       {showAccessFilter && (
         <CheckboxGroup
-          label="Dataset Access"
+          label={t("explorer.filters.datasetAccess")}
           options={ACCESS_OPTIONS}
           selected={filters.access}
           onChange={(access) => onChange({ ...filters, access })}
-          formatLabel={(v) => v.charAt(0).toUpperCase() + v.slice(1)}
+          formatLabel={(v) => translateValue(t, v)}
         />
       )}
     </div>
@@ -972,14 +988,15 @@ function IdeaFilterControls({
   filters: IdeaFilters;
   onChange: (f: IdeaFilters) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-5">
       <CheckboxGroup
-        label="Status"
+        label={t("explorer.filters.status")}
         options={IDEA_STATUSES}
         selected={filters.statuses}
         onChange={(statuses) => onChange({ ...filters, statuses })}
-        formatLabel={(v) => v.charAt(0).toUpperCase() + v.slice(1)}
+        formatLabel={(v) => translateValue(t, v)}
       />
     </div>
   );
@@ -1014,6 +1031,7 @@ export function FilterPanel({
   mobileOpen,
   onMobileClose,
 }: FilterPanelProps) {
+  const { t } = useI18n();
   const searchValue =
     activeTab === "papers"
       ? paperFilters.search
@@ -1066,7 +1084,7 @@ export function FilterPanel({
       <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <SlidersHorizontal className="h-4 w-4" />
-          Filters
+          {t("explorer.filters.title")}
         </div>
         <button
           className="rounded p-1 text-muted-foreground hover:text-foreground transition-colors lg:hidden"
@@ -1080,7 +1098,7 @@ export function FilterPanel({
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search..."
+            placeholder={t("explorer.filters.searchPlaceholder")}
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
             className="h-9 rounded-2xl border-border/70 bg-background/85 pl-9 text-sm"
@@ -1118,7 +1136,7 @@ export function FilterPanel({
           className="w-full rounded-full"
           onClick={onClearFilters}
         >
-          Clear filters
+          {t("explorer.actions.clearFilters")}
           {hasActiveFilters && " *"}
         </Button>
       </div>

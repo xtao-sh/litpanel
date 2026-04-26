@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Download, ChevronDown, FileText, Table2, Copy, Check } from "lucide-react";
+import { getApiUrl } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -35,7 +36,7 @@ export function ExportMenu({ paperIds, label = "Export", compact = false }: Expo
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8011";
+  const apiUrl = getApiUrl();
   const idsParam = paperIds.join(",");
   const hasIds = paperIds.length > 0;
 
@@ -50,10 +51,21 @@ export function ExportMenu({ paperIds, label = "Export", compact = false }: Expo
 
   const handleCopyIds = useCallback(() => {
     if (!hasIds) return;
-    navigator.clipboard.writeText(paperIds.join(", "));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    setOpen(false);
+    if (!navigator.clipboard?.writeText) {
+      setCopied(false);
+      setOpen(false);
+      return;
+    }
+    void navigator.clipboard
+      .writeText(paperIds.join(", "))
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        setCopied(false);
+      })
+      .finally(() => setOpen(false));
   }, [paperIds, hasIds]);
 
   if (!hasIds) return null;

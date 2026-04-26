@@ -1,9 +1,24 @@
-import { ApolloClient, InMemoryCache, HttpLink } from "@apollo/client";
+import { ApolloClient, InMemoryCache, HttpLink, ApolloLink } from "@apollo/client";
+import { setContext } from "@apollo/client/link/context";
+import { getStoredActiveLibraryId } from "@/lib/libraries";
+import { getGraphqlUrl } from "@/lib/api";
+
+const httpLink = new HttpLink({
+  uri: getGraphqlUrl(),
+});
+
+const libraryHeaderLink = setContext((_, { headers }) => {
+  const libraryId = getStoredActiveLibraryId();
+  return {
+    headers: {
+      ...headers,
+      ...(libraryId ? { "X-Library-Id": String(libraryId) } : {}),
+    },
+  };
+});
 
 const client = new ApolloClient({
-  link: new HttpLink({
-    uri: process.env.NEXT_PUBLIC_GRAPHQL_URL || "http://127.0.0.1:8011/graphql",
-  }),
+  link: ApolloLink.from([libraryHeaderLink, httpLink]),
   cache: new InMemoryCache({
     typePolicies: {
       Paper: { keyFields: ["paperId"] },

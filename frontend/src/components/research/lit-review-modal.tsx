@@ -18,6 +18,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { activeLibraryFetch, getApiUrl, withActiveLibraryHeaders } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -183,12 +184,12 @@ export function LitReviewModal({
 
     abortRef.current = new AbortController();
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8011";
+    const apiUrl = getApiUrl();
 
     try {
-      const resp = await fetch(`${apiUrl}/api/generate/lit-review`, {
+      const resp = await activeLibraryFetch(`${apiUrl}/api/generate/lit-review`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: withActiveLibraryHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           paper_ids: paperIds,
           focus: focus.trim(),
@@ -247,7 +248,10 @@ export function LitReviewModal({
   }, []);
 
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(content);
+    if (!navigator.clipboard?.writeText) return;
+    navigator.clipboard.writeText(content).catch(() => {
+      // Clipboard access can be blocked in embedded browsers.
+    });
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [content]);

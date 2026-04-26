@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import type { ResearchFilter } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -35,10 +36,10 @@ const PAPER_FIELDS = [
 ];
 
 const SORT_OPTIONS = [
-  { value: "", label: "Relevance" },
-  { value: "YEAR_DESC", label: "Year (newest)" },
-  { value: "YEAR_ASC", label: "Year (oldest)" },
-  { value: "SCORE_DESC", label: "Score (highest)" },
+  { value: "", labelKey: "research.queryBar.sort.relevance" },
+  { value: "YEAR_DESC", labelKey: "research.queryBar.sort.yearDesc" },
+  { value: "YEAR_ASC", labelKey: "research.queryBar.sort.yearAsc" },
+  { value: "SCORE_DESC", labelKey: "research.queryBar.sort.scoreDesc" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -73,6 +74,7 @@ export function ResearchQueryBar({
   onFiltersChange,
   extraActions,
 }: ResearchQueryBarProps) {
+  const { t } = useI18n();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -120,19 +122,19 @@ export function ResearchQueryBar({
               type="text"
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
-              placeholder="Search a research topic..."
+              placeholder={t("research.queryBar.placeholder")}
               className="flex h-11 w-full rounded-[1rem] border border-input bg-background/75 pl-10 pr-4 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
           </div>
           <Button type="submit" size="default" className="h-11 rounded-full px-6">
-            Search
+            {t("common.actions.search")}
           </Button>
         </form>
 
         {/* Results count */}
         {totalPapers !== null && (
           <span className="hidden shrink-0 text-sm text-muted-foreground sm:block">
-            {totalPapers.toLocaleString()} matched paper{totalPapers !== 1 ? "s" : ""}
+            {t("common.counts.matchedPapers", { count: totalPapers.toLocaleString() })}
           </span>
         )}
 
@@ -144,7 +146,7 @@ export function ResearchQueryBar({
             className="gap-1.5 rounded-full text-xs"
             onClick={() => setSortOpen(!sortOpen)}
           >
-            {SORT_OPTIONS.find((s) => s.value === sort)?.label ?? "Sort"}
+            {t(SORT_OPTIONS.find((s) => s.value === sort)?.labelKey ?? "research.queryBar.sortFallback")}
             <ChevronDown className="h-3 w-3" />
           </Button>
           {sortOpen && (
@@ -164,7 +166,7 @@ export function ResearchQueryBar({
                       setSortOpen(false);
                     }}
                   >
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </button>
                 ))}
               </div>
@@ -180,7 +182,7 @@ export function ResearchQueryBar({
           onClick={() => setFiltersOpen(!filtersOpen)}
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
-          Filters
+          {t("research.queryBar.filters")}
           {activeFilterCount > 0 && (
             <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary-foreground px-1 text-[10px] font-bold text-primary">
               {activeFilterCount}
@@ -188,7 +190,7 @@ export function ResearchQueryBar({
           )}
         </Button>
         {!filtersOpen && activeFilterCount === 0 && (
-          <span className="hidden sm:inline text-[11px] text-muted-foreground/70 ml-1">Tip: filter by field, year, or score</span>
+          <span className="hidden sm:inline text-[11px] text-muted-foreground/70 ml-1">{t("research.queryBar.tip")}</span>
         )}
 
         {/* Extra action buttons (e.g., Save Session) */}
@@ -198,7 +200,7 @@ export function ResearchQueryBar({
       {/* Active filter chips */}
       {(filters.atomSlugs?.length ?? 0) > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 px-4 pb-2 lg:px-6">
-          <span className="text-xs text-muted-foreground">Filtering by:</span>
+          <span className="text-xs text-muted-foreground">{t("research.queryBar.filteringBy")}</span>
           {filters.atomSlugs?.map((slug) => (
             <Badge
               key={slug}
@@ -220,7 +222,7 @@ export function ResearchQueryBar({
             {/* Fields */}
             <div className="paper-panel rounded-[1.25rem] p-4 space-y-2">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Fields
+                {t("research.queryBar.fields")}
               </h4>
               <div className="max-h-48 space-y-1.5 overflow-y-auto">
                 {PAPER_FIELDS.map((field) => (
@@ -250,7 +252,7 @@ export function ResearchQueryBar({
             {/* Year range */}
             <div className="paper-panel rounded-[1.25rem] p-4 space-y-3">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Year Range
+                {t("research.queryBar.yearRange")}
               </h4>
               <Slider
                 min={2000}
@@ -274,7 +276,7 @@ export function ResearchQueryBar({
             {/* Score range */}
             <div className="paper-panel rounded-[1.25rem] p-4 space-y-3">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Score Range
+                {t("research.queryBar.scoreRange")}
               </h4>
               <Slider
                 min={1}
@@ -298,7 +300,7 @@ export function ResearchQueryBar({
             {/* Has Card */}
             <div className="paper-panel rounded-[1.25rem] p-4 space-y-3">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Options
+                {t("research.queryBar.options")}
               </h4>
               <label className="flex cursor-pointer items-center gap-2 text-xs text-foreground/80 hover:text-foreground">
                 <Checkbox
@@ -310,7 +312,7 @@ export function ResearchQueryBar({
                     })
                   }
                 />
-                <span>Only papers with cards</span>
+                <span>{t("research.queryBar.onlyWithCards")}</span>
               </label>
             </div>
           </div>
@@ -326,7 +328,7 @@ export function ResearchQueryBar({
                   onFiltersChange({})
                 }
               >
-                Clear all filters
+                {t("research.queryBar.clearAllFilters")}
               </Button>
             </div>
           )}

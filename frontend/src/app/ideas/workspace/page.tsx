@@ -4,6 +4,7 @@ import React, { useState, useCallback, useMemo, useEffect, Suspense } from "reac
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useLazyQuery } from "@apollo/client/react";
+import { collectErrorMessages } from "@/components/shared/query-error-banner";
 import {
   Plus,
   Trash2,
@@ -1086,7 +1087,10 @@ function IdeaWorkspaceContent() {
 
       {error && (
         <div className="paper-panel border-red-200/80 bg-red-50/80 p-4 shadow-none">
-          <p className="text-sm text-red-700">Failed to load ideas. Please try again later.</p>
+          <p className="text-sm font-medium text-red-700">Failed to load ideas.</p>
+          <p className="mt-1 text-xs text-red-700">
+            {collectErrorMessages([error]) || "Please refresh the page."}
+          </p>
         </div>
       )}
 

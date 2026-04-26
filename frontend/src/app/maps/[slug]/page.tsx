@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MarkdownRenderer } from "@/components/maps/markdown-renderer";
 import { TocSidebar } from "@/components/maps/toc-sidebar";
 import { FrontierGapsInteractive } from "@/components/maps/frontier-gaps-interactive";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 // ---------------------------------------------------------------------------
 // Loading skeleton
@@ -59,21 +60,22 @@ function MapSkeleton() {
 // ---------------------------------------------------------------------------
 
 function MapNotFound({ slug }: { slug: string }) {
+  const { t } = useI18n();
   return (
     <div className="paper-panel flex flex-col items-center justify-center py-24 text-center">
-      <p className="section-kicker">Missing Brief</p>
+      <p className="section-kicker">{t("maps.detail.missingKicker")}</p>
       <h2 className="mt-3 font-display text-3xl tracking-tight text-foreground">
-        Map not found
+        {t("maps.detail.notFoundTitle")}
       </h2>
       <p className="mt-3 text-sm leading-6 text-muted-foreground">
-        No field map exists with the slug &ldquo;{slug}&rdquo;.
+        {t("maps.detail.notFoundBody", { slug })}
       </p>
       <Link
         href="/maps"
         className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-border/70 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-accent/50"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to Field Maps
+        {t("maps.detail.backToMaps")}
       </Link>
     </div>
   );
@@ -89,6 +91,7 @@ interface FieldMapDetailPageProps {
 
 export default function FieldMapDetailPage({ params }: FieldMapDetailPageProps) {
   const { slug } = use(params);
+  const { t } = useI18n();
 
   const isFrontierGaps = slug === "frontier_gaps";
 
@@ -96,6 +99,9 @@ export default function FieldMapDetailPage({ params }: FieldMapDetailPageProps) 
     GET_FIELD_MAP,
     { variables: { slug } }
   );
+  const localizedTitle = isFrontierGaps
+    ? t("maps.registry.frontierGaps.title")
+    : data?.fieldMap?.title;
 
   return (
     <div className="space-y-6">
@@ -105,7 +111,7 @@ export default function FieldMapDetailPage({ params }: FieldMapDetailPageProps) 
         className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
-        All Field Maps
+        {t("maps.detail.allMaps")}
       </Link>
 
       {/* Loading */}
@@ -119,28 +125,25 @@ export default function FieldMapDetailPage({ params }: FieldMapDetailPageProps) 
         <>
           <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
             <div className="space-y-3">
-              <p className="section-kicker">Field Brief</p>
+              <p className="section-kicker">{t("maps.common.fieldBrief")}</p>
               <h1 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
-                {data.fieldMap.title}
+                {localizedTitle}
               </h1>
               <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
-                Read the synthesized map as a dossier: major sections, linked
-                papers, and recurring questions are all structured for long-form
-                navigation.
+                {isFrontierGaps ? t("maps.detail.frontierGapsBody") : t("maps.detail.body")}
               </p>
             </div>
             <div className="rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
-              <p className="section-kicker">Use This View</p>
+              <p className="section-kicker">{t("maps.detail.infoKicker")}</p>
               <p className="mt-2 text-sm leading-6 text-foreground/80">
-                Maps are the atlas layer. They condense scattered paper-level
-                detail into field narratives, methods, debates, and gaps.
+                {t("maps.detail.infoBody")}
               </p>
             </div>
           </div>
 
           {isFrontierGaps ? (
             /* Interactive frontier gaps view */
-            <div className="paper-panel max-w-4xl p-6">
+            <div className="paper-panel max-w-5xl p-6">
               <FrontierGapsInteractive />
             </div>
           ) : (

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Scale, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import type { ConsensusResult, ConsensusItem } from "@/lib/types";
+import { activeLibraryFetch, getApiUrl, withActiveLibraryHeaders } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -59,10 +60,10 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
     setResult(null);
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8011";
-      const res = await fetch(`${apiBase}/api/analyze/consensus`, {
+      const apiBase = getApiUrl();
+      const res = await activeLibraryFetch(`${apiBase}/api/analyze/consensus`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: withActiveLibraryHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           query: searchQuery,
           paper_ids: allPaperIds.slice(0, 50),

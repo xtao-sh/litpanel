@@ -13,15 +13,28 @@ import {
   FileText,
   Clock,
   AlertCircle,
+  MinusCircle,
+  Network,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { appConfig } from "@/lib/app-config";
+import { getApiUrl, readErrorMessage } from "@/lib/api";
+import type { ImportBatch, Library } from "@/lib/types";
+import { getStoredActiveLibraryId, resolveInitialLibraryId, setStoredActiveLibraryId } from "@/lib/libraries";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8011";
+const API_URL = getApiUrl();
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,6 +56,7 @@ interface PipelineStatus {
     paper_id: string;
     status: string;
     triage_decision: string | null;
+    reading_profile?: string | null;
     updated_at: string | null;
     completed_at: string | null;
   }>;
@@ -50,7 +64,136 @@ interface PipelineStatus {
   error?: string;
 }
 
-type StepStatus = "idle" | "running" | "done" | "error";
+interface BatchUploadResult {
+  batch_id?: number;
+  total_files: number;
+  imported_files: number;
+  skipped_files: number;
+  failed_files: number;
+  results: Array<{
+    filename: string;
+    paper_id?: string;
+    status?: string;
+    error?: string;
+  }>;
+}
+
+function isPipelineErrorValue(value: unknown): boolean {
+  return typeof value === "string" && value.toLowerCase().startsWith("error:");
+}
+
+function summarizeRefreshErrors(result: {
+  ingestion?: string;
+  embeddings?: unknown;
+  error?: string;
+  [key: string]: unknown;
+} | null): string[] {
+  if (!result) return [];
+
+  const messages: string[] = [];
+  if (result.error) {
+    messages.push(result.error);
+  }
+
+  for (const [key, value] of Object.entries(result)) {
+    if (key === "error" || value == null) continue;
+    if (isPipelineErrorValue(value)) {
+      messages.push(`${key}: ${String(value).replace(/^error:\s*/i, "")}`);
+    }
+  }
+
+  return messages;
+}
+
+interface ReadingProfileOption {
+  value: string;
+  label: string;
+  description: string;
+}
+
+interface AnalysisFocusOption {
+  value: string;
+  label: string;
+  description: string;
+}
+
+type StepStatus = "idle" | "running" | "done" | "error" | "skipped";
+
+const DEFAULT_READING_PROFILE_OPTIONS: ReadingProfileOption[] = [
+  {
+    value: "auto",
+    label: "自动",
+    description: "先做初筛，值得展开的论文再进入深度读取。",
+  },
+  {
+    value: "metadata_only",
+    label: "仅元数据",
+    description: "只登记论文，不运行 AI 阅读。",
+  },
+  {
+    value: "title_abstract",
+    label: "标题 + 摘要",
+    description: "只生成轻量级摘要和初筛信息。",
+  },
+  {
+    value: "full_content",
+    label: "全文内容",
+    description: "提取方法、数据、发现等全文信息。",
+  },
+  {
+    value: "style_logic",
+    label: "文风 + 逻辑",
+    description: "在全文提取基础上额外关注写作风格和论证逻辑。",
+  },
+];
+
+const DEFAULT_ANALYSIS_FOCUS_OPTIONS: AnalysisFocusOption[] = [
+  {
+    value: "title_abstract",
+    label: "标题与摘要",
+    description: "提取论文的标题框架和简明摘要。",
+  },
+  {
+    value: "research_question",
+    label: "研究问题",
+    description: "关注论文试图回答的核心问题。",
+  },
+  {
+    value: "methods_data",
+    label: "方法与数据",
+    description: "关注识别策略、方法和数据集。",
+  },
+  {
+    value: "findings",
+    label: "发现",
+    description: "关注主要结果、结论和贡献。",
+  },
+  {
+    value: "writing_style",
+    label: "写作风格",
+    description: "关注语气、展开方式和论文写法。",
+  },
+  {
+    value: "argument_logic",
+    label: "论证逻辑",
+    description: "关注推理链条、假设和因果逻辑。",
+  },
+];
+
+const READING_PROFILE_LABELS = new Map(
+  DEFAULT_READING_PROFILE_OPTIONS.map((option) => [option.value, option])
+);
+const ANALYSIS_FOCUS_LABELS = new Map(
+  DEFAULT_ANALYSIS_FOCUS_OPTIONS.map((option) => [option.value, option])
+);
+
+function localizeReadingProfiles(options: ReadingProfileOption[]) {
+  return options.map((option) => ({ ...option, ...(READING_PROFILE_LABELS.get(option.value) ?? {}) }));
+}
+
+function localizeAnalysisFocuses(options: AnalysisFocusOption[]) {
+  return options.map((option) => ({ ...option, ...(ANALYSIS_FOCUS_LABELS.get(option.value) ?? {}) }));
+}
 
 // ---------------------------------------------------------------------------
 // Status icon helper
@@ -64,6 +207,8 @@ function StatusIcon({ status }: { status: StepStatus }) {
       return <CheckCircle2 className="h-4 w-4 text-green-600" />;
     case "error":
       return <XCircle className="h-4 w-4 text-red-500" />;
+    case "skipped":
+      return <MinusCircle className="h-4 w-4 text-gray-400" />;
     default:
       return <Clock className="h-4 w-4 text-gray-300" />;
   }
@@ -84,6 +229,20 @@ function statusColor(status: string): string {
     default:
       return "bg-gray-50 text-gray-700 border-gray-200";
   }
+}
+
+function SummaryPill({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground">
+      <span className="font-semibold text-foreground">{value}</span> {label}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -116,11 +275,31 @@ export default function PipelinePage() {
   const [uploadResult, setUploadResult] = useState<{
     paper_id?: string;
     status?: string;
+    reading_profile?: string;
     error?: string;
   } | null>(null);
   const [uploadError, setUploadError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const [libraries, setLibraries] = useState<Library[]>([]);
+  const [selectedLibraryId, setSelectedLibraryId] = useState<number | null>(null);
+  const [batchUploading, setBatchUploading] = useState(false);
+  const [batchResult, setBatchResult] = useState<BatchUploadResult | null>(null);
+  const [importHistory, setImportHistory] = useState<ImportBatch[]>([]);
+  const [importsLoading, setImportsLoading] = useState(false);
+  const [readingProfile, setReadingProfile] = useState("auto");
+  const [analysisFocuses, setAnalysisFocuses] = useState<string[]>([
+    "research_question",
+    "methods_data",
+    "findings",
+  ]);
+  const [readingProfileOptions, setReadingProfileOptions] = useState<ReadingProfileOption[]>(
+    DEFAULT_READING_PROFILE_OPTIONS
+  );
+  const [analysisFocusOptions, setAnalysisFocusOptions] = useState<AnalysisFocusOption[]>(
+    DEFAULT_ANALYSIS_FOCUS_OPTIONS
+  );
 
   // --- Pipeline run ---
   const [pipelineRunning, setPipelineRunning] = useState(false);
@@ -137,34 +316,145 @@ export default function PipelinePage() {
     embeddings?: unknown;
     error?: string;
   } | null>(null);
+  const [relationBuilding, setRelationBuilding] = useState(false);
+  const [relationResult, setRelationResult] = useState<{
+    completed_papers?: number;
+    reset_papers?: number;
+    linker?: { success?: boolean; stderr?: string };
+    error?: string;
+  } | null>(null);
 
   // --- Status ---
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus | null>(
     null
   );
   const [statusLoading, setStatusLoading] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   // -----------------------------------------------------------------------
   // Fetch pipeline status
   // -----------------------------------------------------------------------
   const fetchStatus = useCallback(async () => {
     setStatusLoading(true);
+    setStatusError(null);
     try {
-      const resp = await fetch(`${API_URL}/api/pipeline/status`);
-      if (resp.ok) {
-        const data = await resp.json();
-        setPipelineStatus(data);
+      const query = selectedLibraryId ? `?library_id=${selectedLibraryId}` : "";
+      const resp = await fetch(`${API_URL}/api/pipeline/status${query}`);
+      if (!resp.ok) {
+        throw new Error(await readErrorMessage(resp, "Failed to load pipeline status"));
       }
-    } catch {
-      // ignore
+      const data = await resp.json();
+      setPipelineStatus(data);
+      if (data?.error) {
+        setStatusError(String(data.error));
+      }
+    } catch (err) {
+      setPipelineStatus(null);
+      setStatusError(
+        err instanceof Error ? err.message : "Failed to load pipeline status."
+      );
     } finally {
       setStatusLoading(false);
+    }
+  }, [selectedLibraryId]);
+
+  const fetchImportHistory = useCallback(async () => {
+    if (!selectedLibraryId) {
+      setImportHistory([]);
+      return;
+    }
+    setImportsLoading(true);
+    try {
+      const resp = await fetch(`${API_URL}/api/libraries/${selectedLibraryId}/imports?limit=8`);
+      if (!resp.ok) {
+        throw new Error(await readErrorMessage(resp, "Failed to load import history"));
+      }
+      const data = await resp.json();
+      setImportHistory((data.imports ?? []) as ImportBatch[]);
+    } catch {
+      setImportHistory([]);
+    } finally {
+      setImportsLoading(false);
+    }
+  }, [selectedLibraryId]);
+
+  const loadLibraries = useCallback(async () => {
+    const resp = await fetch(`${API_URL}/api/libraries`);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const nextLibraries = (data.libraries ?? []) as Library[];
+    setLibraries(nextLibraries);
+    const initial = resolveInitialLibraryId(nextLibraries) ?? getStoredActiveLibraryId();
+    setSelectedLibraryId(initial);
+    setStoredActiveLibraryId(initial);
+    return nextLibraries;
+  }, []);
+
+  const fetchPipelineOptions = useCallback(async () => {
+    try {
+      const resp = await fetch(`${API_URL}/api/pipeline/options`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (Array.isArray(data.reading_profiles) && data.reading_profiles.length > 0) {
+        setReadingProfileOptions(localizeReadingProfiles(data.reading_profiles as ReadingProfileOption[]));
+      }
+      if (Array.isArray(data.analysis_focuses) && data.analysis_focuses.length > 0) {
+        setAnalysisFocusOptions(localizeAnalysisFocuses(data.analysis_focuses as AnalysisFocusOption[]));
+      }
+    } catch {
+      // ignore and keep defaults
     }
   }, []);
 
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]);
+
+  useEffect(() => {
+    fetchImportHistory();
+  }, [fetchImportHistory]);
+
+  useEffect(() => {
+    fetchPipelineOptions();
+  }, [fetchPipelineOptions]);
+
+  useEffect(() => {
+    let active = true;
+    async function initializeLibraries() {
+      try {
+        if (!active) return;
+        await loadLibraries();
+      } catch {
+        // ignore
+      }
+    }
+    initializeLibraries();
+    return () => {
+      active = false;
+    };
+  }, [loadLibraries]);
+
+  const selectedLibrary =
+    libraries.find((library) => library.id === selectedLibraryId) ?? null;
+  const selectedReadingProfile =
+    readingProfileOptions.find((option) => option.value === readingProfile) ?? null;
+  const refreshErrors = summarizeRefreshErrors(refreshResult);
+
+  const toggleAnalysisFocus = (focus: string, checked: boolean) => {
+    setAnalysisFocuses((prev) => {
+      if (checked) {
+        return prev.includes(focus) ? prev : [...prev, focus];
+      }
+      return prev.filter((item) => item !== focus);
+    });
+  };
+
+  const serializeFocuses = () => JSON.stringify(analysisFocuses);
+  const getAgentStepStatus = (step?: { success?: boolean; skipped?: boolean } | null): StepStatus => {
+    if (!step) return "idle";
+    if (step.skipped) return "skipped";
+    return step.success ? "done" : "error";
+  };
 
   // -----------------------------------------------------------------------
   // Discover
@@ -174,12 +464,13 @@ export default function PipelinePage() {
     setDiscoverError("");
     setDiscoveredPapers([]);
     try {
-      const resp = await fetch(`${API_URL}/api/pipeline/discover`, {
+      const resp = await fetch(`${API_URL}/api/pipeline/discover?limit=20`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ limit: 20 }),
       });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      if (!resp.ok) {
+        const detail = await resp.json().catch(() => null);
+        throw new Error(detail?.detail ?? `HTTP ${resp.status}`);
+      }
       const data = await resp.json();
       setDiscoveredPapers(data.new_papers ?? []);
     } catch (err) {
@@ -197,10 +488,17 @@ export default function PipelinePage() {
       const resp = await fetch(`${API_URL}/api/pipeline/process`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paper_id: pid }),
+        body: JSON.stringify({
+          paper_id: pid,
+          library_id: selectedLibraryId,
+          reading_profile: readingProfile,
+          analysis_focuses: analysisFocuses,
+        }),
       });
       if (resp.ok) {
         setProcessedIds((prev) => new Set(prev).add(pid));
+        fetchStatus();
+        loadLibraries();
       }
     } catch {
       // ignore
@@ -233,21 +531,25 @@ export default function PipelinePage() {
       const resp = await fetch(`${API_URL}/api/pipeline/process`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paper_id: id }),
+        body: JSON.stringify({
+          paper_id: id,
+          library_id: selectedLibraryId,
+          reading_profile: readingProfile,
+          analysis_focuses: analysisFocuses,
+        }),
       });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      if (!resp.ok) {
+        const detail = await resp.json().catch(() => null);
+        throw new Error(detail?.detail ?? `HTTP ${resp.status}`);
+      }
       const data = await resp.json();
 
       // Map response to step statuses
       setProcessSteps({
         download: data.download?.status === "ok" ? "done" : "error",
         register: data.registered ? "done" : "error",
-        scout: data.scout?.success ? "done" : data.scout ? "error" : "idle",
-        reader: data.reader?.success
-          ? "done"
-          : data.reader
-            ? "error"
-            : "idle",
+        scout: getAgentStepStatus(data.scout),
+        reader: getAgentStepStatus(data.reader),
         refresh: data.refresh?.ingestion === "ok" ? "done" : data.refresh ? "error" : "idle",
       });
 
@@ -286,9 +588,14 @@ export default function PipelinePage() {
 
     const formData = new FormData();
     formData.append("file", uploadFile);
+    if (selectedLibraryId) {
+      formData.append("library_id", String(selectedLibraryId));
+    }
     if (uploadPaperId.trim()) {
       formData.append("paper_id", uploadPaperId.trim());
     }
+    formData.append("reading_profile", readingProfile);
+    formData.append("analysis_focuses", serializeFocuses());
 
     try {
       const resp = await fetch(`${API_URL}/api/pipeline/upload`, {
@@ -303,12 +610,50 @@ export default function PipelinePage() {
       } else {
         setUploadStatus("done");
         setUploadResult(data);
+        fetchStatus();
+        fetchImportHistory();
+        loadLibraries();
       }
     } catch (err) {
       setUploadStatus("error");
       setUploadError(
         err instanceof Error ? err.message : "Upload failed"
       );
+    }
+  };
+
+  const handleFolderUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !selectedLibraryId) return;
+
+    setBatchUploading(true);
+    setBatchResult(null);
+    setUploadError("");
+
+    const formData = new FormData();
+    formData.append("library_id", String(selectedLibraryId));
+    formData.append("reading_profile", readingProfile);
+    formData.append("analysis_focuses", serializeFocuses());
+    Array.from(files)
+      .filter((file) => file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"))
+      .forEach((file) => {
+        formData.append("files", file);
+      });
+
+    try {
+      const resp = await fetch(`${API_URL}/api/pipeline/upload-batch`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) throw new Error(data?.detail ?? `HTTP ${resp.status}`);
+      setBatchResult(data);
+      fetchStatus();
+      fetchImportHistory();
+      loadLibraries();
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Batch upload failed");
+    } finally {
+      setBatchUploading(false);
     }
   };
 
@@ -334,7 +679,11 @@ export default function PipelinePage() {
       const resp = await fetch(`${API_URL}/api/pipeline/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agent: "full-cycle", batch_size: 10 }),
+        body: JSON.stringify({
+          agent: "full-cycle",
+          batch_size: 10,
+          library_id: selectedLibraryId,
+        }),
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
@@ -347,6 +696,8 @@ export default function PipelinePage() {
     } finally {
       setPipelineRunning(false);
       fetchStatus();
+      fetchImportHistory();
+      loadLibraries();
     }
   };
 
@@ -357,10 +708,13 @@ export default function PipelinePage() {
     setRefreshing(true);
     setRefreshResult(null);
     try {
-      const resp = await fetch(`${API_URL}/api/pipeline/refresh`, {
+      const query = selectedLibraryId ? `?library_id=${selectedLibraryId}` : "";
+      const resp = await fetch(`${API_URL}/api/pipeline/refresh${query}`, {
         method: "POST",
       });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      if (!resp.ok) {
+        throw new Error(await readErrorMessage(resp, "Failed to refresh the indexed database"));
+      }
       const data = await resp.json();
       setRefreshResult(data);
     } catch (err) {
@@ -369,6 +723,36 @@ export default function PipelinePage() {
       });
     } finally {
       setRefreshing(false);
+      fetchStatus();
+      fetchImportHistory();
+      loadLibraries();
+    }
+  };
+
+  const handleBuildRelations = async () => {
+    setRelationBuilding(true);
+    setRelationResult(null);
+    try {
+      const resp = await fetch(`${API_URL}/api/pipeline/build-relations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          library_id: selectedLibraryId,
+          force_rebuild: true,
+        }),
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) throw new Error(data?.detail ?? data?.error ?? `HTTP ${resp.status}`);
+      setRelationResult(data);
+    } catch (err) {
+      setRelationResult({
+        error: err instanceof Error ? err.message : "Failed to build relations",
+      });
+    } finally {
+      setRelationBuilding(false);
+      fetchStatus();
+      fetchImportHistory();
+      loadLibraries();
     }
   };
 
@@ -380,21 +764,157 @@ export default function PipelinePage() {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-          Paper Pipeline
+          导入中心
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Discover, download, and process new NBER working papers
+          导入、同步并处理 PDF 到本地知识库
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          AI 模型和流程路由可以在设置页配置。
         </p>
       </div>
+
+      {libraries.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-background/70 px-4 py-3">
+          <span className="text-sm font-medium text-foreground">目标文献库</span>
+          <select
+            value={selectedLibraryId ?? ""}
+            onChange={(event) => {
+              const nextId = Number(event.target.value) || null;
+              setSelectedLibraryId(nextId);
+              setStoredActiveLibraryId(nextId);
+            }}
+            className="h-10 min-w-[220px] rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+          >
+            {libraries.map((library) => (
+              <option key={library.id} value={library.id}>
+                {library.name}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-muted-foreground">
+            导入内容会写入当前选择的文献库。
+          </span>
+        </div>
+      )}
+
+      {!appConfig.supportsRemoteDiscovery && (
+        <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+          当前工作区未启用远程发现。请通过 PDF 上传建立本地文献库。
+        </div>
+      )}
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">
+            AI 阅读设置
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,320px)_1fr]">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">阅读方案</p>
+              <Select value={readingProfile} onValueChange={setReadingProfile}>
+                <SelectTrigger>
+                  <SelectValue placeholder="选择阅读方案" />
+                </SelectTrigger>
+                <SelectContent>
+                  {readingProfileOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {selectedReadingProfile?.description ??
+                  "该方案控制新论文进入知识库前的读取深度。"}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">分析重点</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {analysisFocusOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex gap-3 rounded-xl border border-border bg-background/70 p-3"
+                  >
+                    <Checkbox
+                      checked={analysisFocuses.includes(option.value)}
+                      onCheckedChange={(checked) =>
+                        toggleAnalysisFocus(option.value, checked === true)
+                      }
+                      className="mt-0.5"
+                    />
+                    <span className="space-y-1">
+                      <span className="block text-sm font-medium text-foreground">
+                        {option.label}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {option.description}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+        </CardContent>
+      </Card>
 
       {/* ================================================================ */}
       {/* Section 1: Pipeline Status */}
       {/* ================================================================ */}
       <Card>
         <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">
+            文献库内容状态
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {selectedLibrary ? (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {selectedLibrary.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedLibrary.discipline || "未分类"} · {selectedLibrary.paper_count} 篇论文
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <SummaryPill label="地图" value={selectedLibrary.field_map_count} />
+                <SummaryPill label="想法" value={selectedLibrary.idea_count} />
+                <SummaryPill label="摘要" value={selectedLibrary.digest_count} />
+                <SummaryPill label="导入批次" value={selectedLibrary.import_batch_count} />
+              </div>
+              <div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-2">
+                <p>
+                  最新摘要：<span className="font-medium text-foreground">{selectedLibrary.latest_digest_date ?? "无"}</span>
+                </p>
+                <p>
+                  最新想法：<span className="font-medium text-foreground">{selectedLibrary.latest_idea_date ?? "无"}</span>
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                用这里检查当前文献库是否已有地图、想法、摘要和导入记录。
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              选择文献库后查看内容状态。
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold">
-              Pipeline Status
+              流程状态
             </CardTitle>
             <Button
               variant="ghost"
@@ -411,19 +931,24 @@ export default function PipelinePage() {
           </div>
         </CardHeader>
         <CardContent>
+          {statusError && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              {statusError}
+            </div>
+          )}
           {pipelineStatus ? (
             <div className="space-y-4">
               {/* Count badges */}
               <div className="flex flex-wrap gap-3">
                 {[
-                  { label: "Total", key: "total", color: "bg-gray-100 text-gray-800" },
-                  { label: "Pending", key: "pending", color: "bg-yellow-100 text-yellow-800" },
-                  { label: "Triaged", key: "triaged", color: "bg-blue-100 text-blue-800" },
-                  { label: "Completed", key: "completed", color: "bg-green-100 text-green-800" },
-                  { label: "Errors", key: "error", color: "bg-red-100 text-red-800" },
-                  { label: "Deep Read", key: "triage_DEEP_READ", color: "bg-indigo-100 text-indigo-800" },
-                  { label: "Skim", key: "triage_SKIM", color: "bg-slate-100 text-slate-700" },
-                  { label: "Skip", key: "triage_SKIP", color: "bg-gray-50 text-gray-500" },
+                  { label: "总数", key: "total", color: "bg-gray-100 text-gray-800" },
+                  { label: "待处理", key: "pending", color: "bg-yellow-100 text-yellow-800" },
+                  { label: "已分流", key: "triaged", color: "bg-blue-100 text-blue-800" },
+                  { label: "已完成", key: "completed", color: "bg-green-100 text-green-800" },
+                  { label: "错误", key: "error", color: "bg-red-100 text-red-800" },
+                  { label: "深度读取", key: "triage_DEEP_READ", color: "bg-indigo-100 text-indigo-800" },
+                  { label: "略读", key: "triage_SKIM", color: "bg-slate-100 text-slate-700" },
+                  { label: "跳过", key: "triage_SKIP", color: "bg-gray-50 text-gray-500" },
                 ].map(({ label, key, color }) => (
                   <div
                     key={key}
@@ -439,9 +964,9 @@ export default function PipelinePage() {
 
               {/* Downloaded PDFs */}
               <p className="text-xs text-gray-500">
-                {pipelineStatus.downloaded_pdfs} PDFs cached locally
+                本地已缓存 {pipelineStatus.downloaded_pdfs} 个 PDF
                 {pipelineStatus.timestamp && (
-                  <> &middot; Last checked {new Date(pipelineStatus.timestamp).toLocaleTimeString()}</>
+                  <> &middot; 最近检查 {new Date(pipelineStatus.timestamp).toLocaleTimeString()}</>
                 )}
               </p>
 
@@ -457,7 +982,7 @@ export default function PipelinePage() {
                   ) : (
                     <Play className="h-4 w-4" />
                   )}
-                  Run Full Pipeline
+                  运行完整流程
                 </Button>
                 <Button
                   variant="outline"
@@ -470,7 +995,7 @@ export default function PipelinePage() {
                   ) : (
                     <RefreshCw className="h-4 w-4" />
                   )}
-                  Refresh Website DB
+                  刷新网站数据库
                 </Button>
               </div>
 
@@ -484,7 +1009,7 @@ export default function PipelinePage() {
                   }`}
                 >
                   <p className="font-medium">
-                    Pipeline {pipelineResult.success ? "completed" : "failed"}
+                    流程{pipelineResult.success ? "已完成" : "失败"}
                   </p>
                   {pipelineResult.stderr ? (
                     <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap text-xs opacity-80">
@@ -496,8 +1021,21 @@ export default function PipelinePage() {
 
               {/* Refresh result */}
               {refreshResult && (
-                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-                  <p className="font-medium">Refresh result</p>
+                <div
+                  className={`rounded-lg border p-3 text-sm ${
+                    refreshErrors.length > 0
+                      ? "border-red-200 bg-red-50 text-red-800"
+                      : "border-blue-200 bg-blue-50 text-blue-800"
+                  }`}
+                >
+                  <p className="font-medium">刷新结果</p>
+                  {refreshErrors.length > 0 ? (
+                    <div className="mt-2 space-y-1 text-xs">
+                      {refreshErrors.map((message) => (
+                        <p key={message}>{message}</p>
+                      ))}
+                    </div>
+                  ) : null}
                   <pre className="mt-1 whitespace-pre-wrap text-xs opacity-80">
                     {JSON.stringify(refreshResult, null, 2)}
                   </pre>
@@ -507,7 +1045,137 @@ export default function PipelinePage() {
           ) : (
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading status...
+              正在加载状态……
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold">
+              最近导入
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={fetchImportHistory}
+              disabled={importsLoading || !selectedLibraryId}
+            >
+              {importsLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!selectedLibraryId ? (
+            <p className="text-sm text-muted-foreground">选择文献库后查看导入历史。</p>
+          ) : importsLoading && importHistory.length === 0 ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              正在加载导入历史……
+            </div>
+          ) : importHistory.length > 0 ? (
+            <div className="space-y-3">
+              {importHistory.map((batch) => (
+                <div key={batch.id} className="rounded-xl border border-border bg-background/70 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {batch.source_label || batch.source_type}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(batch.created_at).toLocaleString()} · {batch.source_type}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <Badge variant="outline">{batch.total_files} 个文件</Badge>
+                      <Badge className="bg-green-100 text-green-700 border-green-200">
+                        {batch.imported_files} 已导入
+                      </Badge>
+                      <Badge className="bg-slate-100 text-slate-700 border-slate-200">
+                        {batch.skipped_files} 已跳过
+                      </Badge>
+                      <Badge className="bg-red-100 text-red-700 border-red-200">
+                        {batch.failed_files} 失败
+                      </Badge>
+                    </div>
+                  </div>
+                  {batch.files.length > 0 && (
+                    <div className="mt-3 space-y-1.5 rounded-lg bg-muted/30 p-3">
+                      {batch.files.slice(0, 6).map((file) => (
+                        <div key={file.id} className="flex items-center justify-between gap-3 text-xs">
+                          <span className="truncate text-foreground">{file.filename}</span>
+                          <span className="shrink-0 text-muted-foreground">{file.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              这个文献库还没有导入历史。
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">
+            建立 AI 论文关联
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            在论文读取完成后，为当前文献库重新建立跨论文关系，并刷新后续地图和图谱数据。
+          </p>
+          <div className="flex gap-3">
+            <Button
+              onClick={handleBuildRelations}
+              disabled={relationBuilding || !selectedLibraryId}
+              className="gap-2"
+            >
+              {relationBuilding ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Network className="h-4 w-4" />
+              )}
+              建立 AI 关联
+            </Button>
+          </div>
+
+          {relationResult && (
+            <div
+              className={`rounded-lg border p-3 text-sm ${
+                relationResult.error || relationResult.linker?.success === false
+                  ? "border-red-200 bg-red-50 text-red-800"
+                  : "border-blue-200 bg-blue-50 text-blue-800"
+              }`}
+            >
+              {relationResult.error ? (
+                <p className="font-medium">{relationResult.error}</p>
+              ) : (
+                <>
+                  <p className="font-medium">
+                    已处理 {relationResult.completed_papers ?? 0} 篇完成读取的论文
+                  </p>
+                  <p className="mt-1 text-xs opacity-80">
+                    已重置 {relationResult.reset_papers ?? 0} 篇论文用于重新建立关联。
+                  </p>
+                  {relationResult.linker?.stderr ? (
+                    <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap text-xs opacity-80">
+                      {relationResult.linker.stderr.slice(0, 500)}
+                    </pre>
+                  ) : null}
+                </>
+              )}
             </div>
           )}
         </CardContent>
@@ -516,10 +1184,11 @@ export default function PipelinePage() {
       {/* ================================================================ */}
       {/* Section 2: Discover New Papers */}
       {/* ================================================================ */}
+      {appConfig.supportsRemoteDiscovery && (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">
-            Discover New Papers
+            从 {appConfig.remoteDiscoveryLabel} 同步
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -534,7 +1203,7 @@ export default function PipelinePage() {
               ) : (
                 <Search className="h-4 w-4" />
               )}
-              Check for New Papers
+              检查新论文
             </Button>
           </div>
 
@@ -548,8 +1217,7 @@ export default function PipelinePage() {
           {discoveredPapers.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs text-gray-500">
-                {discoveredPapers.length} new paper
-                {discoveredPapers.length !== 1 ? "s" : ""} found
+                找到 {discoveredPapers.length} 篇新论文
               </p>
               <div className="divide-y rounded-lg border">
                 {discoveredPapers.map((paper) => (
@@ -564,12 +1232,12 @@ export default function PipelinePage() {
                         </Badge>
                         {processedIds.has(paper.paper_id) && (
                           <Badge className="bg-green-100 text-green-700 border-green-200">
-                            Processed
+                            已处理
                           </Badge>
                         )}
                       </div>
                       <p className="mt-1 text-sm font-medium text-gray-900 truncate">
-                        {paper.title || "Untitled"}
+                        {paper.title || "未命名"}
                       </p>
                       {paper.authors && (
                         <p className="text-xs text-gray-500 truncate">
@@ -594,7 +1262,7 @@ export default function PipelinePage() {
                       ) : (
                         <Download className="h-3 w-3" />
                       )}
-                      Process
+                      处理
                     </Button>
                   </div>
                 ))}
@@ -606,22 +1274,28 @@ export default function PipelinePage() {
             discoveredPapers.length === 0 &&
             !discoverError && (
               <p className="text-sm text-gray-400">
-                Click the button to check the NBER API for new papers.
+                点击按钮检查 {appConfig.remoteDiscoveryLabel} 是否有新论文。
               </p>
             )}
         </CardContent>
       </Card>
+      )}
 
       {/* ================================================================ */}
       {/* Section 3: Process by ID */}
       {/* ================================================================ */}
+      {appConfig.supportsRemoteDiscovery && (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">
-            Process by Paper ID
+            按论文 ID 处理
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            这个操作会使用当前 AI 阅读设置：
+            <span className="font-medium text-foreground">{selectedReadingProfile?.label ?? "自动"}</span>。
+          </p>
           <div className="flex gap-3">
             <Input
               placeholder="e.g. w35000"
@@ -641,7 +1315,7 @@ export default function PipelinePage() {
               className="gap-2"
             >
               <Download className="h-4 w-4" />
-              Download &amp; Process
+              下载并处理
             </Button>
           </div>
 
@@ -649,11 +1323,11 @@ export default function PipelinePage() {
           {Object.keys(processSteps).length > 0 && (
             <div className="space-y-2">
               {[
-                { key: "download", label: "Download PDF" },
-                { key: "register", label: "Register in agent DB" },
-                { key: "scout", label: "Scout triage" },
-                { key: "reader", label: "Reader deep-read" },
-                { key: "refresh", label: "Refresh website DB" },
+                { key: "download", label: "下载 PDF" },
+                { key: "register", label: "登记到 Agent 数据库" },
+                { key: "scout", label: "初筛分流" },
+                { key: "reader", label: "深度读取" },
+                { key: "refresh", label: "刷新网站数据库" },
               ].map(({ key, label }) => (
                 <div key={key} className="flex items-center gap-2 text-sm">
                   <StatusIcon
@@ -665,6 +1339,8 @@ export default function PipelinePage() {
                         ? "text-gray-900"
                         : processSteps[key] === "error"
                           ? "text-red-600"
+                          : processSteps[key] === "skipped"
+                            ? "text-gray-400"
                           : "text-gray-500"
                     }
                   >
@@ -683,6 +1359,7 @@ export default function PipelinePage() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* ================================================================ */}
       {/* Section 4: Upload PDF */}
@@ -690,10 +1367,13 @@ export default function PipelinePage() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">
-            Upload PDF
+            上传 PDF
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            新上传的论文会保存当前 AI 阅读设置，后续流程会按这个方案处理。
+          </p>
           {/* Drop zone */}
           <div
             className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors ${
@@ -738,9 +1418,9 @@ export default function PipelinePage() {
               <div className="text-center">
                 <Upload className="mx-auto h-8 w-8 text-gray-400" />
                 <p className="mt-2 text-sm text-gray-600">
-                  Drag and drop a PDF here, or click to browse
+                  拖入 PDF，或点击选择文件
                 </p>
-                <p className="mt-1 text-xs text-gray-400">Max 50 MB</p>
+                <p className="mt-1 text-xs text-gray-400">最大 50 MB</p>
               </div>
             )}
           </div>
@@ -748,7 +1428,7 @@ export default function PipelinePage() {
           {/* Optional paper ID + upload button */}
           <div className="flex gap-3">
             <Input
-              placeholder="Paper ID (optional, e.g. w35000)"
+              placeholder="论文 ID（可选，例如 w35000）"
               value={uploadPaperId}
               onChange={(e) => setUploadPaperId(e.target.value)}
               className="max-w-xs font-mono"
@@ -763,24 +1443,70 @@ export default function PipelinePage() {
               ) : (
                 <Upload className="h-4 w-4" />
               )}
-              Upload &amp; Register
+              上传并登记
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => folderInputRef.current?.click()}
+              disabled={batchUploading || !selectedLibraryId}
+              className="gap-2"
+            >
+              {batchUploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileText className="h-4 w-4" />
+              )}
+              导入文件夹
+            </Button>
+            <input
+              ref={folderInputRef}
+              type="file"
+              multiple
+              accept=".pdf"
+              className="hidden"
+              {...({ webkitdirectory: "true", directory: "true" } as Record<string, string>)}
+              onChange={(e) => {
+                void handleFolderUpload(e.target.files);
+                e.currentTarget.value = "";
+              }}
+            />
           </div>
 
           {/* Upload result */}
           {uploadStatus === "done" && uploadResult && (
             <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-              <p className="font-medium">Upload successful</p>
+              <p className="font-medium">上传成功</p>
               <p className="mt-1 text-xs">
-                Paper ID: <span className="font-mono">{uploadResult.paper_id ?? ""}</span>
-                {" "}&middot; Status: {uploadResult.status ?? ""}
+                论文 ID：<span className="font-mono">{uploadResult.paper_id ?? ""}</span>
+                {" "}&middot; 状态：{uploadResult.status ?? ""}
               </p>
+              {uploadResult.reading_profile ? (
+                <p className="mt-1 text-xs">
+                  阅读方案：<span className="font-medium">{uploadResult.reading_profile}</span>
+                </p>
+              ) : null}
             </div>
           )}
           {uploadError && (
             <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               <AlertCircle className="h-4 w-4 shrink-0" />
               {uploadError}
+            </div>
+          )}
+          {batchResult && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+              <p className="font-medium">
+                批量导入完成：{batchResult.imported_files} 个已导入，{batchResult.skipped_files} 个已跳过，{batchResult.failed_files} 个失败
+              </p>
+              <div className="mt-2 max-h-40 overflow-auto space-y-1 text-xs">
+                {batchResult.results.map((item) => (
+                  <div key={`${item.filename}-${item.paper_id ?? ""}`} className="flex items-center justify-between gap-3">
+                    <span className="truncate">{item.filename}</span>
+                    <span className="shrink-0 font-medium">{item.status ?? "未知"}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </CardContent>
@@ -792,7 +1518,7 @@ export default function PipelinePage() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">
-            Recent Activity
+            最近活动
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -818,6 +1544,11 @@ export default function PipelinePage() {
                         {paper.triage_decision}
                       </Badge>
                     )}
+                    {paper.reading_profile && (
+                      <Badge variant="outline" className="text-xs">
+                        {paper.reading_profile}
+                      </Badge>
+                    )}
                   </div>
                   {paper.updated_at && (
                     <span className="shrink-0 text-xs text-gray-400">
@@ -828,7 +1559,7 @@ export default function PipelinePage() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-400">No recent activity.</p>
+            <p className="text-sm text-gray-400">暂无最近活动。</p>
           )}
         </CardContent>
       </Card>

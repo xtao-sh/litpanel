@@ -313,12 +313,33 @@ Built with **Next.js 14** (App Router), **Apollo Client** for GraphQL, **Tailwin
 **Development servers:**
 
 ```bash
-# Start both backend and frontend
-./scripts/dev.sh
+# Start both backend and frontend in development mode
+./scripts/dev.sh start
 
-# Or separately:
-cd backend && python3 -m uvicorn app:app --host 127.0.0.1 --port 8001 --reload
-cd frontend && npm run dev
+# Check currently running processes
+./scripts/dev.sh status
+
+# Run smoke checks through the dev helper
+./scripts/dev.sh smoke
+
+# Stop both services
+./scripts/dev.sh stop
+
+# Run a smoke check against the live services
+./scripts/smoke.sh
+
+# Backend only smoke check
+./scripts/smoke.sh --backend-only
+```
+
+**Production-style local supervisor:**
+
+```bash
+# Start a self-restarting local supervisor
+./scripts/serve.sh
+
+# Install a macOS LaunchAgent so the app keeps running after login
+./scripts/install_launch_agent.sh
 ```
 
 **Run the agent pipeline:**
@@ -336,9 +357,10 @@ cd backend && python3 ingest.py
 ```
 
 **Access points:**
-- Frontend: http://localhost:3000
-- GraphQL API: http://localhost:8001/graphql (with GraphiQL IDE)
-- Health check: http://localhost:8001/api/health
+- Frontend dev server: http://127.0.0.1:3001
+- Frontend supervised server: http://127.0.0.1:3011
+- GraphQL API: http://127.0.0.1:8011/graphql
+- Health check: http://127.0.0.1:8011/api/health
 
 ---
 

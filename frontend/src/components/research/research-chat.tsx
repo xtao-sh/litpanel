@@ -5,8 +5,9 @@ import { Send, Sparkles, RotateCcw, X, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChatMessage, type Message } from "@/components/ask/chat-message";
 import type { ResearchLandscape } from "@/lib/types";
+import { activeLibraryFetch, getApiUrl, withActiveLibraryHeaders } from "@/lib/api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8011";
+const API_URL = getApiUrl();
 
 // ---------------------------------------------------------------------------
 // Landscape summary generator (compressed for context window)
@@ -206,9 +207,9 @@ export function ResearchChat({
           body.session_id = sessionId;
         }
 
-        const response = await fetch(`${API_URL}/api/ask/contextual`, {
+        const response = await activeLibraryFetch(`${API_URL}/api/ask/contextual`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: withActiveLibraryHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(body),
           signal: controller.signal,
         });

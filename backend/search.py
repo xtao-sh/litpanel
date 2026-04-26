@@ -122,7 +122,10 @@ def prepare_search(
     return SearchParams(fts_query=fts, entity_type=entity_type, limit=limit)
 
 
-def search_sql(params: SearchParams) -> tuple[str, list[object]]:
+def search_sql(
+    params: SearchParams,
+    library_id: int | None = None,
+) -> tuple[str, list[object]]:
     """Return (sql, bind_params) for executing an FTS5 search.
 
     Uses ``highlight()`` to produce ``<mark>``-wrapped snippets.
@@ -135,6 +138,10 @@ def search_sql(params: SearchParams) -> tuple[str, list[object]]:
     if params.entity_type:
         where_parts.append("entity_type = ?")
         binds.append(params.entity_type)
+
+    if library_id is not None:
+        where_parts.append("library_id = ?")
+        binds.append(str(library_id))
 
     where_clause = " AND ".join(where_parts)
 
@@ -152,7 +159,10 @@ def search_sql(params: SearchParams) -> tuple[str, list[object]]:
     return sql, binds
 
 
-def count_sql(params: SearchParams) -> tuple[str, list[object]]:
+def count_sql(
+    params: SearchParams,
+    library_id: int | None = None,
+) -> tuple[str, list[object]]:
     """Return (sql, bind_params) to count total matches (ignoring limit)."""
     binds: list[object] = []
 
@@ -162,6 +172,10 @@ def count_sql(params: SearchParams) -> tuple[str, list[object]]:
     if params.entity_type:
         where_parts.append("entity_type = ?")
         binds.append(params.entity_type)
+
+    if library_id is not None:
+        where_parts.append("library_id = ?")
+        binds.append(str(library_id))
 
     where_clause = " AND ".join(where_parts)
 

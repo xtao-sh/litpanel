@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { ChatMessage, type Message } from "@/components/ask/chat-message";
 import type { ContextItem } from "@/components/ask/context-panel";
 import { ExampleQuestions } from "@/components/ask/example-questions";
+import { appConfig } from "@/lib/app-config";
+import { activeLibraryFetch, getApiUrl, withActiveLibraryHeaders } from "@/lib/api";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8011";
+const API_URL = getApiUrl();
 
 export default function AskPage() {
   return (
@@ -110,9 +111,9 @@ function AskPageInner() {
           : { question: question.trim(), max_context: 20, ...(sessionId ? { session_id: sessionId } : {}) };
 
         const askEndpoint = paperIdParam ? `${API_URL}/api/ask/paper` : `${API_URL}/api/ask`;
-        const response = await fetch(askEndpoint, {
+        const response = await activeLibraryFetch(askEndpoint, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: withActiveLibraryHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(body),
           signal: controller.signal,
         });
@@ -343,7 +344,7 @@ function AskPageInner() {
           </div>
           <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">
             Ask questions about your research and get AI-generated answers with
-            citations from NBER working papers.
+            citations from the papers in your {appConfig.corpusLabel}.
             {sessionId && turnCount > 0 && (
               <span className="ml-1 text-primary">
                 The assistant is keeping the thread context.

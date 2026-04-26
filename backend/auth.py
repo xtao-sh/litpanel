@@ -1,18 +1,18 @@
 """Simple API key authentication for external API access."""
 
-import os
-
 from typing import Optional
 
 from fastapi import HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
+
+from config import EXTERNAL_API_KEY
 
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 def get_api_key():
     """Load API key from environment. If not set, auth is disabled (local dev mode)."""
-    return os.environ.get("NBER_API_KEY", "")
+    return EXTERNAL_API_KEY
 
 
 async def verify_api_key(

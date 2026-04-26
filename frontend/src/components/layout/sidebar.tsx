@@ -23,74 +23,76 @@ import {
   Hash,
   FolderOpen,
   Compass,
-  Sparkles,
   BookMarked,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 interface NavItem {
-  label: string;
+  labelKey: string;
   href: string;
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
 }
 
 interface NavSection {
-  label: string;
-  description: string;
+  id: string;
   items: NavItem[];
 }
 
 const navSections: NavSection[] = [
   {
-    label: "Start Here",
-    description: "Recency-first, topic-first, and corpus-level discovery entry points.",
+    id: "workspace",
     items: [
-      { label: "Dashboard", href: "/", icon: LayoutDashboard },
-      { label: "Latest Research", href: "/latest", icon: Clock3 },
-      { label: "Research", href: "/research", icon: Microscope },
-      { label: "Explorer", href: "/explorer", icon: Compass },
+      { labelKey: "sidebar.items.setup", href: "/setup", icon: Wrench },
+      { labelKey: "sidebar.items.paperManager", href: "/library", icon: Bookmark },
+      { labelKey: "sidebar.items.importCenter", href: "/pipeline", icon: Download },
+      { labelKey: "sidebar.items.knowledgeGraph", href: "/graph", icon: GitBranch },
+      { labelKey: "sidebar.items.dashboard", href: "/", icon: LayoutDashboard },
     ],
   },
   {
-    label: "Synthesize",
-    description: "Turn evidence into thematic reviews and summaries.",
+    id: "researchViews",
     items: [
-      { label: "Projects", href: "/projects", icon: FolderOpen },
-      { label: "Field Maps", href: "/maps", icon: Map },
-      { label: "Digests", href: "/digests", icon: Newspaper },
-      { label: "China Lens", href: "/china", icon: Globe },
+      { labelKey: "sidebar.items.research", href: "/research", icon: Microscope },
+      { labelKey: "sidebar.items.explorer", href: "/explorer", icon: Compass },
+      { labelKey: "sidebar.items.latestResearch", href: "/latest", icon: Clock3 },
     ],
   },
   {
-    label: "Reference",
-    description: "Browse methods, taxonomies, and graph views.",
+    id: "synthesize",
     items: [
-      { label: "Methods", href: "/methods", icon: BookMarked },
-      { label: "Fields", href: "/fields", icon: Layers },
-      { label: "JEL Codes", href: "/jel", icon: Hash },
-      { label: "Knowledge Graph", href: "/graph", icon: GitBranch },
+      { labelKey: "sidebar.items.projects", href: "/projects", icon: FolderOpen },
+      { labelKey: "sidebar.items.fieldMaps", href: "/maps", icon: Map },
+      { labelKey: "sidebar.items.digests", href: "/digests", icon: Newspaper },
+      { labelKey: "sidebar.items.chinaLens", href: "/china", icon: Globe },
     ],
   },
   {
-    label: "My Work",
-    description: "Personal ideas, notes, and workflow tools.",
+    id: "reference",
     items: [
-      { label: "Ideas", href: "/ideas", icon: Lightbulb },
-      { label: "Workspace", href: "/ideas/workspace", icon: PenTool },
-      { label: "Library", href: "/library", icon: Bookmark },
-      { label: "Ask", href: "/ask", icon: MessageSquare },
+      { labelKey: "sidebar.items.methods", href: "/methods", icon: BookMarked },
+      { labelKey: "sidebar.items.fields", href: "/fields", icon: Layers },
+      { labelKey: "sidebar.items.jelCodes", href: "/jel", icon: Hash },
+    ],
+  },
+  {
+    id: "myWork",
+    items: [
+      { labelKey: "sidebar.items.ideas", href: "/ideas", icon: Lightbulb },
+      { labelKey: "sidebar.items.workspace", href: "/ideas/workspace", icon: PenTool },
+      { labelKey: "sidebar.items.ask", href: "/ask", icon: MessageSquare },
     ],
   },
 ];
 
-const secondaryNavItems: NavItem[] = [
-  { label: "Pipeline", href: "/pipeline", icon: Download },
-];
+const secondaryNavItems: NavItem[] = [];
 
 export function Sidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { t } = useI18n();
 
   // Collect all nav hrefs to determine the best (longest) prefix match
   const allNavItems = useMemo(() => {
@@ -124,7 +126,7 @@ export function Sidebar() {
         size="icon"
         className="fixed top-3 left-3 z-50 lg:hidden"
         onClick={() => setMobileOpen(!mobileOpen)}
-        aria-label="Toggle navigation"
+        aria-label={t("sidebar.toggleNavigation")}
       >
         {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </Button>
@@ -145,30 +147,23 @@ export function Sidebar() {
         )}
       >
         {/* Logo / Title */}
-        <div className="flex h-20 items-center gap-3 border-b border-[color:color-mix(in_oklch,oklch(var(--foreground))_8%,transparent)] px-6">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[color:color-mix(in_oklch,oklch(var(--primary))_28%,white)] bg-[color:oklch(var(--accent)/0.6)]">
+        <div className="flex h-20 items-center gap-3 border-b border-[color:color-mix(in_oklch,oklch(var(--foreground))_8%,transparent)] px-5">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[color:color-mix(in_oklch,oklch(var(--primary))_28%,white)] bg-[color:oklch(var(--accent)/0.7)] shadow-[inset_0_1px_0_color-mix(in_oklch,oklch(var(--foreground))_12%,transparent)]">
             <BookOpen className="h-5 w-5 text-primary" />
           </div>
-          <div className="flex flex-col">
-            <span className="section-kicker">Research Desk</span>
-            <span className="font-display text-[1.45rem] text-foreground leading-none">NBER</span>
-            <span className="text-xs text-muted-foreground">Question-led literature navigation</span>
+          <div className="min-w-0 flex flex-col">
+            <span className="truncate text-lg font-semibold tracking-tight text-foreground">
+              {t("sidebar.brandTitle")}
+            </span>
           </div>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-4 py-5">
-          <div className="space-y-6">
-            {navSections.map((section) => (
-              <div key={section.label}>
-                <div className="px-3">
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    {section.label}
-                  </p>
-                  <p className="mb-2 text-[11px] leading-4 text-muted-foreground/80">
-                    {section.description}
-                  </p>
-                </div>
+          <div className="space-y-4">
+            {navSections.map((section, sectionIndex) => (
+              <div key={section.id}>
+                {sectionIndex > 0 ? <div className="mx-3 mb-4 border-t border-border/70" /> : null}
                 <div className="space-y-1">
                   {section.items.map((item) => {
                     const isActive =
@@ -178,7 +173,7 @@ export function Sidebar() {
 
                     return (
                       <Link
-                        key={item.label}
+                        key={item.href}
                         href={item.href}
                         onClick={() => setMobileOpen(false)}
                         className={cn(
@@ -198,7 +193,7 @@ export function Sidebar() {
                         >
                           <item.icon className="h-4 w-4" style={{ strokeWidth: 1.75 }} />
                         </span>
-                        <span className={cn(isActive ? "font-semibold" : "font-medium")}>{item.label}</span>
+                        <span className={cn(isActive ? "font-semibold" : "font-medium")}>{t(item.labelKey)}</span>
                       </Link>
                     );
                   })}
@@ -209,42 +204,35 @@ export function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-border px-6 py-4">
-          <div className="paper-panel rounded-2xl border border-dashed px-3 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Internal
-            </p>
-            <div className="mt-2 space-y-1">
-              {secondaryNavItems.map((item) => {
-                const isActive = item.href === bestMatch;
-                return (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    onClick={() => setMobileOpen(false)}
-                    className={cn(
-                      "flex h-8 items-center gap-2 rounded-xl px-2.5 text-xs transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-                      isActive
-                        ? "bg-accent font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
-                    )}
-                  >
-                    <item.icon className="h-3.5 w-3.5" style={{ strokeWidth: 1.75 }} />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
+        <div className="border-t border-border px-6 py-3">
+          {secondaryNavItems.length > 0 ? (
+            <div className="paper-panel rounded-2xl border border-dashed px-3 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Internal
+              </p>
+              <div className="mt-2 space-y-1">
+                {secondaryNavItems.map((item) => {
+                  const isActive = item.href === bestMatch;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "flex h-8 items-center gap-2 rounded-xl px-2.5 text-xs transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                        isActive
+                          ? "bg-accent font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
+                      )}
+                    >
+                      <item.icon className="h-3.5 w-3.5" style={{ strokeWidth: 1.75 }} />
+                      <span>{t(item.labelKey)}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-          <div className="mt-3 rounded-2xl border border-[color:color-mix(in_oklch,oklch(var(--primary))_12%,white)] bg-[color:oklch(var(--accent)/0.68)] px-3 py-3 text-xs text-foreground">
-            <div className="flex items-center gap-2 font-semibold">
-              <Sparkles className="h-3.5 w-3.5" />
-              Workflow Guide
-            </div>
-            <p className="mt-1 leading-5 text-muted-foreground">
-              Start with a live question in Research, inspect evidence in Explorer, then promote a stable corpus into Projects.
-            </p>
-          </div>
+          ) : <div className="h-1" />}
         </div>
       </aside>
     </>

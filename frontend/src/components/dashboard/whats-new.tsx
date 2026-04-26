@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles, FileText, ArrowRight, Newspaper } from "lucide-react";
 import { GET_WHATS_NEW } from "@/lib/queries";
 import type { WhatsNew } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 function fieldBadgeClass(field: string): string {
   const colors = [
@@ -27,6 +28,7 @@ function fieldBadgeClass(field: string): string {
 }
 
 export function WhatsNewCard() {
+  const { t } = useI18n();
   const { data, loading } = useQuery<{ whatsNew: WhatsNew }>(GET_WHATS_NEW, {
     variables: { limit: 8 },
   });
@@ -62,13 +64,13 @@ export function WhatsNewCard() {
       <Card className="paper-panel rounded-[1.5rem] border-border/75 shadow-none">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Newspaper className="h-4 w-4 text-primary" /> Latest in the Knowledge Base
+            <Newspaper className="h-4 w-4 text-primary" /> {t("dashboard.whatsNew.title")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center py-6 text-center">
             <FileText className="h-8 w-8 text-muted-foreground/40 mb-2" />
-            <p className="text-sm text-muted-foreground">No papers added yet. Run the pipeline to populate.</p>
+            <p className="text-sm text-muted-foreground">{t("dashboard.whatsNew.empty")}</p>
           </div>
         </CardContent>
       </Card>
@@ -81,10 +83,10 @@ export function WhatsNewCard() {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
             <Sparkles className="h-4.5 w-4.5 text-primary" />
-            Latest in the Knowledge Base
+            {t("dashboard.whatsNew.title")}
           </CardTitle>
           <span className="text-xs text-muted-foreground tabular-nums">
-            {whatsNew.totalPapers.toLocaleString()} papers total
+            {t("dashboard.whatsNew.totalPapers", { count: whatsNew.totalPapers.toLocaleString() })}
           </span>
         </div>
       </CardHeader>
@@ -125,7 +127,7 @@ export function WhatsNewCard() {
                 )}
                 {paper.hasCard && (
                   <span className="ml-auto text-[10px] font-medium text-primary">
-                    deep-read
+                    {t("dashboard.whatsNew.deepRead")}
                   </span>
                 )}
               </div>
@@ -140,14 +142,14 @@ export function WhatsNewCard() {
               href="/ideas"
               className="text-xs text-muted-foreground hover:text-primary transition-colors"
             >
-              {whatsNew.recentIdeasCount} new idea{whatsNew.recentIdeasCount !== 1 ? "s" : ""} this month
+              {t("dashboard.whatsNew.newIdeasThisMonth", { count: whatsNew.recentIdeasCount })}
             </Link>
           )}
           <Link
             href="/latest"
             className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
           >
-            Open Latest Research
+            {t("dashboard.actions.openLatestResearch")}
             <ArrowRight className="h-3 w-3" />
           </Link>
         </div>

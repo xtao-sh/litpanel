@@ -1,8 +1,9 @@
 """
-Ingestion pipeline for the NBER research knowledge base.
+Ingestion pipeline for the research knowledge base.
 
-Parses markdown files from Data/knowledge_base/ into the SQLite database.
-8 stages: cards, atoms, triage, field maps, ideas, digests, existing DB merge, FTS5 index.
+Parses markdown files from the configured knowledge-base directory into the
+SQLite database. 8 stages: cards, atoms, triage, field maps, ideas, digests,
+existing DB merge, and FTS5 index.
 """
 from __future__ import annotations
 
@@ -14,15 +15,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from database import get_connection, get_db_path, init_db
+from config import EXISTING_AGENT_DB_CANDIDATES, KNOWLEDGE_BASE_DIR
+from database import ensure_default_library, get_connection, get_db_path, init_db
 
-KB_PATH = Path(__file__).parent.parent / "Data" / "knowledge_base"
-
-# The existing agent-system database -- try several known locations
-EXISTING_DB_CANDIDATES = [
-    Path.home() / "NBER_Working_Papers" / "nber_papers.db",
-    Path(__file__).parent.parent / "Data" / "nber_papers.db",
-]
+KB_PATH = KNOWLEDGE_BASE_DIR
 
 
 # ---------------------------------------------------------------------------
@@ -47,6 +43,15 @@ def _split_sections(text: str) -> list[tuple[str, str]]:
         body = lines[1].strip() if len(lines) > 1 else ""
         result.append((heading, body))
     return result
+
+
+def _current_library_id() -> int:
+    raw = os.environ.get("KB_LIBRARY_ID", "").strip()
+    if raw.isdigit():
+        parsed = int(raw)
+        if parsed > 0:
+            return parsed
+    return ensure_default_library()
 
 
 # ---------------------------------------------------------------------------
@@ -306,12 +311,13 @@ def stage3_parse_triage(conn: sqlite3.Connection) -> int:
 # ---------------------------------------------------------------------------
 
 def stage4_parse_maps(conn: sqlite3.Connection) -> int:
-    """Parse field map markdown files from maps/*.md into field_maps."""
+    """Parse field map markdown files from maps/*.md into library_field_maps."""
     maps_dir = KB_PATH / "maps"
     if not maps_dir.exists():
         print("  Warning: maps/ directory not found")
         return 0
 
+    library_id = _current_library_id()
     count = 0
     for fp in sorted(maps_dir.glob("*.md")):
         text = _read_file(fp)
@@ -326,8 +332,12 @@ def stage4_parse_maps(conn: sqlite3.Connection) -> int:
         mtime = datetime.fromtimestamp(fp.stat().st_mtime).isoformat()
 
         conn.execute(
-            "INSERT OR REPLACE INTO field_maps (slug, title, content, updated_at) VALUES (?, ?, ?, ?)",
-            (slug, title, text, mtime),
+            """
+            INSERT OR REPLACE INTO library_field_maps
+            (library_id, slug, title, content, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (library_id, slug, title, text, mtime),
         )
         count += 1
 
@@ -389,13 +399,14 @@ def _parse_idea_block(block: str) -> dict | None:
 
 
 def stage5_parse_ideas(conn: sqlite3.Connection) -> int:
-    """Parse ideas from ideas/idea_bank.md into ideas table."""
+    """Parse ideas from ideas/idea_bank.md into library_ideas."""
     # Check both locations: ideas/ dir and maps/ dir
     idea_paths = [
         KB_PATH / "ideas" / "idea_bank.md",
         KB_PATH / "maps" / "idea_bank.md",
     ]
 
+    library_id = _current_library_id()
     count = 0
     for idea_path in idea_paths:
         if not idea_path.exists():
@@ -418,11 +429,12 @@ def stage5_parse_ideas(conn: sqlite3.Connection) -> int:
                 continue
 
             conn.execute(
-                """INSERT OR REPLACE INTO ideas
-                   (id, title, status, generated_date, heuristic, source_papers,
+                """INSERT OR REPLACE INTO library_ideas
+                   (library_id, id, title, status, generated_date, heuristic, source_papers,
                     content, novelty, feasibility, impact, composite)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
+                    library_id,
                     idea["id"],
                     idea["title"],
                     idea["status"],
@@ -509,12 +521,13 @@ def _parse_evaluation_block(block: str) -> dict | None:
 
 
 def stage5b_parse_evaluations(conn: sqlite3.Connection) -> int:
-    """Parse idea evaluations from ideas/graveyard.md."""
+    """Parse idea evaluations from ideas/graveyard.md into library_idea_evaluations."""
     graveyard_path = KB_PATH / "ideas" / "graveyard.md"
     if not graveyard_path.exists():
         print("  Warning: ideas/graveyard.md not found")
         return 0
 
+    library_id = _current_library_id()
     text = _read_file(graveyard_path)
     if not text:
         return 0
@@ -537,13 +550,14 @@ def stage5b_parse_evaluations(conn: sqlite3.Connection) -> int:
         seen.add(evl["idea_id"])
 
         conn.execute(
-            """INSERT OR REPLACE INTO idea_evaluations
-               (idea_id, verdict, novelty_score, identification_score,
+            """INSERT OR REPLACE INTO library_idea_evaluations
+               (library_id, idea_id, verdict, novelty_score, identification_score,
                 data_score, contribution_score, feasibility_score,
                 overall_score, key_risk, next_steps, death_reason,
                 evaluation_text)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
+                library_id,
                 evl["idea_id"],
                 evl["verdict"],
                 evl["novelty_score"],
@@ -569,12 +583,13 @@ def stage5b_parse_evaluations(conn: sqlite3.Connection) -> int:
 # ---------------------------------------------------------------------------
 
 def stage6_parse_digests(conn: sqlite3.Connection) -> int:
-    """Parse daily digest files from digests/*.md into digests table."""
+    """Parse daily digest files from digests/*.md into library_digests."""
     digests_dir = KB_PATH / "digests"
     if not digests_dir.exists():
         print("  Warning: digests/ directory not found")
         return 0
 
+    library_id = _current_library_id()
     count = 0
     for fp in sorted(digests_dir.glob("*.md")):
         text = _read_file(fp)
@@ -588,8 +603,8 @@ def stage6_parse_digests(conn: sqlite3.Connection) -> int:
             continue
 
         conn.execute(
-            "INSERT OR REPLACE INTO digests (date, content) VALUES (?, ?)",
-            (date_str, text),
+            "INSERT OR REPLACE INTO library_digests (library_id, date, content) VALUES (?, ?, ?)",
+            (library_id, date_str, text),
         )
         count += 1
 
@@ -602,8 +617,8 @@ def stage6_parse_digests(conn: sqlite3.Connection) -> int:
 # ---------------------------------------------------------------------------
 
 def _find_existing_db() -> Path | None:
-    """Locate the existing nber_papers.db."""
-    for candidate in EXISTING_DB_CANDIDATES:
+    """Locate the existing external agent database, if one is configured."""
+    for candidate in EXISTING_AGENT_DB_CANDIDATES:
         if candidate.exists():
             return candidate
     return None
@@ -613,7 +628,7 @@ def stage7_merge_existing(conn: sqlite3.Connection) -> int:
     """Pull paper metadata from the existing agent-system database."""
     existing_path = _find_existing_db()
     if existing_path is None:
-        print("  Warning: existing nber_papers.db not found, skipping merge")
+        print("  Warning: external agent database not found, skipping merge")
         return 0
 
     ext_conn = sqlite3.connect(str(existing_path))
@@ -647,9 +662,28 @@ def stage7_merge_existing(conn: sqlite3.Connection) -> int:
         # Only insert if paper doesn't already have a card
         triage_summary_val = row["triage_summary"] if has_triage_summary else None
         conn.execute(
-            """INSERT OR IGNORE INTO papers
-               (paper_id, year, fields, triage_decision, triage_summary, has_card)
-               VALUES (?, ?, ?, ?, ?, 0)""",
+            """
+            INSERT INTO papers
+            (paper_id, year, fields, triage_decision, triage_summary, has_card)
+            VALUES (?, ?, ?, ?, ?, 0)
+            ON CONFLICT(paper_id) DO UPDATE SET
+                year = CASE
+                    WHEN papers.has_card = 0 OR papers.has_card IS NULL THEN excluded.year
+                    ELSE papers.year
+                END,
+                fields = CASE
+                    WHEN papers.has_card = 0 OR papers.has_card IS NULL THEN COALESCE(excluded.fields, papers.fields)
+                    ELSE papers.fields
+                END,
+                triage_decision = CASE
+                    WHEN papers.has_card = 0 OR papers.has_card IS NULL THEN COALESCE(excluded.triage_decision, papers.triage_decision)
+                    ELSE papers.triage_decision
+                END,
+                triage_summary = CASE
+                    WHEN papers.has_card = 0 OR papers.has_card IS NULL THEN COALESCE(excluded.triage_summary, papers.triage_summary)
+                    ELSE papers.triage_summary
+                END
+            """,
             (
                 paper_id,
                 row["year"],
@@ -671,10 +705,19 @@ def stage7_merge_existing(conn: sqlite3.Connection) -> int:
 
 def stage8_build_fts(conn: sqlite3.Connection) -> int:
     """Populate the FTS5 search_index with all entities."""
+    library_id = _current_library_id()
     count = 0
 
     # Papers: title + all card section content
-    papers = conn.execute("SELECT paper_id, title FROM papers").fetchall()
+    papers = conn.execute(
+        """
+        SELECT p.paper_id, p.title
+        FROM papers p
+        JOIN library_papers lp ON lp.paper_id = p.paper_id
+        WHERE lp.library_id = ?
+        """,
+        (library_id,),
+    ).fetchall()
     for paper in papers:
         pid = paper["paper_id"]
         title = paper["title"] or ""
@@ -696,35 +739,58 @@ def stage8_build_fts(conn: sqlite3.Connection) -> int:
         content = "\n\n".join(content_parts)
 
         conn.execute(
-            "INSERT INTO search_index (entity_type, entity_id, title, content) VALUES (?, ?, ?, ?)",
-            ("paper", pid, title, content),
+            "INSERT INTO search_index (entity_type, entity_id, title, content, library_id) VALUES (?, ?, ?, ?, ?)",
+            ("paper", pid, title, content, str(library_id)),
         )
         count += 1
 
     # Atoms: title + description
-    atoms = conn.execute("SELECT slug, title, description FROM atoms").fetchall()
+    atoms = conn.execute(
+        """
+        SELECT DISTINCT a.slug, a.title, a.description
+        FROM atoms a
+        JOIN atom_paper_refs apr ON apr.atom_slug = a.slug
+        JOIN library_papers lp ON lp.paper_id = apr.paper_id
+        WHERE lp.library_id = ?
+        """,
+        (library_id,),
+    ).fetchall()
     for atom in atoms:
         conn.execute(
-            "INSERT INTO search_index (entity_type, entity_id, title, content) VALUES (?, ?, ?, ?)",
-            ("atom", atom["slug"], atom["title"] or "", atom["description"] or ""),
+            "INSERT INTO search_index (entity_type, entity_id, title, content, library_id) VALUES (?, ?, ?, ?, ?)",
+            ("atom", atom["slug"], atom["title"] or "", atom["description"] or "", str(library_id)),
         )
         count += 1
 
     # Field maps: title + full content
-    maps = conn.execute("SELECT slug, title, content FROM field_maps").fetchall()
+    maps = conn.execute(
+        """
+        SELECT slug, title, content
+        FROM library_field_maps
+        WHERE library_id = ?
+        """,
+        (library_id,),
+    ).fetchall()
     for fm in maps:
         conn.execute(
-            "INSERT INTO search_index (entity_type, entity_id, title, content) VALUES (?, ?, ?, ?)",
-            ("map", fm["slug"], fm["title"] or "", fm["content"] or ""),
+            "INSERT INTO search_index (entity_type, entity_id, title, content, library_id) VALUES (?, ?, ?, ?, ?)",
+            ("map", fm["slug"], fm["title"] or "", fm["content"] or "", str(library_id)),
         )
         count += 1
 
     # Ideas: title + content
-    ideas = conn.execute("SELECT id, title, content FROM ideas").fetchall()
+    ideas = conn.execute(
+        """
+        SELECT id, title, content
+        FROM library_ideas
+        WHERE library_id = ?
+        """,
+        (library_id,),
+    ).fetchall()
     for idea in ideas:
         conn.execute(
-            "INSERT INTO search_index (entity_type, entity_id, title, content) VALUES (?, ?, ?, ?)",
-            ("idea", idea["id"], idea["title"] or "", idea["content"] or ""),
+            "INSERT INTO search_index (entity_type, entity_id, title, content, library_id) VALUES (?, ?, ?, ?, ?)",
+            ("idea", idea["id"], idea["title"] or "", idea["content"] or "", str(library_id)),
         )
         count += 1
 
@@ -739,7 +805,7 @@ def stage8_build_fts(conn: sqlite3.Connection) -> int:
 def run_ingestion() -> None:
     """Run all 8 ingestion stages with progress logging."""
     print("=" * 60)
-    print("NBER Knowledge Base Ingestion Pipeline")
+    print("Knowledge Base Ingestion Pipeline")
     print("=" * 60)
     print(f"Knowledge base path: {KB_PATH}")
     print(f"Database path: {get_db_path()}")
