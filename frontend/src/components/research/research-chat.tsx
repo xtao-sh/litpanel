@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ChatMessage, type Message } from "@/components/ask/chat-message";
 import type { ResearchLandscape } from "@/lib/types";
 import { activeLibraryFetch, getApiUrl, withActiveLibraryHeaders } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 const API_URL = getApiUrl();
 
@@ -112,6 +113,7 @@ export function ResearchChat({
   landscape,
   totalPapers,
 }: ResearchChatProps) {
+  const { t } = useI18n();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -380,7 +382,7 @@ export function ResearchChat({
         onClick={onToggle}
       >
         <Sparkles className="h-4 w-4" />
-        Ask about these papers
+        {t("research.chat.open")}
       </Button>
     );
   }
@@ -391,10 +393,10 @@ export function ResearchChat({
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <div>
-            <p className="section-kicker">Assistant</p>
+            <p className="section-kicker">{t("research.chat.kicker")}</p>
             <div className="mt-1 flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
-              <h3 className="font-display text-[1.35rem] text-foreground">Research Assistant</h3>
+              <h3 className="font-display text-[1.35rem] text-foreground">{t("research.chat.title")}</h3>
             </div>
           </div>
         </div>
@@ -407,7 +409,7 @@ export function ResearchChat({
               onClick={handleNewConversation}
             >
               <RotateCcw className="h-3 w-3" />
-              New
+              {t("research.chat.new")}
             </Button>
           )}
           <Button
@@ -426,7 +428,7 @@ export function ResearchChat({
         <div className="flex items-center gap-2 border-b border-border/50 bg-[color:oklch(var(--accent)/0.24)] px-4 py-2">
           <MessageSquare className="h-3 w-3 shrink-0 text-primary/70" />
           <p className="truncate text-xs text-muted-foreground">
-            Context: {totalPapers} papers on &ldquo;{searchQuery}&rdquo;
+            {t("research.chat.context", { count: totalPapers.toLocaleString(), query: searchQuery })}
           </p>
         </div>
       )}
@@ -439,7 +441,7 @@ export function ResearchChat({
               <Sparkles className="h-5 w-5 text-primary" />
             </div>
             <p className="mb-4 text-center text-xs text-muted-foreground">
-              Ask questions about the papers in your search results.
+              {t("research.chat.empty")}
             </p>
             {/* Suggested questions */}
             <div className="w-full space-y-1.5">
@@ -474,7 +476,7 @@ export function ResearchChat({
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about these papers..."
+              placeholder={t("research.chat.placeholder")}
               disabled={isStreaming}
               className="flex h-9 flex-1 rounded-[0.8rem] border border-input bg-background/75 px-3 text-sm placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             />

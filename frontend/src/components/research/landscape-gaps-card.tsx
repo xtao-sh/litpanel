@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, ChevronDown, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ResearchGaps } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 interface LandscapeGapsCardProps {
   gaps: ResearchGaps;
@@ -59,6 +60,7 @@ export function LandscapeGapsCard({
   getPaperHref,
   actionMode = "compact",
 }: LandscapeGapsCardProps) {
+  const { t } = useI18n();
   const totalGaps =
     gaps.unusedMethods.length +
     gaps.unusedDatasets.length +
@@ -72,15 +74,15 @@ export function LandscapeGapsCard({
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
-          Research Gaps
+          {t("research.gaps.title")}
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-            {totalGaps} identified
+            {t("research.gaps.identified", { count: totalGaps })}
           </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Unexplored Methods */}
-        <GapSection title="Unexplored Methods" count={gaps.unusedMethods.length}>
+        <GapSection title={t("research.gaps.unusedMethods")} count={gaps.unusedMethods.length}>
           {gaps.unusedMethods.map((method) => (
             <div
               key={method.slug}
@@ -106,7 +108,7 @@ export function LandscapeGapsCard({
                       onClick={() => onAtomClick(method.slug)}
                       className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
                     >
-                      Detail
+                        {t("common.actions.details")}
                     </button>
                     {getExplorerHref && (
                       <Link
@@ -114,7 +116,7 @@ export function LandscapeGapsCard({
                         className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 transition-colors hover:bg-amber-100"
                       >
                         <Filter className="h-3 w-3" />
-                        Explorer
+                        {t("research.gaps.openExplorer")}
                       </Link>
                     )}
                   </div>
@@ -137,7 +139,7 @@ export function LandscapeGapsCard({
         </GapSection>
 
         {/* Available Datasets */}
-        <GapSection title="Available Datasets" count={gaps.unusedDatasets.length}>
+        <GapSection title={t("research.gaps.unusedDatasets")} count={gaps.unusedDatasets.length}>
           {gaps.unusedDatasets.map((dataset) => (
             <div
               key={dataset.slug}
@@ -163,7 +165,7 @@ export function LandscapeGapsCard({
                       onClick={() => onAtomClick(dataset.slug)}
                       className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
                     >
-                      Detail
+                        {t("common.actions.details")}
                     </button>
                     {getExplorerHref && (
                       <Link
@@ -171,7 +173,7 @@ export function LandscapeGapsCard({
                         className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 transition-colors hover:bg-amber-100"
                       >
                         <Filter className="h-3 w-3" />
-                        Explorer
+                        {t("research.gaps.openExplorer")}
                       </Link>
                     )}
                   </div>
@@ -203,7 +205,7 @@ export function LandscapeGapsCard({
         </GapSection>
 
         {/* Open Questions */}
-        <GapSection title="Open Questions" count={gaps.openQuestions.length}>
+        <GapSection title={t("research.gaps.openQuestions")} count={gaps.openQuestions.length}>
           {gaps.openQuestions.map((q, idx) => (
             <div
               key={`oq-${idx}`}
@@ -215,7 +217,7 @@ export function LandscapeGapsCard({
                   href={getPaperHref ? getPaperHref(q.paperId) : `/paper/${q.paperId}`}
                   className="ml-2 inline-flex rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
                 >
-                  Open paper
+                  {t("research.gaps.openPaper")}
                 </Link>
               ) : (
                 <Link
@@ -230,7 +232,7 @@ export function LandscapeGapsCard({
         </GapSection>
 
         {/* Limitations */}
-        <GapSection title="Acknowledged Limitations" count={gaps.limitations.length}>
+        <GapSection title={t("research.gaps.limitations")} count={gaps.limitations.length}>
           {gaps.limitations.map((lim, idx) => (
             <div
               key={`lim-${idx}`}
@@ -242,7 +244,7 @@ export function LandscapeGapsCard({
                   href={getPaperHref ? getPaperHref(lim.paperId) : `/paper/${lim.paperId}`}
                   className="ml-2 inline-flex rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
                 >
-                  Open paper
+                  {t("research.gaps.openPaper")}
                 </Link>
               ) : (
                 <Link

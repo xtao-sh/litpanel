@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
-import { FileText, FlaskConical, GitBranch, MessageSquare, Users } from "lucide-react";
+import { FileText, FlaskConical, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LandscapeMethodsCard } from "./landscape-methods-card";
@@ -27,7 +27,6 @@ interface ResearchLandscapeProps {
   onAtomClick: (slug: string) => void;
   allPaperIds?: string[];
   searchQuery?: string;
-  graphHref?: string;
   papers?: ResearchPaperItem[];
 }
 
@@ -117,7 +116,6 @@ export function ResearchLandscapePanel({
   onAtomClick,
   allPaperIds = [],
   searchQuery = "",
-  graphHref,
   papers = [],
 }: ResearchLandscapeProps) {
   const { t } = useI18n();
@@ -152,60 +150,25 @@ export function ResearchLandscapePanel({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Section anchor nav */}
-      <nav className="paper-panel mb-3 flex gap-1.5 overflow-x-auto rounded-[1.2rem] p-2">
-        {anchorItems.map(item => (
-          <button
-            key={item.id}
-            onClick={() => {
-              document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
-            className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground transition-colors"
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
-
-      {allPaperIds.length > 0 && (
-        <div className="paper-panel rounded-[1.5rem] p-4 text-sm text-muted-foreground">
-          <p className="section-kicker">{t("research.landscape.evidenceKicker")}</p>
-          <p className="font-medium text-foreground">
-            {t("research.landscape.landscapeScope")}
-          </p>
-          <p className="mt-1 leading-relaxed">
-            {t("research.landscape.scopeBody", { count: allPaperIds.length.toLocaleString() })}
-          </p>
-        </div>
-      )}
-
-      {/* Action buttons */}
-      {allPaperIds.length > 0 && (
+    <div className="space-y-3">
+      <div className="paper-panel sticky top-[4.5rem] z-10 rounded-[1.2rem] p-3">
         <div className="flex flex-wrap items-center gap-2">
-          {/* Cross-page navigation */}
-          {searchQuery && (
-            <>
-              <Link href={graphHref ?? `/graph?q=${encodeURIComponent(searchQuery)}`}>
-                <Button variant="outline" size="sm" className="gap-1.5 rounded-full text-xs">
-                  <GitBranch className="h-3.5 w-3.5" />
-                  {t("research.landscape.viewGraph")}
-                </Button>
-              </Link>
-              <Link href={`/ask?q=${encodeURIComponent(searchQuery)}`}>
-                <Button variant="outline" size="sm" className="gap-1.5 rounded-full text-xs">
-                  <MessageSquare className="h-3.5 w-3.5" />
-                  {t("research.landscape.askAI")}
-                </Button>
-              </Link>
-            </>
-          )}
-          <div className="flex-1" />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-semibold text-foreground">{t("research.landscape.title")}</h2>
+            {allPaperIds.length > 0 && (
+              <p
+                className="text-xs text-muted-foreground"
+                title={t("research.landscape.scopeBody", { count: allPaperIds.length.toLocaleString() })}
+              >
+                {t("research.landscape.scopeInline", { count: allPaperIds.length.toLocaleString() })}
+              </p>
+            )}
+          </div>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setMethodAdvisorOpen(!methodAdvisorOpen)}
-            className="gap-1.5 rounded-full text-xs"
+            className="h-8 gap-1.5 rounded-full px-3 text-xs"
           >
             <FlaskConical className="h-3.5 w-3.5" />
             {methodAdvisorOpen ? t("research.landscape.hide") : t("research.landscape.methodAdvisor")}
@@ -214,13 +177,26 @@ export function ResearchLandscapePanel({
             variant="outline"
             size="sm"
             onClick={() => setLitReviewOpen(true)}
-            className="gap-1.5 rounded-full text-xs"
+            className="h-8 gap-1.5 rounded-full px-3 text-xs"
           >
             <FileText className="h-3.5 w-3.5" />
             {t("research.landscape.generateLitReview")}
           </Button>
         </div>
-      )}
+        <nav className="mt-2 flex gap-1 overflow-x-auto">
+          {anchorItems.map(item => (
+            <button
+              key={item.id}
+              onClick={() => {
+                document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground transition-colors"
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      </div>
 
       {/* Method Advisor panel */}
       {methodAdvisorOpen && (

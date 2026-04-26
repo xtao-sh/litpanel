@@ -138,7 +138,7 @@ export function ResearchResultsList({
             <div
               key={paper.paperId}
               className={cn(
-                "mx-2 my-2 flex w-auto gap-2 rounded-[1.15rem] border border-transparent px-3 py-3 text-left transition-colors hover:bg-[color:oklch(var(--accent)/0.42)]",
+                "mx-1 my-1.5 flex w-auto gap-2 rounded-[0.9rem] border border-transparent px-2.5 py-2.5 text-left transition-colors hover:bg-[color:oklch(var(--accent)/0.42)]",
                 selectedPaperId === paper.paperId &&
                   "border-[color:color-mix(in_oklch,oklch(var(--primary))_18%,transparent)] bg-primary/5",
                 isCompareSelected && "bg-[color:oklch(var(--accent)/0.55)]"
@@ -166,18 +166,12 @@ export function ResearchResultsList({
                 type="button"
                 className="flex min-w-0 flex-1 flex-col items-start gap-1.5 text-left"
                 onClick={() => onSelectPaper(paper.paperId)}
+                title={[paper.tldr, authorLabel].filter(Boolean).join("\n")}
               >
                 {/* Title */}
-                <p className="w-full font-display line-clamp-2 text-left text-[1.05rem] leading-snug text-foreground">
+                <p className="w-full line-clamp-2 text-left text-sm font-medium leading-snug text-foreground">
                   {paper.title || paper.paperId}
                 </p>
-
-                {/* TLDR */}
-                {paper.tldr && (
-                  <p className="w-full line-clamp-2 text-left text-xs text-muted-foreground">
-                    {paper.tldr}
-                  </p>
-                )}
 
                 {/* Meta rows */}
                 <div className="flex w-full flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -189,14 +183,6 @@ export function ResearchResultsList({
                     <FileText className="ml-auto h-3 w-3 shrink-0 text-primary/60" />
                   )}
                 </div>
-                {paper.authors.length > 0 && (
-                  <p
-                    title={authorLabel}
-                    className="w-full truncate text-xs text-muted-foreground"
-                  >
-                    {authorLabel}
-                  </p>
-                )}
 
                 {/* Field badges + score */}
                 <div className="flex w-full items-center gap-1.5">

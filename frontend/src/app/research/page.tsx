@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "@apollo/client/react";
 import {
-  ArrowRight,
   Microscope,
   Search,
   Layers,
@@ -16,10 +15,11 @@ import {
   Trash2,
   FileText,
   Compass,
+  GitBranch,
+  MessageSquare,
   FolderOpen,
   FolderPlus,
   Loader2,
-  X,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,6 @@ import {
 } from "@/lib/queries";
 import {
   buildCompareHref,
-  buildExplorerPaperHref,
   buildResearchGraphHref,
   buildResearchHref,
 } from "@/lib/navigation";
@@ -197,12 +196,6 @@ function ResearchPageInner() {
   // Delete confirmation state
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
-  // Dismissible workflow card
-  const [showWorkflowCard, setShowWorkflowCard] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    return localStorage.getItem('research-workflow-card-dismissed') !== 'true';
-  });
-
   // Whether a search has been performed
   const hasSearched = submittedQuery.length > 0;
   const currentResearchHref = useMemo(
@@ -215,15 +208,6 @@ function ResearchPageInner() {
         viewMode,
       }),
     [submittedQuery, filters, sort, page, viewMode]
-  );
-  const explorerHref = useMemo(
-    () =>
-      buildExplorerPaperHref({
-        query: submittedQuery,
-        filters,
-        returnTo: currentResearchHref,
-      }),
-    [submittedQuery, filters, currentResearchHref]
   );
   const compareHref = useMemo(
     () =>
@@ -799,7 +783,7 @@ function ResearchPageInner() {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="flex min-h-[calc(100vh-5rem)] flex-col bg-[radial-gradient(circle_at_top_left,rgba(126,87,65,0.06),transparent_28%),linear-gradient(180deg,rgba(248,244,236,0.55),rgba(248,244,236,0.12))]">
+    <div className="flex min-h-[calc(100vh-5rem)] flex-col bg-background">
       {/* Error banner */}
       {(papersError || landscapeError || projectError) && (
         <div className="mx-4 mt-2 flex items-center gap-2 rounded-[1rem] border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
@@ -814,66 +798,12 @@ function ResearchPageInner() {
         </div>
       )}
 
-      {showWorkflowCard && (
-        <div className="paper-panel relative mx-4 mt-2 rounded-[1.5rem] px-4 py-4">
-          <button
-            onClick={() => {
-              setShowWorkflowCard(false);
-              localStorage.setItem('research-workflow-card-dismissed', 'true');
-            }}
-            className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                {t("research.workflow.title")}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {t("research.workflow.body")}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button asChild variant="outline" size="sm">
-                <Link href={explorerHref}>
-                  <Compass className="mr-1.5 h-3.5 w-3.5" />
-                  {t("research.workflow.inspectExplorer")}
-                </Link>
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleCreateProjectDraft}
-                disabled={allPaperIds.length === 0 || creatingProject}
-              >
-                {creatingProject ? (
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <FolderPlus className="mr-1.5 h-3.5 w-3.5" />
-                )}
-                {creatingProject ? t("research.workflow.creatingDraft") : t("research.workflow.createDraft")}
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <Link href="/projects">
-                  <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
-                  {t("research.workflow.openProjects")}
-                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {compareCount > 0 && (
         <div className="mx-4 mt-2 rounded-[1.35rem] border border-primary/15 bg-primary/10 px-4 py-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm font-medium text-foreground">
                 {t(compareCount === 1 ? "research.compare.selected" : "research.compare.selectedPlural", { count: compareCount })}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {t("research.compare.body")}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -957,31 +887,51 @@ function ResearchPageInner() {
         }
       />
 
-      {/* Scope summary */}
-      <div className="paper-panel mx-4 mt-2 rounded-[1.35rem] px-4 py-3 lg:px-6">
-        <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-          <div className="space-y-1">
-            <p className="section-kicker">{t("research.scope.kicker")}</p>
-            <p className="text-sm font-medium text-foreground">
-              {t("research.scope.analyzing", { count: allPaperIds.length.toLocaleString(), query: submittedQuery })}
-            </p>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {t("research.scope.body")}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="rounded-full bg-background/80 px-2.5 py-1 text-muted-foreground border border-border">
-              {t("research.scope.showing", { start: visibleRangeStart, end: visibleRangeEnd, total: papersTotal.toLocaleString() })}
-            </span>
+      {/* Compact context and primary actions */}
+      <div className="mx-4 mt-2 flex flex-col gap-3 rounded-[1.2rem] border border-border/70 bg-card/75 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="min-w-0">
+          <p
+            className="truncate text-sm font-medium text-foreground"
+            title={t("research.scope.body")}
+          >
+            {t("research.scope.analyzing", { count: allPaperIds.length.toLocaleString(), query: submittedQuery })}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>{t("research.scope.showing", { start: visibleRangeStart, end: visibleRangeEnd, total: papersTotal.toLocaleString() })}</span>
             {activeFilterCount > 0 && (
-              <span className="rounded-full bg-background/80 px-2.5 py-1 text-muted-foreground border border-border">
-                {t(activeFilterCount === 1 ? "research.scope.activeFilters" : "research.scope.activeFiltersPlural", { count: activeFilterCount })}
-              </span>
+              <span>{t(activeFilterCount === 1 ? "research.scope.activeFilters" : "research.scope.activeFiltersPlural", { count: activeFilterCount })}</span>
             )}
-            <span className="rounded-full bg-background/80 px-2.5 py-1 text-muted-foreground border border-border">
-              {t("research.scope.view", { view: t(`research.viewModes.${viewMode}`) })}
-            </span>
           </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {allPaperIds.length >= 4 && (
+            <ViewModeToggle className="border border-border/70 bg-background/70" viewMode={viewMode} onChange={handleViewModeChange} />
+          )}
+          {submittedQuery && (
+            <Button asChild variant="outline" size="sm" className="h-9 rounded-full text-xs">
+              <Link href={graphHref ?? `/graph?q=${encodeURIComponent(submittedQuery)}`}>
+                <GitBranch className="mr-1.5 h-3.5 w-3.5" />
+                {t("research.landscape.viewGraph")}
+              </Link>
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="h-9 rounded-full text-xs" onClick={handleChatToggle}>
+            <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+            {t("research.landscape.askAI")}
+          </Button>
+          <Button
+            size="sm"
+            className="h-9 rounded-full text-xs"
+            onClick={handleCreateProjectDraft}
+            disabled={allPaperIds.length === 0 || creatingProject}
+          >
+            {creatingProject ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FolderPlus className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            {creatingProject ? t("research.workflow.creatingDraft") : t("research.workflow.createDraft")}
+          </Button>
         </div>
       </div>
 
@@ -1001,9 +951,6 @@ function ResearchPageInner() {
           </TabsList>
 
           <TabsContent value="results" className="min-h-[calc(100vh-14rem)] px-4 pb-4">
-            {allPaperIds.length >= 4 && (
-              <ViewModeToggle className="px-1" viewMode={viewMode} onChange={handleViewModeChange} />
-            )}
             {renderResultsContent()}
           </TabsContent>
 
@@ -1014,7 +961,6 @@ function ResearchPageInner() {
               onAtomClick={handleAtomClick}
               allPaperIds={allPaperIds}
               searchQuery={submittedQuery}
-              graphHref={graphHref ?? undefined}
               papers={papers}
             />
           </TabsContent>
@@ -1035,10 +981,7 @@ function ResearchPageInner() {
       {/* Desktop three-column layout */}
       <div className="hidden flex-1 overflow-hidden xl:flex">
         {/* Left: Results list */}
-        <div className="w-[380px] shrink-0 overflow-hidden border-r border-border/70 bg-background/35 px-3 pb-3 pt-3 flex flex-col">
-          {allPaperIds.length >= 4 && (
-            <ViewModeToggle className="mb-3" viewMode={viewMode} onChange={handleViewModeChange} />
-          )}
+        <div className="w-[420px] shrink-0 overflow-hidden border-r border-border/70 bg-card/30 px-3 pb-3 pt-3 flex flex-col">
           {renderResultsContent()}
         </div>
 
@@ -1050,7 +993,6 @@ function ResearchPageInner() {
             onAtomClick={handleAtomClick}
             allPaperIds={allPaperIds}
             searchQuery={submittedQuery}
-            graphHref={graphHref ?? undefined}
             papers={papers}
           />
         </div>
