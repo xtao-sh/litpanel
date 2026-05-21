@@ -57,33 +57,33 @@ function TopicDiscoveryCard({
   const { t } = useI18n();
 
   return (
-    <Card className="paper-panel h-full rounded-[1.65rem] shadow-none">
+    <Card className="lp-card h-full rounded-[var(--r-md)] shadow-none">
       <CardHeader className="pb-4">
         <p className="section-kicker">{t("latest.topicCards.kicker")}</p>
-        <CardTitle className="font-display text-[1.9rem] text-foreground">{title}</CardTitle>
-        <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
+        <CardTitle className="font-display text-[1.9rem] text-[var(--ink)]">{title}</CardTitle>
+        <p className="text-sm leading-relaxed text-[var(--ink-4)]">{description}</p>
       </CardHeader>
       <CardContent className="space-y-3">
         {topics.length > 0 ? (
           topics.map((topic) => (
             <div
               key={`${topic.category}-${topic.name}`}
-              className="rounded-[1.15rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.36)] px-4 py-4"
+              className="rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper-2)] px-4 py-4"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-display truncate text-[1.25rem] text-foreground">{topic.name}</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-muted-foreground">
-                    <span className="rounded-full bg-background/80 px-2 py-0.5">
+                  <p className="font-display truncate text-[1.25rem] text-[var(--ink)]">{topic.name}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-[var(--ink-4)]">
+                    <span className="rounded-full bg-[var(--paper)] px-2 py-0.5">
                       {topic.category}
                     </span>
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">
+                    <span className="rounded-full bg-[var(--forest-soft)] px-2 py-0.5 text-[var(--forest)]">
                       {formatGrowthRate(topic.growthRate)}
                     </span>
-                    <span className="rounded-full bg-background/80 px-2 py-0.5 text-foreground">
+                    <span className="rounded-full bg-[var(--paper)] px-2 py-0.5 text-[var(--ink)]">
                       {t("latest.topicCards.recent", { count: topic.recentCount })}
                     </span>
-                    <span className="rounded-full bg-background/80 px-2 py-0.5">
+                    <span className="rounded-full bg-[var(--paper)] px-2 py-0.5">
                       {t("latest.topicCards.average", { value: topic.historicalAvg.toFixed(1) })}
                     </span>
                   </div>
@@ -93,7 +93,7 @@ function TopicDiscoveryCard({
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
                   href={buildExplorerPaperHref({ query: topic.name })}
-                  className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-background"
+                  className="inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper)]"
                 >
                   <Compass className="h-3 w-3" />
                   {t("latest.actions.relatedPapers")}
@@ -102,7 +102,7 @@ function TopicDiscoveryCard({
             </div>
           ))
         ) : (
-          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+          <p className="text-sm text-[var(--ink-4)]">{emptyMessage}</p>
         )}
       </CardContent>
     </Card>
@@ -138,11 +138,11 @@ function LatestPaperBuckets({
   }, [papers]);
 
   return (
-    <Card className="paper-panel rounded-[1.7rem] shadow-none">
+    <Card className="lp-card rounded-[var(--r-md)] shadow-none">
       <CardHeader className="pb-4">
         <p className="section-kicker">{t("latest.yearBuckets.kicker")}</p>
-        <CardTitle className="font-display text-[2rem] text-foreground">{t("latest.yearBuckets.title")}</CardTitle>
-        <p className="text-sm leading-relaxed text-muted-foreground">
+        <CardTitle className="font-display text-[2rem] text-[var(--ink)]">{t("latest.yearBuckets.title")}</CardTitle>
+        <p className="text-sm leading-relaxed text-[var(--ink-4)]">
           {t("latest.yearBuckets.body")}
         </p>
       </CardHeader>
@@ -162,10 +162,10 @@ function LatestPaperBuckets({
             <div key={year} className="space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="font-display text-[1.35rem] text-foreground">
+                  <h3 className="font-display text-[1.35rem] text-[var(--ink)]">
                     {year === "Unknown" ? t("latest.yearBuckets.unknown") : year}
                   </h3>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-[var(--ink-4)]">
                     {t("latest.yearBuckets.inPreview", { count: entries.length })}
                   </span>
                 </div>
@@ -180,7 +180,7 @@ function LatestPaperBuckets({
                           hasCard: true,
                         },
                       })}
-                      className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-background"
+                      className="inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper)]"
                     >
                       <Compass className="h-3 w-3" />
                       {t("latest.actions.openYearBatch")}
@@ -193,7 +193,7 @@ function LatestPaperBuckets({
                           returnTo: LATEST_RETURN_TO,
                           context: t("latest.yearBuckets.recentBatchContext", { year }),
                         })}
-                        className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+                        className="inline-flex items-center gap-1 rounded-full border border-[var(--forest)] bg-[var(--forest-soft)] px-3 py-1.5 text-xs font-medium text-[var(--forest)] transition-colors hover:bg-[var(--forest-soft)]"
                       >
                         {t("latest.actions.comparePreview")}
                       </Link>
@@ -205,32 +205,32 @@ function LatestPaperBuckets({
                 {entries.slice(0, 4).map((paper) => (
                   <div
                     key={paper.paperId}
-                    className="rounded-[1.15rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.34)] px-4 py-4"
+                    className="rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper-2)] px-4 py-4"
                   >
                     <Link
                       href={`/paper/${paper.paperId}`}
-                      className="font-display text-[1.1rem] text-foreground transition-colors hover:text-primary"
+                      className="font-display text-[1.1rem] text-[var(--ink)] transition-colors hover:text-[var(--forest)]"
                     >
                       {paper.title || paper.paperId}
                     </Link>
                     {paper.tldr && (
-                      <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                      <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-[var(--ink-4)]">
                         {paper.tldr}
                       </p>
                     )}
-                    <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-muted-foreground">
+                    <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-[var(--ink-4)]">
                       {paper.fields.slice(0, 3).map((field) => (
                         <Link
                           key={field}
                           href={`/research?q=${encodeURIComponent(field)}`}
-                          className="rounded-full bg-background/80 px-2 py-0.5 text-foreground transition-colors hover:bg-background"
+                          className="rounded-full bg-[var(--paper)] px-2 py-0.5 text-[var(--ink)] transition-colors hover:bg-[var(--paper)]"
                           title={field}
                         >
                           {field}
                         </Link>
                       ))}
                       {paper.averageScore != null && (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800">
+                        <span className="rounded-full bg-[var(--forest-soft)] px-2 py-0.5 text-[var(--forest-2)]">
                           {t("latest.yearBuckets.score", { score: paper.averageScore.toFixed(1) })}
                         </span>
                       )}
@@ -241,7 +241,7 @@ function LatestPaperBuckets({
             </div>
           ))
         ) : (
-          <p className="text-sm text-muted-foreground">{t("latest.yearBuckets.empty")}</p>
+          <p className="text-sm text-[var(--ink-4)]">{t("latest.yearBuckets.empty")}</p>
         )}
       </CardContent>
     </Card>
@@ -282,11 +282,11 @@ function TopicDossierPanel({
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_420px]">
-      <Card className="paper-panel rounded-[1.75rem] shadow-none">
+      <Card className="lp-card rounded-[var(--r-md)] shadow-none">
         <CardHeader className="pb-4">
           <p className="section-kicker">{t("latest.dossier.kicker")}</p>
-          <CardTitle className="font-display text-[2.1rem] text-foreground">{t("latest.dossier.title")}</CardTitle>
-          <p className="text-sm leading-relaxed text-muted-foreground">
+          <CardTitle className="font-display text-[2.1rem] text-[var(--ink)]">{t("latest.dossier.title")}</CardTitle>
+          <p className="text-sm leading-relaxed text-[var(--ink-4)]">
             {t("latest.dossier.body")}
           </p>
         </CardHeader>
@@ -301,8 +301,8 @@ function TopicDossierPanel({
                   onClick={() => onSelectTopic(topic.name)}
                   className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                     isActive
-                      ? "bg-foreground text-background"
-                      : "bg-[color:oklch(var(--accent)/0.45)] text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.75)] hover:text-foreground"
+                      ? "bg-[var(--ink)] text-[var(--paper)]"
+                      : "bg-[var(--paper-2)] text-[var(--ink-4)] hover:bg-[var(--paper-3)] hover:text-[var(--ink)]"
                   }`}
                 >
                   {topic.name}
@@ -312,36 +312,36 @@ function TopicDossierPanel({
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-[1.2rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.34)] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper-2)] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-4)]">
                 {t("latest.dossier.momentum")}
               </p>
-              <p className="font-display mt-2 text-[2rem] text-foreground">
+              <p className="font-display mt-2 text-[2rem] text-[var(--ink)]">
                 {formatGrowthRate(selectedTopic.growthRate)}
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-1 text-xs leading-relaxed text-[var(--ink-4)]">
                 {t("latest.dossier.momentumBody")}
               </p>
             </div>
-            <div className="rounded-[1.2rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.34)] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper-2)] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-4)]">
                 {t("latest.dossier.recentCount")}
               </p>
-              <p className="font-display mt-2 text-[2rem] text-foreground">
+              <p className="font-display mt-2 text-[2rem] text-[var(--ink)]">
                 {selectedTopic.recentCount}
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-1 text-xs leading-relaxed text-[var(--ink-4)]">
                 {t("latest.dossier.recentCountBody")}
               </p>
             </div>
-            <div className="rounded-[1.2rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.34)] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper-2)] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-4)]">
                 {t("latest.dossier.corpusMatch")}
               </p>
-              <p className="font-display mt-2 text-[2rem] text-foreground">
+              <p className="font-display mt-2 text-[2rem] text-[var(--ink)]">
                 {loading ? "..." : totalPapers}
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-1 text-xs leading-relaxed text-[var(--ink-4)]">
                 {t("latest.dossier.corpusMatchBody")}
               </p>
             </div>
@@ -350,7 +350,7 @@ function TopicDossierPanel({
           <div className="flex flex-wrap gap-2">
             <Link
               href={buildExplorerPaperHref({ query: selectedTopic.name })}
-              className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3.5 py-2 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper)]"
             >
               <Compass className="h-3.5 w-3.5" />
               {t("latest.actions.relatedPapers")}
@@ -362,7 +362,7 @@ function TopicDossierPanel({
                 label: selectedTopic.name,
                 source: "latest",
               })}
-              className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--forest)] bg-[var(--forest-soft)] px-3.5 py-2 text-sm font-medium text-[var(--forest)] transition-colors hover:bg-[var(--forest-soft)]"
             >
               {t("latest.actions.openGraph")}
             </Link>
@@ -374,7 +374,7 @@ function TopicDossierPanel({
                   returnTo: LATEST_RETURN_TO,
                   context: selectedTopic.name,
                 })}
-                className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
+                className="inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3.5 py-2 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper)]"
               >
                 {t("latest.actions.comparePreview")}
               </Link>
@@ -383,15 +383,15 @@ function TopicDossierPanel({
 
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-medium text-foreground">{t("latest.dossier.previewPapers")}</p>
-              <span className="text-xs text-muted-foreground">
+              <p className="text-sm font-medium text-[var(--ink)]">{t("latest.dossier.previewPapers")}</p>
+              <span className="text-xs text-[var(--ink-4)]">
                 {loading ? t("latest.dossier.loading") : t("latest.dossier.shown", { count: previewPapers.length })}
               </span>
             </div>
             {loading ? (
               <div className="space-y-2">
                 {Array.from({ length: 3 }).map((_, index) => (
-                  <div key={index} className="rounded-lg border border-border px-3 py-3">
+                  <div key={index} className="rounded-[var(--r)] border border-[var(--line-soft)] px-3 py-3">
                     <Skeleton className="h-4 w-3/4" />
                     <Skeleton className="mt-2 h-3 w-full" />
                   </div>
@@ -399,26 +399,26 @@ function TopicDossierPanel({
               </div>
             ) : previewPapers.length > 0 ? (
               previewPapers.slice(0, 3).map((paper) => (
-                <div key={paper.paperId} className="rounded-[1.15rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.32)] px-4 py-4">
+                <div key={paper.paperId} className="rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper-2)] px-4 py-4">
                   <Link
                     href={`/paper/${paper.paperId}?returnTo=${encodeURIComponent(LATEST_RETURN_TO)}`}
-                    className="font-display text-[1.15rem] text-foreground transition-colors hover:text-primary"
+                    className="font-display text-[1.15rem] text-[var(--ink)] transition-colors hover:text-[var(--forest)]"
                   >
                     {paper.title || paper.paperId}
                   </Link>
                   {paper.tldr && (
-                    <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                    <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-[var(--ink-4)]">
                       {paper.tldr}
                     </p>
                   )}
-                  <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-muted-foreground">
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-[var(--ink-4)]">
                     {paper.year != null && (
-                      <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground">
+                      <span className="rounded-full bg-[var(--paper-2)] px-2 py-0.5 font-medium text-[var(--ink)]">
                         {paper.year}
                       </span>
                     )}
                     {paper.fields.slice(0, 2).map((field) => (
-                      <span key={field} className="rounded-full bg-background/80 px-2 py-0.5 text-foreground" title={field}>
+                      <span key={field} className="rounded-full bg-[var(--paper)] px-2 py-0.5 text-[var(--ink)]" title={field}>
                         {field}
                       </span>
                     ))}
@@ -426,7 +426,7 @@ function TopicDossierPanel({
                 </div>
               ))
             ) : (
-              <p className="text-sm text-muted-foreground">{t("latest.dossier.emptyPreview")}</p>
+              <p className="text-sm text-[var(--ink-4)]">{t("latest.dossier.emptyPreview")}</p>
             )}
           </div>
         </CardContent>
@@ -545,47 +545,47 @@ function LatestResearchContent() {
   return (
     <div className="animate-in space-y-6">
       {anyError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-[var(--r)] border border-[#da9a80] bg-[#f4dfd5] p-4 text-sm text-[#8a3318]">
           <p className="font-medium">{t("latest.errors.dataFailed")}</p>
           {combinedErrorMessage ? (
-            <p className="mt-1 text-xs text-red-600">{combinedErrorMessage}</p>
+            <p className="mt-1 text-xs text-[#8a3318]">{combinedErrorMessage}</p>
           ) : null}
         </div>
       )}
 
-      <div className="paper-panel rounded-[2rem] px-6 py-7 md:px-8">
+      <div className="lp-card rounded-[2rem] px-6 py-7 md:px-8">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="section-kicker">{t("latest.hero.kicker")}</span>
           {whatsNew && (
-            <span className="rounded-full bg-[color:oklch(var(--accent)/0.45)] px-2.5 py-1 font-medium text-muted-foreground">
+            <span className="rounded-full bg-[var(--paper-2)] px-2.5 py-1 font-medium text-[var(--ink-4)]">
               {t("latest.hero.indexed", { count: whatsNew.totalPapers.toLocaleString() })}
             </span>
           )}
         </div>
-        <h2 className="font-display mt-3 max-w-4xl text-[clamp(2.6rem,4.7vw,4.4rem)] text-foreground">
+        <h2 className="font-display mt-3 max-w-4xl text-[clamp(2.6rem,4.7vw,4.4rem)] text-[var(--ink)]">
           {t("latest.hero.title")}
         </h2>
-        <p className="mt-2 max-w-4xl text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-2 max-w-4xl text-sm leading-relaxed text-[var(--ink-4)]">
           {t("latest.hero.body")}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
             href="/research"
-            className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
+            className="inline-flex items-center gap-1 rounded-full border border-[var(--forest)] bg-[var(--forest-soft)] px-3.5 py-2 text-sm font-medium text-[var(--forest)] transition-colors hover:bg-[var(--forest-soft)]"
           >
             <Microscope className="h-3.5 w-3.5" />
             {t("latest.actions.openResearch")}
           </Link>
           <Link
             href="/explorer"
-            className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
+            className="inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3.5 py-2 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper)]"
           >
             <Compass className="h-3.5 w-3.5" />
             {t("latest.actions.openExplorer")}
           </Link>
           <Link
             href="/projects"
-            className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
+            className="inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3.5 py-2 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper)]"
           >
             {t("latest.actions.openProjects")}
             <ArrowRight className="h-3.5 w-3.5" />
@@ -596,44 +596,44 @@ function LatestResearchContent() {
       <div className="ink-rule my-8" />
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="paper-panel rounded-[1.45rem] shadow-none">
+        <Card className="lp-card rounded-[var(--r-md)] shadow-none">
           <CardHeader className="pb-2">
             <p className="section-kicker">{t("latest.stats.liveFeed")}</p>
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t("latest.stats.newestBatch")}</CardTitle>
+            <CardTitle className="text-sm font-medium text-[var(--ink-4)]">{t("latest.stats.newestBatch")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-display text-[2.35rem] text-foreground">
+            <p className="font-display text-[2.35rem] text-[var(--ink)]">
               {whatsNewLoading ? "..." : whatsNew?.latestPapersCount ?? 0}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-[var(--ink-4)]">
               {t("latest.stats.newestBody")}
             </p>
           </CardContent>
         </Card>
-        <Card className="paper-panel rounded-[1.45rem] shadow-none">
+        <Card className="lp-card rounded-[var(--r-md)] shadow-none">
           <CardHeader className="pb-2">
             <p className="section-kicker">{t("latest.stats.topicWatch")}</p>
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t("latest.stats.risingTopics")}</CardTitle>
+            <CardTitle className="text-sm font-medium text-[var(--ink-4)]">{t("latest.stats.risingTopics")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-display text-[2.35rem] text-foreground">
+            <p className="font-display text-[2.35rem] text-[var(--ink)]">
               {trendingLoading ? "..." : trendingTopics?.filter((topic) => topic.trend === "rising").length ?? 0}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-[var(--ink-4)]">
               {t("latest.stats.risingBody")}
             </p>
           </CardContent>
         </Card>
-        <Card className="paper-panel rounded-[1.45rem] shadow-none">
+        <Card className="lp-card rounded-[var(--r-md)] shadow-none">
           <CardHeader className="pb-2">
             <p className="section-kicker">{t("latest.stats.workingCorpus")}</p>
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t("latest.stats.deepReadRecentSet")}</CardTitle>
+            <CardTitle className="text-sm font-medium text-[var(--ink-4)]">{t("latest.stats.deepReadRecentSet")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-display text-[2.35rem] text-foreground">
+            <p className="font-display text-[2.35rem] text-[var(--ink)]">
               {recentPapersLoading ? "..." : recentPapers?.length ?? 0}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-[var(--ink-4)]">
               {t("latest.stats.deepReadBody")}
             </p>
           </CardContent>
@@ -665,8 +665,8 @@ function LatestResearchContent() {
 
       <div className="ink-rule my-8" />
 
-      <div className="paper-panel rounded-[1.8rem] p-3">
-        <div className="flex flex-wrap gap-2 border-b border-border pb-3">
+      <div className="lp-card rounded-[var(--r-md)] p-3">
+        <div className="flex flex-wrap gap-2 border-b border-[var(--line-soft)] pb-3">
           {latestTabs.map((tab) => {
             const isActive = activeLatestTab === tab.id;
             return (
@@ -676,8 +676,8 @@ function LatestResearchContent() {
                 onClick={() => setActiveLatestTab(tab.id)}
                 className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                   isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-[color:oklch(var(--accent)/0.45)] text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.75)] hover:text-foreground"
+                    ? "bg-[var(--ink)] text-[var(--paper)]"
+                    : "bg-[var(--paper-2)] text-[var(--ink-4)] hover:bg-[var(--paper-3)] hover:text-[var(--ink)]"
                 }`}
               >
                 {tab.label}
@@ -685,7 +685,7 @@ function LatestResearchContent() {
             );
           })}
         </div>
-        <p className="px-2 pt-3 text-sm text-muted-foreground">
+        <p className="px-2 pt-3 text-sm text-[var(--ink-4)]">
           {latestTabs.find((tab) => tab.id === activeLatestTab)?.description}
         </p>
         <div className="pt-5">
@@ -699,36 +699,36 @@ function LatestResearchContent() {
 
           {activeLatestTab === "newest" && (
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-              <Card className="paper-panel rounded-[1.8rem] shadow-none">
+              <Card className="lp-card rounded-[var(--r-md)] shadow-none">
                 <CardHeader className="pb-4">
                   <p className="section-kicker">{t("latest.newest.kicker")}</p>
-                  <CardTitle className="font-display text-[2rem] text-foreground">{t("latest.newest.title")}</CardTitle>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
+                  <CardTitle className="font-display text-[2rem] text-[var(--ink)]">{t("latest.newest.title")}</CardTitle>
+                  <p className="text-sm leading-relaxed text-[var(--ink-4)]">
                     {t("latest.newest.body")}
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {whatsNewLoading ? (
                     Array.from({ length: 6 }).map((_, index) => (
-                      <div key={index} className="space-y-2 rounded-lg border border-border px-3 py-3">
+                      <div key={index} className="space-y-2 rounded-[var(--r)] border border-[var(--line-soft)] px-3 py-3">
                         <Skeleton className="h-4 w-3/4" />
                         <Skeleton className="h-3 w-1/2" />
                       </div>
                     ))
                   ) : whatsNew && whatsNew.latestPapers.length > 0 ? (
                     whatsNew.latestPapers.map((paper) => (
-                      <div key={paper.paperId} className="rounded-[1.2rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.34)] px-4 py-4">
+                      <div key={paper.paperId} className="rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper-2)] px-4 py-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <Link
                               href={`/paper/${paper.paperId}`}
-                              className="font-display text-[1.2rem] text-foreground transition-colors hover:text-primary"
+                              className="font-display text-[1.2rem] text-[var(--ink)] transition-colors hover:text-[var(--forest)]"
                             >
                               {paper.title || paper.paperId}
                             </Link>
-                            <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-muted-foreground">
+                            <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-[var(--ink-4)]">
                               {paper.year != null && (
-                                <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground">
+                                <span className="rounded-full bg-[var(--paper-2)] px-2 py-0.5 font-medium text-[var(--ink)]">
                                   {paper.year}
                                 </span>
                               )}
@@ -736,13 +736,13 @@ function LatestResearchContent() {
                                 <Link
                                   key={field}
                                   href={buildResearchHref({ query: field })}
-                                  className="rounded-full bg-background/80 px-2 py-0.5 text-foreground transition-colors hover:bg-background"
+                                  className="rounded-full bg-[var(--paper)] px-2 py-0.5 text-[var(--ink)] transition-colors hover:bg-[var(--paper)]"
                                 >
                                   {field}
                                 </Link>
                               ))}
                               {paper.hasCard && (
-                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800">
+                                <span className="rounded-full bg-[var(--forest-soft)] px-2 py-0.5 text-[var(--forest-2)]">
                                   {t("latest.newest.deepRead")}
                                 </span>
                               )}
@@ -752,7 +752,7 @@ function LatestResearchContent() {
                         <div className="mt-3 flex flex-wrap gap-2">
                           <Link
                             href={`/paper/${paper.paperId}`}
-                            className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-background"
+                            className="inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper)]"
                           >
                             {t("latest.actions.detail")}
                           </Link>
@@ -760,7 +760,7 @@ function LatestResearchContent() {
                             href={buildExplorerPaperHref({
                               query: paper.title ?? paper.paperId,
                             })}
-                            className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-background"
+                            className="inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper)]"
                           >
                             {t("latest.actions.relatedPapers")}
                           </Link>
@@ -771,7 +771,7 @@ function LatestResearchContent() {
                               returnTo: LATEST_RETURN_TO,
                               label: paper.title || paper.paperId,
                             })}
-                            className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+                            className="inline-flex items-center gap-1 rounded-full border border-[var(--forest)] bg-[var(--forest-soft)] px-3 py-1.5 text-xs font-medium text-[var(--forest)] transition-colors hover:bg-[var(--forest-soft)]"
                           >
                             {t("latest.actions.openGraph")}
                           </Link>
@@ -779,7 +779,7 @@ function LatestResearchContent() {
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-muted-foreground">{t("latest.newest.empty")}</p>
+                    <p className="text-sm text-[var(--ink-4)]">{t("latest.newest.empty")}</p>
                   )}
                 </CardContent>
               </Card>
@@ -812,7 +812,7 @@ export default function LatestResearchPage() {
             <Skeleton className="h-8 w-56" />
             <Skeleton className="h-4 w-2/3" />
           </div>
-          <Skeleton className="h-64 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-[var(--r)]" />
         </div>
       }
     >

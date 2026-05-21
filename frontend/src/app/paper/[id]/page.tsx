@@ -12,7 +12,6 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
-  Clock,
   Lightbulb,
   Loader2,
   FolderPlus,
@@ -45,10 +44,10 @@ import { activeLibraryFetch, getApiUrl, readErrorMessage, withActiveLibraryHeade
 import {
   buildAtomDetailHref,
   buildCompareHref,
-  buildEntityGraphHref,
   buildExplorerAtomHref,
   buildExplorerPaperHref,
   buildPaperDetailHref,
+  buildPaperGraphHref,
 } from "@/lib/navigation";
 import type { Paper, RelatedPaper, Collection, PaperDebate, BacklinkNote } from "@/lib/types";
 
@@ -83,17 +82,10 @@ import { NoteRenderer } from "@/components/shared/note-renderer";
 // ---------------------------------------------------------------------------
 
 function scoreColor(score: number | null): string {
-  if (score === null) return "text-gray-400";
-  if (score >= 4.5) return "text-green-600";
-  if (score >= 3.5) return "text-blue-600";
-  return "text-gray-500";
-}
-
-function scoreBg(score: number | null): string {
-  if (score === null) return "bg-gray-100";
-  if (score >= 4.5) return "bg-green-50";
-  if (score >= 3.5) return "bg-blue-50";
-  return "bg-gray-50";
+  if (score === null) return "text-[var(--ink-5)]";
+  if (score >= 4.5) return "text-[var(--forest)]";
+  if (score >= 3.5) return "text-[#2c4870]";
+  return "text-[var(--ink-4)]";
 }
 
 function triageBadgeVariant(
@@ -107,11 +99,11 @@ function triageBadgeVariant(
 }
 
 const READING_STATUS_OPTIONS = [
-  { value: "not_set", label: "Not read", color: "bg-gray-300" },
-  { value: "to_read", label: "To read", color: "bg-amber-400" },
-  { value: "reading", label: "Reading", color: "bg-blue-400" },
-  { value: "skimmed", label: "Skimmed", color: "bg-violet-400" },
-  { value: "read_in_detail", label: "Read in detail", color: "bg-green-500" },
+  { value: "not_set", label: "未读", color: "bg-[var(--line)]" },
+  { value: "to_read", label: "待读", color: "bg-[#b88a3b]" },
+  { value: "reading", label: "阅读中", color: "bg-[#6f86a6]" },
+  { value: "skimmed", label: "已略读", color: "bg-[#6f86a6]" },
+  { value: "read_in_detail", label: "已精读", color: "bg-[var(--forest)]" },
 ];
 
 interface PaperProcessingDimension {
@@ -148,33 +140,76 @@ interface PaperFeedbackItem {
   created_at: string;
 }
 
-function statusColor(status: string | null | undefined): string {
-  if (!status) return "bg-gray-300";
-  const opt = READING_STATUS_OPTIONS.find((o) => o.value === status);
-  return opt ? opt.color : "bg-gray-300";
-}
-
 function processingBadgeTone(status: string): string {
   switch (status) {
     case "completed":
-      return "bg-green-100 text-green-700 border-green-200";
+      return "bg-[var(--forest-soft)] text-[var(--forest-2)] border-[var(--forest)]";
     case "triaged":
     case "indexed":
-      return "bg-blue-100 text-blue-700 border-blue-200";
+      return "bg-[#e9eef6] text-[#223a5e] border-[#bccbe0]";
     case "pending":
-      return "bg-amber-100 text-amber-700 border-amber-200";
+      return "bg-[#f4ead8] text-[#7a5a18] border-[#d6b678]";
     case "error":
     case "pdf_error":
     case "timeout":
-      return "bg-red-100 text-red-700 border-red-200";
+      return "bg-[#f4dfd5] text-[#8a3318] border-[#da9a80]";
     default:
-      return "bg-muted text-muted-foreground border-border";
+      return "bg-[var(--paper-2)] text-[var(--ink-4)] border-[var(--line-soft)]";
   }
 }
 
 function formatProcessingText(value: string | null | undefined): string {
-  if (!value) return "Not set";
-  return value.replace(/_/g, " ");
+  if (!value) return "未设置";
+  const labels: Record<string, string> = {
+    completed: "已完成",
+    triaged: "已初筛",
+    indexed: "已索引",
+    pending: "等待中",
+    error: "出错",
+    pdf_error: "PDF 出错",
+    timeout: "超时",
+    auto: "自动",
+    metadata_only: "仅元数据",
+    title_abstract: "标题与摘要",
+    full_content: "全文读取",
+    style_logic: "写法与逻辑",
+    accept: "保留",
+    deep_read: "精读",
+    reject: "忽略",
+    include: "已纳入",
+    included: "已纳入",
+    not_set: "未读",
+    to_read: "待读",
+    reading: "阅读中",
+    skimmed: "已略读",
+    read_in_detail: "已精读",
+    complete: "完成",
+    missing: "缺失",
+  };
+  return labels[value] ?? value.replace(/_/g, " ");
+}
+
+function formatSectionLabel(value: string): string {
+  const normalized = value.trim().toLowerCase().replace(/&/g, "and").replace(/\s+/g, "_");
+  const labels: Record<string, string> = {
+    research_question: "研究问题",
+    identification_and_method: "识别与方法",
+    key_findings: "关键发现",
+    what_makes_this_paper_good: "论文价值",
+    limitations_and_open_questions: "局限与开放问题",
+    china_applicability: "中国适用性",
+  };
+  return labels[value] ?? labels[normalized] ?? value.replace(/_/g, " ");
+}
+
+function sectionDomId(value: string): string {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `section-${slug || "card"}`;
 }
 
 /** Order in which card sections should appear. */
@@ -188,19 +223,19 @@ const SECTION_ORDER = [
 ];
 
 const REPROCESS_PROFILE_OPTIONS = [
-  { value: "auto", label: "Auto" },
-  { value: "metadata_only", label: "Metadata Only" },
-  { value: "title_abstract", label: "Title + Abstract" },
-  { value: "full_content", label: "Full Content" },
-  { value: "style_logic", label: "Style + Logic" },
+  { value: "auto", label: "自动" },
+  { value: "metadata_only", label: "仅元数据" },
+  { value: "title_abstract", label: "标题与摘要" },
+  { value: "full_content", label: "全文读取" },
+  { value: "style_logic", label: "写法与逻辑" },
 ];
 
 const FEEDBACK_TYPE_OPTIONS = [
-  { value: "good", label: "Good" },
-  { value: "too_shallow", label: "Too shallow" },
-  { value: "incorrect", label: "Incorrect" },
-  { value: "missing", label: "Missing" },
-  { value: "format_issue", label: "Format issue" },
+  { value: "good", label: "可用" },
+  { value: "too_shallow", label: "太浅" },
+  { value: "incorrect", label: "不准确" },
+  { value: "missing", label: "缺失" },
+  { value: "format_issue", label: "格式问题" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -276,48 +311,48 @@ function AddToCollectionDropdown({ paperId }: { paperId: string }) {
         variant="outline"
         size="sm"
         onClick={() => setOpen(!open)}
-        className="gap-1.5"
+        className="gap-1.5 rounded-full"
       >
         <FolderPlus className="h-4 w-4" />
-        Collection
+        集合
         <ChevronDown className="h-3 w-3" />
       </Button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-50 w-64 rounded-lg border border-border bg-card shadow-lg py-1">
+        <div className="absolute left-0 top-full mt-1 z-50 w-64 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] shadow-[var(--shadow-2)] py-1">
           {collections.length === 0 && !creating && (
-            <p className="px-3 py-2 text-xs text-muted-foreground">No collections yet.</p>
+            <p className="px-3 py-2 text-xs text-[var(--ink-4)]">还没有集合。</p>
           )}
           {collections.map((col) => (
             <button
               key={col.id}
               type="button"
               onClick={() => handleToggle(col.id)}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-muted transition-colors"
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-[var(--paper-2)] transition-colors"
             >
               <span
                 className={`flex h-4 w-4 items-center justify-center rounded border ${
                   paperCollectionIds.has(col.id)
-                    ? "border-blue-500 bg-blue-500 text-white"
-                    : "border-border"
+                    ? "border-[#2c4870] bg-[#2c4870] text-[var(--paper)]"
+                    : "border-[var(--line-soft)]"
                 }`}
               >
                 {paperCollectionIds.has(col.id) && <Check className="h-3 w-3" />}
               </span>
               <span className="truncate flex-1">{col.name}</span>
-              <span className="text-[10px] text-muted-foreground shrink-0">{col.paperCount}</span>
+              <span className="text-[10px] text-[var(--ink-4)] shrink-0">{col.paperCount}</span>
             </button>
           ))}
 
-          <div className="border-t border-border mt-1 pt-1">
+          <div className="border-t border-[var(--line-soft)] mt-1 pt-1">
             {creating ? (
               <div className="px-3 py-2">
                 <input
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Collection name"
-                  className="w-full rounded border border-border px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="集合名称"
+                  className="w-full rounded border border-[var(--line-soft)] px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleCreate();
@@ -328,15 +363,15 @@ function AddToCollectionDropdown({ paperId }: { paperId: string }) {
                   <button
                     onClick={handleCreate}
                     disabled={!newName.trim()}
-                    className="rounded bg-blue-500 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-600 disabled:opacity-40"
+                    className="rounded bg-[#2c4870] px-2 py-0.5 text-[10px] font-medium text-[var(--paper)] hover:bg-[#2c4870] disabled:opacity-40"
                   >
-                    Create
+                    创建
                   </button>
                   <button
                     onClick={() => { setCreating(false); setNewName(""); }}
-                    className="rounded px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted"
+                    className="rounded px-2 py-0.5 text-[10px] font-medium text-[var(--ink-4)] hover:bg-[var(--paper-2)]"
                   >
-                    Cancel
+                    取消
                   </button>
                 </div>
               </div>
@@ -344,10 +379,10 @@ function AddToCollectionDropdown({ paperId }: { paperId: string }) {
               <button
                 type="button"
                 onClick={() => setCreating(true)}
-                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-blue-600 hover:bg-blue-50 transition-colors"
+                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[#2c4870] hover:bg-[#e9eef6] transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
-                New Collection
+                新建集合
               </button>
             )}
           </div>
@@ -408,23 +443,23 @@ function AddToIdeaDropdown({ paperId }: { paperId: string }) {
         variant="outline"
         size="sm"
         onClick={() => setOpen(!open)}
-        className="gap-1.5"
+        className="gap-1.5 rounded-full"
       >
         <Lightbulb className="h-4 w-4" />
-        Add to Idea
+        加入想法
         <ChevronDown className="h-3 w-3" />
       </Button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-50 w-72 rounded-lg border border-border bg-card shadow-lg py-1">
+        <div className="absolute left-0 top-full mt-1 z-50 w-72 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] shadow-[var(--shadow-2)] py-1">
           {ideas.length === 0 && (
             <div className="px-3 py-3">
-              <p className="text-xs text-muted-foreground">No workspace ideas yet.</p>
+              <p className="text-xs text-[var(--ink-4)]">还没有研究想法。</p>
               <a
                 href="/ideas/workspace"
-                className="mt-1 inline-block text-xs text-blue-600 hover:underline"
+                className="mt-1 inline-block text-xs text-[#2c4870] hover:underline"
               >
-                Create one in workspace
+                去想法页创建
               </a>
             </div>
           )}
@@ -435,13 +470,13 @@ function AddToIdeaDropdown({ paperId }: { paperId: string }) {
                 key={idea.id}
                 type="button"
                 onClick={() => handleToggle(idea.id, isLinked)}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-muted transition-colors"
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-[var(--paper-2)] transition-colors"
               >
                 <span
                   className={`flex h-4 w-4 items-center justify-center rounded border ${
                     isLinked
-                      ? "border-blue-500 bg-blue-500 text-white"
-                      : "border-border"
+                      ? "border-[#2c4870] bg-[#2c4870] text-[var(--paper)]"
+                      : "border-[var(--line-soft)]"
                   }`}
                 >
                   {isLinked && <Check className="h-3 w-3" />}
@@ -462,10 +497,10 @@ function AddToIdeaDropdown({ paperId }: { paperId: string }) {
 
 function PaperSkeleton({ paperId }: { paperId: string }) {
   return (
-    <div className="space-y-8">
+    <div className="paper-detail-page space-y-8">
       <div>
         <span className="section-kicker">Paper</span>
-        <p className="mt-1 font-mono text-sm text-muted-foreground">{paperId}</p>
+        <p className="mt-1 font-mono text-sm text-[var(--ink-4)]">{paperId}</p>
       </div>
 
       <div className="flex flex-col gap-8 lg:flex-row">
@@ -480,7 +515,7 @@ function PaperSkeleton({ paperId }: { paperId: string }) {
             </div>
           </div>
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="paper-panel rounded-[1.4rem] shadow-none">
+            <Card key={i} className="lp-card rounded-[var(--r-md)] shadow-none">
               <CardHeader className="p-4">
                 <Skeleton className="h-4 w-40" />
               </CardHeader>
@@ -494,7 +529,7 @@ function PaperSkeleton({ paperId }: { paperId: string }) {
         </div>
 
         <div className="w-full space-y-6 lg:w-[35%]">
-          <Card className="paper-panel rounded-[1.4rem] shadow-none">
+          <Card className="lp-card rounded-[var(--r-md)] shadow-none">
             <CardHeader className="p-4">
               <Skeleton className="h-4 w-28" />
             </CardHeader>
@@ -502,7 +537,7 @@ function PaperSkeleton({ paperId }: { paperId: string }) {
               <Skeleton className="mx-auto h-64 w-full rounded" />
             </CardContent>
           </Card>
-          <Card className="paper-panel rounded-[1.4rem] shadow-none">
+          <Card className="lp-card rounded-[var(--r-md)] shadow-none">
             <CardHeader className="p-4">
               <Skeleton className="h-4 w-32" />
             </CardHeader>
@@ -537,16 +572,15 @@ function PaperNotFound({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-24">
-      <h2 className="font-display text-[2.1rem] text-foreground">
-        Paper {paperId} not found
+      <h2 className="font-display text-[2.1rem] text-[var(--ink)]">
+        没有找到论文 {paperId}
       </h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        The paper you are looking for does not exist or has not been ingested
-        yet.
+      <p className="mt-2 text-sm text-[var(--ink-4)]">
+        这篇论文不存在，或还没有导入当前文献库。
       </p>
       <Link
         href={backHref}
-        className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/90"
+        className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--forest)] hover:text-[var(--forest)]/90"
       >
         <ArrowLeft className="h-4 w-4" />
         {backLabel}
@@ -570,15 +604,10 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
   const returnTo = searchParams.get("returnTo");
   const backHref = returnTo || "/explorer?tab=papers";
   const backLabel = returnTo?.startsWith("/projects/")
-    ? "Back to Project"
+    ? "返回项目"
     : returnTo
-      ? "Back"
-      : "Back to Explorer";
-  const breadcrumbRootLabel = returnTo?.startsWith("/projects/")
-    ? "Project"
-    : returnTo
-      ? "Return"
-      : "Explorer";
+      ? "返回"
+      : "返回文献浏览器";
   const currentPageHref = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
   const { data, loading, error } = useQuery<{ paper: Paper }>(GET_PAPER, {
@@ -642,6 +671,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
   const [feedbackRating, setFeedbackRating] = useState("3");
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -653,6 +683,12 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
         const response = await activeLibraryFetch(
           `${getApiUrl()}/api/papers/${encodeURIComponent(id)}/processing`
         );
+        if (response.status === 404) {
+          if (!active) return;
+          setProcessingState(null);
+          setProcessingError("");
+          return;
+        }
         if (!response.ok) {
           throw new Error(await readErrorMessage(response, "Failed to load processing state"));
         }
@@ -663,9 +699,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
       } catch (error_) {
         if (!active) return;
         setProcessingState(null);
-        setProcessingError(
-          error_ instanceof Error ? error_.message : "Failed to load processing state."
-        );
+        const message =
+          error_ instanceof Error ? error_.message : "Failed to load processing state.";
+        setProcessingError(message.toLowerCase().includes("paper not found") ? "" : message);
       } finally {
         if (active) setProcessingLoading(false);
       }
@@ -840,6 +876,11 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
     const response = await activeLibraryFetch(
       `${getApiUrl()}/api/papers/${encodeURIComponent(id)}/processing`
     );
+    if (response.status === 404) {
+      setProcessingState(null);
+      setProcessingError("");
+      return;
+    }
     if (!response.ok) {
       throw new Error(await readErrorMessage(response, "Failed to load processing state"));
     }
@@ -954,6 +995,14 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
     const bi = SECTION_ORDER.indexOf(b.section);
     return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
   });
+  const visibleSections = orderedSections.filter(
+    (section) => section.content && section.content.trim().length > 0
+  );
+  const sectionLinks = visibleSections.map((section) => ({
+    key: section.section,
+    id: sectionDomId(section.section),
+    label: formatSectionLabel(section.section),
+  }));
 
   // Calculate reading time (assume 200 words/min for academic text)
   const totalWords = sections.reduce((sum, s) => sum + (s.content?.split(/\s+/).length || 0), 0);
@@ -967,6 +1016,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
     statusOverride?.paperId === paper.paperId
       ? statusOverride.value
       : (paper.readingStatus ?? null);
+  const displayStatusOption =
+    READING_STATUS_OPTIONS.find((option) => option.value === (displayStatus ?? "not_set")) ??
+    READING_STATUS_OPTIONS[0];
   const noteText =
     noteDraft?.paperId === paper.paperId
       ? noteDraft.value
@@ -975,39 +1027,63 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
     notesOpenOverride?.paperId === paper.paperId
       ? notesOpenOverride.value
       : Boolean(noteText);
+  const averageScore =
+    scores.length > 0
+      ? scores.reduce((sum, score) => sum + score.score, 0) / scores.length
+      : null;
+  const completedDimensions =
+    processingState?.extraction_rows.filter((row) => row.status === "complete").length ??
+    visibleSections.length;
+  const statItems = [
+    {
+      label: "Year",
+      value: paper.year ? String(paper.year) : "—",
+      sub: totalWords > 0 ? `约 ${readingMin} 分钟` : "阅读时间未估算",
+    },
+    {
+      label: "Dimensions",
+      value: String(completedDimensions),
+      sub: "结构化读取",
+    },
+    {
+      label: "Atoms",
+      value: String(atoms.length),
+      sub: "关联知识点",
+    },
+    {
+      label: "Fields",
+      value: String(paper.fields.length),
+      sub: paper.fields[0] ?? "未标注领域",
+    },
+    {
+      label: "Score",
+      value: averageScore == null ? "—" : averageScore.toFixed(1),
+      sub: averageScore == null ? "暂无评分" : "综合评分",
+    },
+  ];
 
   return (
-    <div className="space-y-8">
-      {/* Breadcrumb */}
-      <nav className="paper-panel flex items-center gap-1.5 rounded-[1rem] px-3 py-2 text-xs text-muted-foreground">
-        <Link href={backHref} className="hover:text-foreground transition-colors">{breadcrumbRootLabel}</Link>
-        <span>/</span>
-        <Link href={explorerHref} className="hover:text-foreground transition-colors">Papers</Link>
-        <span>/</span>
-        <span className="font-mono text-foreground">{paper.paperId}</span>
-      </nav>
-
-      <div className="flex flex-col gap-8 lg:flex-row">
+    <div className="paper-detail-page space-y-8">
+      <div className="paper-grid">
         {/* ============================================================= */}
-        {/* MAIN CONTENT (~65%)                                           */}
+        {/* MAIN CONTENT (~65%) */}
         {/* ============================================================= */}
-        <div className="flex-1 space-y-6 lg:max-w-[65%]">
+        <div className="min-w-0 space-y-7">
           {/* --- Header --- */}
-          <div className="paper-panel space-y-4 rounded-[1.8rem] px-5 py-5">
-            <div>
-              <p className="section-kicker">Paper dossier</p>
-              <p className="mt-2 font-mono text-xs text-muted-foreground">{paper.paperId}</p>
+          <header className="paper-head space-y-4">
+            <div className="paper-eyebrow">
+              <p className="paper-id">论文档案 · <b>{paper.paperId}</b></p>
             </div>
             <div className="flex items-start gap-3">
-              <h1 className="font-display flex-1 text-[clamp(2.5rem,4.5vw,4rem)] leading-[0.98] text-foreground">
-                {paper.title ?? "Untitled Paper"}
+              <h1 className="paper-title flex-1">
+                {paper.title ?? "未命名论文"}
               </h1>
               {paper.nberUrl && (
                 <a
                   href={paper.nberUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="shrink-0 mt-1 inline-flex items-center gap-1.5 rounded-full border border-foreground/10 bg-background/85 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                  className="shrink-0 mt-1 inline-flex items-center gap-1.5 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5 text-xs font-medium text-[var(--ink-4)] transition-colors hover:bg-[var(--paper)] hover:text-[var(--ink)]"
                 >
                   {appConfig.externalPaperLabel}
                   <ExternalLink className="h-3 w-3" />
@@ -1016,76 +1092,112 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             </div>
 
             {paper.authors.length > 0 && (
-              <p className="text-base text-muted-foreground">
+              <p className="paper-byline">
                 {paper.authors.map((author, i) => (
                   <span key={author}>
                     <Link
                       href={`/author/${encodeURIComponent(author)}`}
-                      className="hover:text-primary hover:underline transition-colors"
+                      className="auth transition-colors hover:text-[var(--forest)] hover:underline"
                     >
                       {author}
                     </Link>
-                    {i < paper.authors.length - 1 && ", "}
+                    {i < paper.authors.length - 1 && <span className="amp">,</span>}
                   </span>
                 ))}
               </p>
             )}
 
-            {/* Metadata row */}
-            <div className="flex flex-wrap gap-2 items-center">
-              {paper.year && (
-                <span className="text-sm font-medium text-muted-foreground">
-                  {paper.year}
-                </span>
-              )}
-
-              {totalWords > 0 && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" /> ~{readingMin} min read
-                </span>
-              )}
-
-              {paper.fields.map((f) => (
-                <Badge key={f} variant="paper" title={f}>
-                  {f}
-                </Badge>
+            <div className="lit-stat-strip">
+              {statItems.map((item) => (
+                <div key={item.label} className="lit-stat-cell">
+                  <div className="lit-stat-label">{item.label}</div>
+                  <div className="lit-stat-value">{item.value}</div>
+                  <div className="mt-1 truncate font-mono text-[10px] text-[var(--ink-4)]">
+                    {item.sub}
+                  </div>
+                </div>
               ))}
-
-              {paper.jel.map((j) => (
-                <Badge key={j} variant="outline" className="font-mono text-xs">
-                  {j}
-                </Badge>
-              ))}
-
-              {paper.triageDecision && (
-                <Badge variant={triageBadgeVariant(paper.triageDecision)}>
-                  {paper.triageDecision.replace(/_/g, " ")}
-                </Badge>
-              )}
-
-              {(paper.ideaCount ?? 0) > 0 && (
-                <Link
-                  href={`/ideas?source=${paper.paperId}`}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100"
-                >
-                  <Lightbulb className="h-3.5 w-3.5" />
-                  Inspired {paper.ideaCount} research {paper.ideaCount === 1 ? "idea" : "ideas"}
-                </Link>
-              )}
             </div>
 
-          </div>
+            <div className="paper-meta-stack">
+              {paper.triageDecision ? (
+                <div className="paper-meta-line">
+                  <span className="paper-meta-label">筛选</span>
+                  <Badge variant={triageBadgeVariant(paper.triageDecision)}>
+                    {formatProcessingText(paper.triageDecision)}
+                  </Badge>
+                </div>
+              ) : null}
+
+              {paper.fields.length > 0 ? (
+                <div className="paper-meta-line">
+                  <span className="paper-meta-label">
+                    领域
+                  </span>
+                  {paper.fields.map((f) => (
+                    <Link
+                      key={f}
+                      href={buildExplorerPaperHref({
+                        query: "",
+                        filters: { fields: [f] },
+                        returnTo: currentPageHref,
+                      })}
+                      title={`查看 ${f} 领域的文献`}
+                      className="lit-tag transition-colors hover:border-[var(--forest)] hover:text-[var(--forest)]"
+                    >
+                      {f}
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+
+              {(paper.jel.length > 0 || (paper.ideaCount ?? 0) > 0) ? (
+                <div className="paper-meta-line">
+                  {paper.jel.length > 0 ? (
+                    <>
+                      <span className="paper-meta-label">
+                        JEL
+                      </span>
+                      {paper.jel.map((j) => (
+                        <Link
+                          key={j}
+                          href={buildExplorerPaperHref({
+                            query: j,
+                            returnTo: currentPageHref,
+                          })}
+                          title={`查看 JEL ${j} 相关文献`}
+                          className="lit-tag font-mono transition-colors hover:border-[var(--forest)] hover:text-[var(--forest)]"
+                        >
+                          {j}
+                        </Link>
+                      ))}
+                    </>
+                  ) : null}
+                  {(paper.ideaCount ?? 0) > 0 ? (
+                    <Link
+                      href={`/ideas?source=${paper.paperId}`}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#d6b678] bg-[#f4ead8] px-3 py-1 text-xs font-medium text-[#7a5a18] transition-colors hover:bg-[#f4ead8]"
+                    >
+                      <Lightbulb className="h-3.5 w-3.5" />
+                      相关想法 {paper.ideaCount}
+                    </Link>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+          </header>
 
           {/* --- Abstract --- */}
           {paper.abstract && (
-            <Card className="paper-panel rounded-[1.45rem] bg-muted/35 shadow-none">
+            <Card className="border-[var(--line-soft)] bg-transparent shadow-none">
               <CardHeader className="p-4 pb-2">
-                <CardTitle className="section-kicker text-muted-foreground">
-                  Abstract
+                <CardTitle className="section-kicker text-[var(--ink-4)]">
+                  摘要
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-4 pt-0">
-                <p className="text-sm italic text-muted-foreground leading-relaxed">
+                <p className="font-display text-[1.04rem] italic leading-relaxed text-[var(--ink-4)]">
                   {paper.abstract}
                 </p>
               </CardContent>
@@ -1094,164 +1206,141 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
           {/* --- TL;DR --- */}
           {paper.tldr && (
-            <div className="paper-panel rounded-[1.45rem] p-4">
-              <p className="section-kicker mb-1">TL;DR</p>
-              <p className="text-base text-foreground leading-relaxed">{paper.tldr}</p>
+            <div className="lp-card rounded-[0.7rem] p-4">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--ink-4)]">
+                一句话摘要
+              </p>
+              <p className="text-base text-[var(--ink)] leading-relaxed">{paper.tldr}</p>
             </div>
           )}
 
-          {/* --- Average Score + Action Bar --- */}
-          <div className="paper-panel flex flex-wrap items-center gap-3 rounded-[1.45rem] px-4 py-4">
-            {/* Average score */}
-            {paper.averageScore !== null && (
-              <div
-                className={`inline-flex items-center gap-3 rounded-[1.2rem] border px-4 py-2.5 ${scoreBg(paper.averageScore)} ${paper.averageScore >= 4.5 ? "border-green-200" : paper.averageScore >= 3.5 ? "border-blue-200" : "border-border"}`}
+          {/* --- Paper Actions --- */}
+          <div className="lp-card grid gap-3 rounded-[0.7rem] px-4 py-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
+                管理
+              </span>
+              <Button
+                variant={isBookmarked ? "default" : "outline"}
+                size="sm"
+                onClick={handleToggleBookmark}
+                className={
+                  isBookmarked
+                    ? "gap-1.5 rounded-full bg-[#b88a3b] hover:bg-[#8a6d3b] text-[var(--paper)] border-[#8a6d3b]"
+                    : "gap-1.5 rounded-full"
+                }
               >
-                <span
-                  className={`font-display text-[2.2rem] tabular-nums ${scoreColor(paper.averageScore)}`}
-                >
-                  {paper.averageScore.toFixed(1)}
-                </span>
-                <div className="flex flex-col">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Average Score
-                  </span>
-                  <span className="text-xs text-muted-foreground">out of 5.0</span>
-                </div>
+                {isBookmarked ? (
+                  <BookmarkCheck className="h-4 w-4" />
+                ) : (
+                  <Bookmark className="h-4 w-4" />
+                )}
+                {isBookmarked ? "已收藏" : "收藏"}
+              </Button>
+
+              <div className="inline-flex h-9 items-center rounded-full border border-[var(--line-soft)]/80 bg-[var(--paper)] px-2">
+                <Select value={displayStatus ?? "not_set"} onValueChange={handleStatusChange}>
+                  <SelectTrigger className="h-7 w-auto min-w-[72px] border-0 bg-transparent px-1 py-0 text-sm font-medium shadow-none focus:ring-0">
+                    <SelectValue placeholder={displayStatusOption.label} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {READING_STATUS_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        <span className="flex items-center gap-2">
+                          <span className={`inline-block h-2 w-2 rounded-full ${opt.color}`} />
+                          {opt.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
 
-            <Button
-              variant={isBookmarked ? "default" : "outline"}
-              size="sm"
-              onClick={handleToggleBookmark}
-              className={
-                isBookmarked
-                  ? "gap-1.5 rounded-full bg-amber-500 hover:bg-amber-600 text-white border-amber-500"
-                  : "gap-1.5 rounded-full"
-              }
-            >
-              {isBookmarked ? (
-                <BookmarkCheck className="h-4 w-4" />
-              ) : (
-                <Bookmark className="h-4 w-4" />
-              )}
-              {isBookmarked ? "Bookmarked" : "Bookmark"}
-            </Button>
-
-            <div className="flex items-center gap-2">
-              <span
-                className={`h-2.5 w-2.5 rounded-full ${statusColor(displayStatus)}`}
-              />
-              <Select
-                value={displayStatus ?? "not_set"}
-                onValueChange={handleStatusChange}
-              >
-              <SelectTrigger className="h-8 w-[160px] rounded-full text-xs">
-                <SelectValue placeholder="Reading status" />
-              </SelectTrigger>
-                <SelectContent>
-                  {READING_STATUS_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      <span className="flex items-center gap-2">
-                        <span
-                          className={`inline-block h-2 w-2 rounded-full ${opt.color}`}
-                        />
-                        {opt.label}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <AddToCollectionDropdown paperId={paper.paperId} />
             </div>
 
-            <AddToCollectionDropdown paperId={paper.paperId} />
-            <AddToIdeaDropdown paperId={paper.paperId} />
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
+                操作
+              </span>
+              <AddToIdeaDropdown paperId={paper.paperId} />
 
-            <Link
-              href={buildEntityGraphHref({
-                query: paper.paperId,
-                source: "paper",
-                returnTo: currentPageHref,
-                label: paper.title || paper.paperId,
-              })}
-            >
-              <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
-                <GitBranch className="h-4 w-4" />
-                View Network
+              <Link
+                href={buildPaperGraphHref({
+                  paperId: paper.paperId,
+                  source: "paper",
+                  returnTo: currentPageHref,
+                  label: paper.title || paper.paperId,
+                })}
+              >
+                <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
+                  <GitBranch className="h-4 w-4" />
+                  查看图谱
+                </Button>
+              </Link>
+
+              <Link
+                href={buildCompareHref({
+                  paperIds: [paper.paperId],
+                  source: "paper",
+                  returnTo: currentPageHref,
+                  context: paper.title || paper.paperId,
+                })}
+              >
+                <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
+                  <Scale className="h-4 w-4" />
+                  对比
+                </Button>
+              </Link>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIdeaGenOpen(true)}
+                className="gap-1.5 rounded-full"
+              >
+                <Lightbulb className="h-4 w-4" />
+                生成想法
               </Button>
-            </Link>
-
-            <Link
-              href={buildCompareHref({
-                paperIds: [paper.paperId],
-                source: "paper",
-                returnTo: currentPageHref,
-                context: paper.title || paper.paperId,
-              })}
-            >
-              <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
-                <Scale className="h-4 w-4" />
-                Compare
-              </Button>
-            </Link>
-
-            <button
-              onClick={() => setIdeaGenOpen(true)}
-              className="flex items-center gap-1.5 rounded-full border border-foreground/10 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-background/85 hover:text-foreground transition-colors"
-            >
-              <Lightbulb className="h-4 w-4" />
-              Generate Ideas
-            </button>
-
-            <Link
-              href={`/ask?paperId=${paper.paperId}`}
-              className="flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/15 transition-colors"
-            >
-              <MessageCircle className="h-4 w-4" />
-              Ask AI
-            </Link>
+            </div>
           </div>
 
           {/* --- Section Navigation --- */}
-          {paper.hasCard && orderedSections.filter((s) => s.content && s.content.trim().length > 0).length > 0 && (
-            <nav className="paper-panel sticky top-0 z-10 flex gap-2 overflow-x-auto rounded-[1.2rem] px-4 py-2 backdrop-blur">
-              {orderedSections
-                .filter((s) => s.content && s.content.trim().length > 0)
-                .map((s) => {
-                  const sectionId = `section-${s.section.replace(/\s+/g, '-').toLowerCase()}`;
-                  return (
-                    <button
-                      key={s.section}
-                      onClick={() => {
-                        document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }}
-                      className={cn(
-                        "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                        activeSection === sectionId
-                          ? "bg-foreground text-background"
-                          : "text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
-                      )}
-                    >
-                      {s.section.replace(/_/g, ' ')}
-                    </button>
-                  );
-                })}
+          {paper.hasCard && sectionLinks.length > 0 && (
+            <nav className="lit-section-nav sticky top-16 z-10 flex items-center gap-2 overflow-x-auto px-3 py-2">
+              <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
+                读取维度
+              </span>
+              {sectionLinks.map((section) => (
+                <Link
+                  key={section.key}
+                  href={`#${section.id}`}
+                  onClick={() => setActiveSection(section.id)}
+                  className={cn(
+                    "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                    activeSection === section.id
+                      ? "bg-[var(--ink)] text-[var(--paper)]"
+                      : "text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
+                  )}
+                >
+                  {section.label}
+                </Link>
+              ))}
             </nav>
           )}
 
           {/* --- Card Sections --- */}
           {paper.hasCard ? (
             orderedSections.length > 0 ? (
-              <div className="space-y-3">
-                {orderedSections
-                  .filter((s) => s.content && s.content.trim().length > 0)
+              <div className="space-y-0">
+                {visibleSections
                   .map((s) => (
-                    <div key={s.section} id={`section-${s.section.replace(/\s+/g, '-').toLowerCase()}`}>
+                    <div key={s.section} id={sectionDomId(s.section)} className="scroll-mt-24">
                       <SectionCard
                         title={s.section}
                         content={s.content}
-                        defaultExpanded={s.section.toLowerCase().includes("research_question")}
+                        defaultExpanded={s.section.toLowerCase().replace(/\s+/g, "_").includes("research_question")}
                       />
                     </div>
                   ))}
@@ -1259,10 +1348,10 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             ) : null
           ) : (
             <div className="space-y-4">
-              <Card className="border-border bg-muted/50 shadow-none">
+              <Card className="border-[var(--line-soft)] bg-[var(--paper-2)]/50 shadow-none">
                 <CardContent className="p-4">
-                  <p className="text-sm text-muted-foreground">
-                    Full analysis not yet available. Key information shown below.
+                  <p className="text-sm text-[var(--ink-4)]">
+                    这篇论文还没有完整的 AI 读取结果，下方先显示已有信息。
                   </p>
                 </CardContent>
               </Card>
@@ -1270,8 +1359,8 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               {/* Connected Atoms (fallback) */}
               {atoms.length > 0 && (
                 <div className="space-y-3">
-                  <h2 className="text-lg font-semibold text-foreground">
-                    Connected Atoms
+                  <h2 className="text-lg font-semibold text-[var(--ink)]">
+                    关联知识点
                   </h2>
                   <AtomChips
                     atoms={atoms}
@@ -1283,12 +1372,12 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
               {/* Similar Papers (fallback) */}
               {similarPapers.length > 0 && (
-                <Card className="border-purple-200 shadow-none">
+                <Card className="border-[#bccbe0] shadow-none">
                   <CardHeader className="p-4 pb-0">
-                    <CardTitle className="text-sm font-semibold text-purple-700">
-                      Similar Papers
+                    <CardTitle className="text-sm font-semibold text-[#223a5e]">
+                      相似论文
                     </CardTitle>
-                    <p className="text-[11px] text-purple-400 mt-0.5">
+                    <p className="text-[11px] text-[#4e688d] mt-0.5">
                       Based on content similarity
                     </p>
                   </CardHeader>
@@ -1300,17 +1389,17 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                           <Link
                             key={sp.paperId}
                             href={getPaperHref(sp.paperId)}
-                            className="block rounded-md border border-purple-100 p-3 transition-colors hover:bg-purple-50/50"
+                            className="block rounded-[var(--r)] border border-[#dfe7f2] p-3 transition-colors hover:bg-[#e9eef6]/50"
                           >
                             <div className="flex items-start justify-between gap-2">
-                              <span className="font-mono text-xs text-muted-foreground">
+                              <span className="font-mono text-xs text-[var(--ink-4)]">
                                 {sp.paperId}
                               </span>
-                              <span className="shrink-0 rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700">
+                              <span className="shrink-0 rounded-full bg-[#e9eef6] px-1.5 py-0.5 text-[10px] font-semibold text-[#223a5e]">
                                 {pct}% match
                               </span>
                             </div>
-                            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                            <p className="mt-1 line-clamp-2 text-sm text-[var(--ink-4)]">
                               {sp.title ?? "Untitled"}
                             </p>
                           </Link>
@@ -1323,12 +1412,12 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
               {/* Related Papers (fallback) */}
               {related.length > 0 && (
-                <Card className="border-border shadow-none">
+                <Card className="border-[var(--line-soft)] shadow-none">
                   <CardHeader className="p-4 pb-2">
-                    <CardTitle className="text-sm font-semibold text-muted-foreground">
+                    <CardTitle className="text-sm font-semibold text-[var(--ink-4)]">
                       Related Papers
                     </CardTitle>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                    <p className="text-[11px] text-[var(--ink-4)] mt-0.5">
                       Shared knowledge atoms
                     </p>
                   </CardHeader>
@@ -1338,20 +1427,20 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         <Link
                           key={rp.paperId}
                           href={getPaperHref(rp.paperId)}
-                          className="block rounded-md border border-border p-3 transition-colors hover:bg-muted"
+                          className="block rounded-[var(--r)] border border-[var(--line-soft)] p-3 transition-colors hover:bg-[var(--paper-2)]"
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <span className="font-mono text-xs text-muted-foreground">
+                            <span className="font-mono text-xs text-[var(--ink-4)]">
                               {rp.paperId}
                             </span>
                             {rp.sharedAtomCount > 0 && (
-                              <span className="inline-flex items-center gap-0.5 rounded-full bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700">
-                                {rp.sharedAtomCount} shared
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-[#e9eef6] px-1.5 py-0.5 text-[10px] font-semibold text-[#223a5e]">
+                                共同知识点 {rp.sharedAtomCount}
                               </span>
                             )}
                           </div>
-                          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                            {rp.title ?? "Untitled"}
+                          <p className="mt-1 line-clamp-2 text-sm text-[var(--ink-4)]">
+                            {rp.title ?? "未命名论文"}
                           </p>
                         </Link>
                       ))}
@@ -1364,52 +1453,52 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
           {/* --- Active Debates --- */}
           {debates.length > 0 && (
-            <Card className="border-orange-200 shadow-none">
+            <Card className="border-[#d6b678] shadow-none">
               <CardHeader className="p-4 pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-orange-700">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-[#7a5a18]">
                   <Swords className="h-4 w-4" />
-                  Active Debates
+                  活跃争议
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-4 pt-0 space-y-4">
                 {debates.map((debate: PaperDebate, idx: number) => (
                   <div
                     key={`${debate.title}-${idx}`}
-                    className={`space-y-2 ${idx > 0 ? "border-t border-orange-100 pt-4" : ""}`}
+                    className={`space-y-2 ${idx > 0 ? "border-t border-[#f4ead8] pt-4" : ""}`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="text-sm font-semibold text-foreground">
+                      <h3 className="text-sm font-semibold text-[var(--ink)]">
                         {debate.title}
                       </h3>
                       <span
                         className={`shrink-0 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
                           debate.paperStance === "supporting"
-                            ? "bg-green-100 text-green-700 border-green-200"
+                            ? "bg-[var(--forest-soft)] text-[var(--forest-2)] border-[var(--forest)]"
                             : debate.paperStance === "challenging"
-                            ? "bg-red-100 text-red-700 border-red-200"
-                            : "bg-blue-100 text-blue-700 border-blue-200"
+                            ? "bg-[#f4dfd5] text-[#8a3318] border-[#da9a80]"
+                            : "bg-[#e9eef6] text-[#223a5e] border-[#bccbe0]"
                         }`}
                       >
                         {debate.paperStance === "supporting"
-                          ? "Supporting"
+                          ? "支持"
                           : debate.paperStance === "challenging"
-                          ? "Challenging"
-                          : "Discussed"}
+                          ? "挑战"
+                          : "讨论"}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
+                    <p className="text-xs text-[var(--ink-4)] leading-relaxed">
                       {debate.context}
                     </p>
                     {debate.otherPapers.length > 0 && (
                       <div className="flex flex-wrap gap-1 pt-1">
-                        <span className="text-[10px] text-muted-foreground mr-1 self-center">
+                        <span className="text-[10px] text-[var(--ink-4)] mr-1 self-center">
                           Also in this debate:
                         </span>
                         {debate.otherPapers.map((pid) => (
                           <Link
                             key={pid}
                             href={getPaperHref(pid)}
-                            className="inline-flex items-center rounded bg-orange-50 border border-orange-200 px-1.5 py-0.5 text-[10px] font-mono text-orange-700 hover:bg-orange-100 transition-colors"
+                            className="inline-flex items-center rounded bg-[#f4ead8] border border-[#d6b678] px-1.5 py-0.5 text-[10px] font-mono text-[#7a5a18] hover:bg-[#f4ead8] transition-colors"
                           >
                             {pid}
                           </Link>
@@ -1425,8 +1514,8 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
           {/* --- Connected Atoms --- */}
           {atoms.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                Connected Atoms
+              <h2 className="text-lg font-semibold text-[var(--ink)]">
+                关联知识点
               </h2>
               <AtomChips
                 atoms={atoms}
@@ -1437,7 +1526,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
           )}
 
           {/* --- My Notes --- */}
-          <Card className="border-border shadow-none">
+          <Card className="border-[var(--line-soft)] shadow-none">
             <CardHeader
               className="p-4 cursor-pointer select-none"
               onClick={() =>
@@ -1448,20 +1537,20 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               }
             >
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-muted-foreground">
+                <CardTitle className="text-sm font-semibold text-[var(--ink-4)]">
                   My Notes
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   {noteSaved && (
-                    <span className="flex items-center gap-1 text-xs text-green-600">
+                    <span className="flex items-center gap-1 text-xs text-[var(--forest)]">
                       <Check className="h-3 w-3" />
                       Saved
                     </span>
                   )}
                   {notesOpen ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    <ChevronUp className="h-4 w-4 text-[var(--ink-4)]" />
                   ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    <ChevronDown className="h-4 w-4 text-[var(--ink-4)]" />
                   )}
                 </div>
               </div>
@@ -1469,7 +1558,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             {notesOpen && (
               <CardContent className="px-4 pb-4 pt-0 space-y-3">
                 <textarea
-                  className="w-full min-h-[120px] rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 resize-y"
+                  className="w-full min-h-[120px] rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--ink-4)] focus:outline-none focus:ring-2 focus:ring-[var(--forest)] focus:ring-offset-1 resize-y"
                   placeholder="Add your notes about this paper..."
                   value={noteText}
                   onChange={(e) =>
@@ -1480,14 +1569,14 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                   }
                   onBlur={handleNoteBlur}
                 />
-                <p className="mt-1.5 text-xs text-muted-foreground">
+                <p className="mt-1.5 text-xs text-[var(--ink-4)]">
                   Notes auto-save when you click away. Use [[w31184]] to link to other papers, [[atom_slug]] to link to atoms.
                 </p>
                 {/* Rendered note preview with linked references */}
                 {noteText.includes("[[") && (
-                  <div className="rounded-md border border-blue-100 bg-blue-50/50 px-3 py-2">
-                    <p className="text-[10px] font-medium text-blue-500 mb-1">Preview</p>
-                    <div className="text-sm text-muted-foreground">
+                  <div className="rounded-[var(--r)] border border-[#dfe7f2] bg-[#e9eef6]/50 px-3 py-2">
+                    <p className="mb-1 text-[10px] font-medium text-[#2c4870]">预览</p>
+                    <div className="text-sm text-[var(--ink-4)]">
                       <NoteRenderer content={noteText} />
                     </div>
                   </div>
@@ -1498,12 +1587,12 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
           {/* --- Backlinks --- */}
           {paper.backlinkNotes && paper.backlinkNotes.length > 0 && (
-            <Card className="border-blue-200 bg-blue-50/30 shadow-none">
+            <Card className="border-[#bccbe0] bg-[#e9eef6]/30 shadow-none">
               <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm font-semibold text-blue-700">
-                  Backlinks
-                  <span className="ml-1.5 text-xs font-normal text-blue-400">
-                    Referenced by {paper.backlinkNotes.length} note{paper.backlinkNotes.length !== 1 ? "s" : ""}
+                <CardTitle className="text-sm font-semibold text-[#223a5e]">
+                  反向引用
+                  <span className="ml-1.5 text-xs font-normal text-[#4e688d]">
+                    {paper.backlinkNotes.length} 条笔记引用
                   </span>
                 </CardTitle>
               </CardHeader>
@@ -1520,16 +1609,16 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                       <Link
                         key={`${bl.entityType}-${bl.entityId}`}
                         href={blHref}
-                        className="flex items-start gap-2 rounded-md border border-blue-100 bg-card p-2.5 hover:bg-blue-50 transition-colors"
+                        className="flex items-start gap-2 rounded-[var(--r)] border border-[#dfe7f2] bg-[var(--paper)] p-2.5 hover:bg-[#e9eef6] transition-colors"
                       >
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 mt-0.5">
                           {bl.entityType}
                         </Badge>
                         <div className="min-w-0 flex-1">
-                          <span className="font-mono text-xs text-blue-600">
+                          <span className="font-mono text-xs text-[#2c4870]">
                             {bl.entityId}
                           </span>
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                          <p className="text-xs text-[var(--ink-4)] mt-0.5 line-clamp-2">
                             {bl.notePreview}
                           </p>
                         </div>
@@ -1543,22 +1632,22 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
         </div>
 
         {/* ============================================================= */}
-        {/* SIDEBAR (~35%)                                                */}
+        {/* SIDEBAR (~35%) */}
         {/* ============================================================= */}
-        <div className="w-full space-y-6 lg:w-[35%] lg:sticky lg:top-6 lg:self-start">
-          <Card className="border-border shadow-none">
+        <aside className="min-w-0 space-y-6 lg:sticky lg:top-24 lg:self-start">
+          <Card className="border-[var(--line-soft)] shadow-none">
             <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-semibold text-foreground">
-                Extraction Status
+              <CardTitle className="text-sm font-semibold text-[var(--ink)]">
+                AI 读取状态
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 p-4 pt-2">
               {processingLoading ? (
                 <div className="flex items-center justify-center py-6">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <Loader2 className="h-5 w-5 animate-spin text-[var(--ink-4)]" />
                 </div>
               ) : processingError ? (
-                <p className="text-xs leading-5 text-red-600">{processingError}</p>
+                <p className="text-xs leading-5 text-[var(--rust)]">{processingError}</p>
               ) : processingState ? (
                 <>
                   <div className="flex items-center justify-between gap-3">
@@ -1567,31 +1656,31 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                     >
                       {formatProcessingText(processingState.processing_status)}
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      Profile: {formatProcessingText(processingState.reading_profile)}
+                    <span className="text-[11px] text-[var(--ink-4)]">
+                      方案: {formatProcessingText(processingState.reading_profile)}
                     </span>
                   </div>
 
-                  <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-3">
+                  <div className="space-y-2 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper-2)] p-3">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Imported</span>
-                      <span className="text-foreground">
+                      <span className="text-[var(--ink-4)]">导入时间</span>
+                      <span className="text-[var(--ink)]">
                         {processingState.imported_at
                           ? new Date(processingState.imported_at).toLocaleString()
                           : "—"}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Last updated</span>
-                      <span className="text-foreground">
+                      <span className="text-[var(--ink-4)]">更新时间</span>
+                      <span className="text-[var(--ink)]">
                         {processingState.updated_at
                           ? new Date(processingState.updated_at).toLocaleString()
                           : "—"}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Reading status</span>
-                      <span className="text-foreground">
+                      <span className="text-[var(--ink-4)]">阅读状态</span>
+                      <span className="text-[var(--ink)]">
                         {formatProcessingText(processingState.reading_status)}
                       </span>
                     </div>
@@ -1599,8 +1688,8 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
                   {processingState.analysis_focuses.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                        Requested Focus
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
+                        读取重点
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {processingState.analysis_focuses.map((focus) => (
@@ -1613,30 +1702,30 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                   )}
 
                   <div className="space-y-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                      Coverage
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
+                      覆盖情况
                     </p>
                     <div className="space-y-2">
                       {processingState.extraction_rows.map((row) => (
                         <div
                           key={row.dimension_key}
-                          className="flex items-center justify-between rounded-xl border border-border px-3 py-2 text-xs"
+                          className="flex items-center justify-between rounded-[var(--r)] border border-[var(--line-soft)] px-3 py-2 text-xs"
                         >
-                          <span className="text-foreground">{row.label}</span>
+                          <span className="text-[var(--ink)]">{row.label}</span>
                           <div className="flex items-center gap-2">
                             {typeof row.quality_score === "number" ? (
-                              <span className="text-[11px] text-muted-foreground">
+                              <span className="text-[11px] text-[var(--ink-4)]">
                                 {row.quality_score.toFixed(1)}/5
                               </span>
                             ) : null}
                             <span
                               className={`inline-flex rounded-full px-2 py-0.5 font-medium ${
                                 row.status === "complete"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : "bg-muted text-muted-foreground"
+                                  ? "bg-[#e9eef6] text-[#223a5e]"
+                                  : "bg-[var(--paper-2)] text-[var(--ink-4)]"
                               }`}
                             >
-                              {row.status === "complete" ? "Ready" : "Missing"}
+                              {row.status === "complete" ? "完成" : "缺失"}
                             </span>
                           </div>
                         </div>
@@ -1644,14 +1733,14 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                     </div>
                   </div>
 
-                  <div className="space-y-3 rounded-xl border border-border bg-card p-3">
+                  <div className="space-y-3 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] p-3">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                          Re-run Extraction
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
+                          重新读取
                         </p>
-                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                          Choose how deeply the PDF should be re-read before refreshing this paper.
+                        <p className="mt-1 text-xs leading-5 text-[var(--ink-4)]">
+                          选择重新读取的深度，刷新这篇论文的结构化信息。
                         </p>
                       </div>
                     </div>
@@ -1662,7 +1751,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         disabled={reprocessLoading}
                       >
                         <SelectTrigger className="h-9 text-xs">
-                          <SelectValue placeholder="Select re-read profile" />
+                          <SelectValue placeholder="选择读取方案" />
                         </SelectTrigger>
                         <SelectContent>
                           {REPROCESS_PROFILE_OPTIONS.map((option) => (
@@ -1684,15 +1773,15 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         ) : (
                           <RefreshCw className="h-4 w-4" />
                         )}
-                        {reprocessLoading ? "Re-reading…" : "Re-run extraction"}
+                        {reprocessLoading ? "正在读取..." : "重新读取"}
                       </Button>
                       {reprocessMessage ? (
                         <p
                           className={cn(
                             "text-xs leading-5",
                             reprocessMessage === "Re-run completed."
-                              ? "text-green-700"
-                              : "text-red-600"
+                              ? "text-[var(--forest-2)]"
+                              : "text-[#8a3318]"
                           )}
                         >
                           {reprocessMessage}
@@ -1701,16 +1790,37 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                     </div>
                   </div>
 
-                  <div className="space-y-3 rounded-xl border border-border bg-card p-3">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                        Extraction Feedback
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        Mark weak dimensions so the system can target a better re-read later.
-                      </p>
-                    </div>
+                  <div className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] p-3">
+                    <button
+                      type="button"
+                      onClick={() => setFeedbackOpen((value) => !value)}
+                      className="flex w-full items-center justify-between gap-3 text-left"
+                    >
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
+                          读取反馈
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-[var(--ink-4)]">
+                          标记不准确或缺失的维度。
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {feedbackItems.length > 0 ? (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {feedbackItems.length}
+                          </Badge>
+                        ) : null}
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 text-[var(--ink-4)] transition-transform",
+                            feedbackOpen ? "rotate-180" : "rotate-0"
+                          )}
+                        />
+                      </div>
+                    </button>
 
+                    {feedbackOpen ? (
+                      <div className="mt-3 space-y-3">
                     <div className="grid gap-2 sm:grid-cols-2">
                       <Select
                         value={feedbackDimension}
@@ -1718,7 +1828,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         disabled={feedbackSubmitting || processingState.extraction_rows.length === 0}
                       >
                         <SelectTrigger className="h-9 text-xs">
-                          <SelectValue placeholder="Dimension" />
+                          <SelectValue placeholder="维度" />
                         </SelectTrigger>
                         <SelectContent>
                           {processingState.extraction_rows.map((row) => (
@@ -1735,7 +1845,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         disabled={feedbackSubmitting}
                       >
                         <SelectTrigger className="h-9 text-xs">
-                          <SelectValue placeholder="Feedback type" />
+                          <SelectValue placeholder="反馈类型" />
                         </SelectTrigger>
                         <SelectContent>
                           {FEEDBACK_TYPE_OPTIONS.map((option) => (
@@ -1752,7 +1862,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         disabled={feedbackSubmitting}
                       >
                         <SelectTrigger className="h-9 text-xs">
-                          <SelectValue placeholder="Rating" />
+                          <SelectValue placeholder="评分" />
                         </SelectTrigger>
                         <SelectContent>
                           {["1", "2", "3", "4", "5"].map((value) => (
@@ -1767,8 +1877,8 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                     <textarea
                       value={feedbackComment}
                       onChange={(event) => setFeedbackComment(event.target.value)}
-                      placeholder="What should improve in this extraction?"
-                      className="min-h-[96px] w-full resize-y rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                      placeholder="这次读取哪里需要改进？"
+                      className="min-h-[96px] w-full resize-y rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--ink-4)] focus:outline-none focus:ring-2 focus:ring-[var(--forest)] focus:ring-offset-1"
                       disabled={feedbackSubmitting}
                     />
 
@@ -1783,20 +1893,20 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                       ) : (
                         <MessageCircle className="h-4 w-4" />
                       )}
-                      {feedbackSubmitting ? "Saving feedback…" : "Save feedback"}
+                      {feedbackSubmitting ? "正在保存..." : "保存反馈"}
                     </Button>
 
                     {feedbackError ? (
-                      <p className="text-xs leading-5 text-red-600">{feedbackError}</p>
+                      <p className="text-xs leading-5 text-[#8a3318]">{feedbackError}</p>
                     ) : null}
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                          Recent Feedback
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
+                          最近反馈
                         </p>
                         {feedbackLoading ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--ink-4)]" />
                         ) : null}
                       </div>
 
@@ -1810,7 +1920,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                             return (
                               <div
                                 key={item.id}
-                                className="rounded-xl border border-border px-3 py-2"
+                                className="rounded-[var(--r)] border border-[var(--line-soft)] px-3 py-2"
                               >
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   <Badge variant="outline" className="text-[10px]">
@@ -1820,17 +1930,17 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                                     {formatProcessingText(item.feedback_type)}
                                   </Badge>
                                   {item.rating ? (
-                                    <span className="text-[11px] text-muted-foreground">
+                                    <span className="text-[11px] text-[var(--ink-4)]">
                                       {item.rating}/5
                                     </span>
                                   ) : null}
                                 </div>
                                 {item.comment ? (
-                                  <p className="mt-2 text-xs leading-5 text-foreground">
+                                  <p className="mt-2 text-xs leading-5 text-[var(--ink)]">
                                     {item.comment}
                                   </p>
                                 ) : null}
-                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                <p className="mt-1 text-[11px] text-[var(--ink-4)]">
                                   {new Date(item.created_at).toLocaleString()}
                                 </p>
                               </div>
@@ -1838,27 +1948,29 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                           })}
                         </div>
                       ) : (
-                        <p className="text-xs leading-5 text-muted-foreground">
-                          No feedback has been recorded for this paper yet.
+                        <p className="text-xs leading-5 text-[var(--ink-4)]">
+                          这篇论文还没有反馈记录。
                         </p>
                       )}
                     </div>
+                      </div>
+                    ) : null}
                   </div>
 
                   {processingState.last_error ? (
-                    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-red-700">
-                        Last error
+                    <div className="rounded-[var(--r)] border border-[#da9a80] bg-[#f4dfd5] px-3 py-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a3318]">
+                        最近错误
                       </p>
-                      <p className="mt-1 text-xs leading-5 text-red-700">
+                      <p className="mt-1 text-xs leading-5 text-[#8a3318]">
                         {processingState.last_error}
                       </p>
                     </div>
                   ) : null}
                 </>
               ) : (
-                <p className="text-xs leading-5 text-muted-foreground">
-                  No processing state is available for this paper in the active library.
+                <p className="text-xs leading-5 text-[var(--ink-4)]">
+                  当前文献库还没有这篇论文的 AI 读取记录。
                 </p>
               )}
             </CardContent>
@@ -1866,48 +1978,48 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
           {/* --- Score Profile (toggle between Bars and Radar) --- */}
           {scores.length > 0 && (
-            <Card className="border-border shadow-none">
+            <Card className="border-[var(--line-soft)] shadow-none">
               <CardHeader className="p-4 pb-0">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-foreground">Score Profile</h3>
+                  <h3 className="text-sm font-semibold text-[var(--ink)]">评分结构</h3>
                   <button
                     onClick={() => setShowRadar(!showRadar)}
-                    className="text-xs text-muted-foreground hover:text-foreground"
+                    className="text-xs text-[var(--ink-4)] hover:text-[var(--ink)]"
                   >
-                    {showRadar ? "Show Bars" : "Show Radar"}
+                    {showRadar ? "显示条形" : "显示雷达"}
                   </button>
                 </div>
               </CardHeader>
               <CardContent className="p-4 pt-2">
                 {showRadar ? <ScoreRadar scores={scores} /> : <ScoreBars scores={scores} />}
-                <p className="text-[10px] text-muted-foreground mt-1">Scores on 1–5 scale</p>
+                <p className="text-[10px] text-[var(--ink-4)] mt-1">评分范围 1-5</p>
               </CardContent>
             </Card>
           )}
 
           {/* --- Related Papers with Axis Control --- */}
           {related.length > 0 && (
-            <Card className="border-border shadow-none">
+            <Card className="border-[var(--line-soft)] shadow-none">
               <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm font-semibold text-muted-foreground">
-                  More Like This
+                <CardTitle className="text-sm font-semibold text-[var(--ink-4)]">
+                  相似论文
                 </CardTitle>
                 {/* Axis control buttons */}
                 <div className="mt-2 flex flex-wrap gap-1">
                   {[
-                    { key: "all", label: "All" },
-                    { key: "method", label: "Same Method" },
-                    { key: "dataset", label: "Same Data" },
-                    { key: "mechanism", label: "Same Mechanism" },
-                    { key: "topic", label: "Similar Topic" },
+                    { key: "all", label: "全部" },
+                    { key: "method", label: "同方法" },
+                    { key: "dataset", label: "同数据" },
+                    { key: "mechanism", label: "同机制" },
+                    { key: "topic", label: "相似主题" },
                   ].map((btn) => (
                     <button
                       key={btn.key}
                       onClick={() => handleAxisChange(btn.key)}
                       className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
                         activeAxis === btn.key
-                          ? "bg-blue-600 text-white"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          ? "bg-[#2c4870] text-[var(--paper)]"
+                          : "bg-[var(--paper-2)] text-[var(--ink-4)] hover:bg-[var(--paper-2)]/80"
                       }`}
                     >
                       {btn.label}
@@ -1918,7 +2030,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               <CardContent className="p-4 pt-2">
                 {axisLoading ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    <Loader2 className="h-5 w-5 animate-spin text-[var(--ink-4)]" />
                   </div>
                 ) : (
                   <>
@@ -1927,7 +2039,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                       const isTopic = activeAxis === "topic";
                       if (displayPapers.length === 0) {
                         return (
-                          <p className="py-4 text-center text-xs text-muted-foreground">
+                          <p className="py-4 text-center text-xs text-[var(--ink-4)]">
                             No related papers found for this axis.
                           </p>
                         );
@@ -1939,21 +2051,21 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                               <Link
                                 key={rp.paperId}
                                 href={getPaperHref(rp.paperId)}
-                                className="block rounded-md border border-border p-3 transition-colors hover:bg-muted"
+                                className="block rounded-[var(--r)] border border-[var(--line-soft)] p-3 transition-colors hover:bg-[var(--paper-2)]"
                               >
                                 <div className="flex items-start justify-between gap-2">
-                                  <span className="font-mono text-xs text-muted-foreground">
+                                  <span className="font-mono text-xs text-[var(--ink-4)]">
                                     {rp.paperId}
                                   </span>
                                   <div className="flex items-center gap-1.5 shrink-0">
                                     {isTopic && rp.similarityScore != null ? (
-                                      <span className="rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700">
+                                      <span className="rounded-full bg-[#e9eef6] px-1.5 py-0.5 text-[10px] font-semibold text-[#223a5e]">
                                         {Math.round(rp.similarityScore * 100)}% match
                                       </span>
                                     ) : rp.sharedAtomCount > 0 ? (
                                       <Tooltip>
                                         <TooltipTrigger asChild>
-                                          <span className="inline-flex items-center gap-0.5 rounded-full bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 cursor-help">
+                                          <span className="inline-flex items-center gap-0.5 rounded-full bg-[#e9eef6] px-1.5 py-0.5 text-[10px] font-semibold text-[#223a5e] cursor-help">
                                             {rp.sharedAtomCount} shared
                                           </span>
                                         </TooltipTrigger>
@@ -1965,7 +2077,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                                             {rp.sharedAtoms.map((slug) => (
                                               <span
                                                 key={slug}
-                                                className="inline-block rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] text-indigo-800"
+                                                className="inline-block rounded bg-[#e9eef6] px-1.5 py-0.5 text-[10px] text-[#1b2e4d]"
                                               >
                                                 {slug.replace(/_/g, " ")}
                                               </span>
@@ -1983,11 +2095,11 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                                     )}
                                   </div>
                                 </div>
-                                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                                <p className="mt-1 line-clamp-2 text-sm text-[var(--ink-4)]">
                                   {rp.title ?? "Untitled"}
                                 </p>
                                 {rp.year && (
-                                  <span className="mt-1 text-xs text-muted-foreground">
+                                  <span className="mt-1 text-xs text-[var(--ink-4)]">
                                     {rp.year}
                                   </span>
                                 )}
@@ -2002,7 +2114,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
                 <Link
                   href={explorerHref}
-                  className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
+                  className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-[#2c4870] hover:text-[#223a5e]"
                 >
                   View in Explorer
                   <ExternalLink className="h-3 w-3" />
@@ -2011,7 +2123,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             </Card>
           )}
 
-        </div>
+        </aside>
       </div>
 
       {/* Floating paper chat */}
@@ -2022,15 +2134,15 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
       {/* Generate Ideas modal */}
       {ideaGenOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-lg bg-card border border-border p-6 shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ink)]/50">
+          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-[var(--r)] bg-[var(--paper)] border border-[var(--line-soft)] p-6 shadow-[var(--shadow-2)]">
             <button
               onClick={() => { setIdeaGenOpen(false); setIdeaGenResult(""); }}
-              className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"
+              className="absolute top-3 right-3 text-[var(--ink-4)] hover:text-[var(--ink)]"
             >
               <X className="h-5 w-5" />
             </button>
-            <h2 className="text-lg font-semibold text-foreground mb-4">
+            <h2 className="text-lg font-semibold text-[var(--ink)] mb-4">
               Research Ideas from {paper.title}
             </h2>
 
@@ -2079,20 +2191,20 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                   }
                   setIdeaGenLoading(false);
                 }}
-                className="w-full rounded-lg bg-primary text-primary-foreground py-2 font-medium hover:bg-primary/90"
+                className="w-full rounded-[var(--r)] bg-[var(--ink)] text-[var(--paper)] py-2 font-medium hover:bg-[var(--ink)]/90"
               >
                 Generate 3 Research Ideas
               </button>
             )}
 
             {ideaGenLoading && !ideaGenResult && (
-              <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="flex items-center gap-2 text-[var(--ink-4)]">
                 <Loader2 className="h-4 w-4 animate-spin" /> Generating ideas...
               </div>
             )}
 
             {ideaGenResult && (
-              <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap">
+              <div className="prose prose-sm max-w-none text-[var(--ink)] whitespace-pre-wrap">
                 {ideaGenResult}
               </div>
             )}

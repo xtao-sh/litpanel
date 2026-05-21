@@ -56,6 +56,7 @@ export interface Atom {
   url: string | null;
   paperCount: number;
   theme: string | null;
+  yearDistribution?: { year: number; count: number }[];
 }
 
 export interface AtomPaper {
@@ -158,6 +159,7 @@ export interface GraphNode {
   fields?: string[];
   theme?: string | null;
   paperCount?: number | null;
+  visiblePaperCount?: number | null;
   isSeed?: boolean;
 }
 

@@ -25,15 +25,15 @@ interface SaturationCardProps {
 function phaseBadge(phase: string) {
   switch (phase) {
     case "emerging":
-      return "bg-green-100 text-green-700 border-green-200";
+      return "bg-[var(--forest-soft)] text-[var(--forest-2)] border-[var(--forest)]";
     case "growing":
-      return "bg-blue-100 text-blue-700 border-blue-200";
+      return "bg-[#e9eef6] text-[#223a5e] border-[#bccbe0]";
     case "mature":
-      return "bg-yellow-100 text-yellow-700 border-yellow-200";
+      return "bg-[#f4ead8] text-[#7a5a18] border-[#d6b678]";
     case "saturated":
-      return "bg-red-100 text-red-700 border-red-200";
+      return "bg-[#f4dfd5] text-[#8a3318] border-[#da9a80]";
     default:
-      return "bg-gray-100 text-gray-600 border-gray-200";
+      return "bg-[var(--paper-2)] text-[var(--ink-3)] border-[var(--line-soft)]";
   }
 }
 
@@ -81,7 +81,7 @@ function MiniBarChart({
               width={barWidth}
               height={barHeight}
               rx={1.5}
-              className="fill-blue-400"
+              className="fill-[#2c4870]"
             />
             {/* Show year label for first, last, and every ~5th bar */}
             {(i === 0 || i === data.length - 1 || i % Math.ceil(data.length / 5) === 0) && (
@@ -89,7 +89,7 @@ function MiniBarChart({
                 x={i * (barWidth + 2) + barWidth / 2}
                 y={chartHeight + 11}
                 textAnchor="middle"
-                className="fill-gray-400"
+                className="fill-[var(--ink-5)]"
                 fontSize="7"
               >
                 {String(d.year).slice(-2)}
@@ -123,7 +123,7 @@ export function SaturationCard({
 
   if (loading) {
     return (
-      <Card className="border-border shadow-sm">
+      <Card className="border-[var(--line-soft)] shadow-[var(--shadow-1)]">
         <CardHeader className="p-4 pb-2">
           <Skeleton className="h-5 w-40" />
         </CardHeader>
@@ -144,11 +144,11 @@ export function SaturationCard({
   const diversityPct = Math.round(saturation.methodDiversity * 100);
 
   return (
-    <Card className="border-border shadow-sm">
+    <Card className="border-[var(--line-soft)] shadow-[var(--shadow-1)]">
       <CardHeader className="p-4 pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-            <TrendingUp className="h-4 w-4 text-blue-500" />
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold text-[var(--ink-3)]">
+            <TrendingUp className="h-4 w-4 text-[#2c4870]" />
             {t("latest.saturation.title")}
           </CardTitle>
           <span
@@ -165,7 +165,7 @@ export function SaturationCard({
         {/* Year trend mini chart */}
         {saturation.yearTrend.length > 1 && (
           <div>
-            <p className="mb-1.5 text-[11px] font-medium text-gray-500">
+            <p className="mb-1.5 text-[11px] font-medium text-[var(--ink-4)]">
               {t("latest.saturation.papersPerYear", { count: saturation.totalPapers })}
             </p>
             <MiniBarChart data={saturation.yearTrend} />
@@ -174,35 +174,35 @@ export function SaturationCard({
 
         {/* Growth rate + method diversity row */}
         <div className="flex gap-4">
-          <div className="flex-1 rounded-lg border border-gray-100 bg-gray-50 p-2.5">
-            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+          <div className="flex-1 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper-2)] p-2.5">
+            <p className="text-[10px] font-medium text-[var(--ink-4)] uppercase tracking-wider">
               {t("latest.saturation.growthRate")}
             </p>
             <p
               className={`text-lg font-bold tabular-nums ${
                 growthPct > 0
-                  ? "text-green-600"
+                  ? "text-[var(--forest)]"
                   : growthPct < 0
-                  ? "text-red-600"
-                  : "text-gray-600"
+                  ? "text-[#8a3318]"
+                  : "text-[var(--ink-3)]"
               }`}
             >
               {growthSign}
               {growthPct.toFixed(1)}%
             </p>
           </div>
-          <div className="flex-1 rounded-lg border border-gray-100 bg-gray-50 p-2.5">
-            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+          <div className="flex-1 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper-2)] p-2.5">
+            <p className="text-[10px] font-medium text-[var(--ink-4)] uppercase tracking-wider">
               {t("latest.saturation.methodDiversity")}
             </p>
             <div className="mt-1 flex items-center gap-2">
-              <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
+              <div className="flex-1 h-2 rounded-full bg-[var(--paper-3)] overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-blue-500 transition-all"
+                  className="h-full rounded-full bg-[#2c4870] transition-all"
                   style={{ width: `${diversityPct}%` }}
                 />
               </div>
-              <span className="text-xs font-semibold text-gray-600 tabular-nums">
+              <span className="text-xs font-semibold text-[var(--ink-3)] tabular-nums">
                 {diversityPct}%
               </span>
             </div>
@@ -212,7 +212,7 @@ export function SaturationCard({
         {/* Key indicators */}
         {saturation.keyIndicators.length > 0 && (
           <div className="space-y-1.5">
-            <p className="text-[11px] font-medium text-gray-500">
+            <p className="text-[11px] font-medium text-[var(--ink-4)]">
               {t("latest.saturation.keyIndicators")}
             </p>
             {saturation.keyIndicators.map((ki: SaturationIndicator) => (
@@ -220,13 +220,13 @@ export function SaturationCard({
                 key={ki.indicator}
                 className="flex items-center justify-between gap-2 text-xs"
               >
-                <span className="text-gray-600 font-medium shrink-0">
+                <span className="text-[var(--ink-3)] font-medium shrink-0">
                   {ki.indicator}
                 </span>
-                <span className="text-gray-400 text-[10px] truncate flex-1 text-right">
+                <span className="text-[var(--ink-5)] text-[10px] truncate flex-1 text-right">
                   {ki.interpretation}
                 </span>
-                <span className="font-semibold text-gray-800 shrink-0 tabular-nums">
+                <span className="font-semibold text-[var(--ink-2)] shrink-0 tabular-nums">
                   {ki.value}
                 </span>
               </div>
@@ -236,10 +236,10 @@ export function SaturationCard({
 
         {/* Recommendation */}
         {saturation.recommendation && (
-          <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-3">
+          <div className="rounded-[var(--r)] border border-[#dfe7f2] bg-[#e9eef6]/50 p-3">
             <div className="flex items-start gap-2">
-              <Info className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
-              <p className="text-xs text-blue-700 leading-relaxed">
+              <Info className="h-3.5 w-3.5 text-[#2c4870] mt-0.5 shrink-0" />
+              <p className="text-xs text-[#223a5e] leading-relaxed">
                 {saturation.recommendation}
               </p>
             </div>

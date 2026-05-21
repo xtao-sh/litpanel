@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowRight, GitBranch, HelpCircle, Scale, Wrench } from "lucide-react";
+import { AlertTriangle, GitBranch, HelpCircle, Info, Scale, Wrench } from "lucide-react";
 
 import type { ResearchLandscape } from "@/lib/types";
 import {
@@ -13,6 +13,12 @@ import {
   buildProjectGraphHref,
 } from "@/lib/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { LandscapeGapsCard } from "@/components/research/landscape-gaps-card";
 
 function GapStat({
@@ -27,16 +33,16 @@ function GapStat({
   icon: ReactNode;
 }) {
   return (
-    <Card className="rounded-xl shadow-sm">
+    <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+        <CardTitle className="flex items-center gap-2 text-sm font-medium text-[var(--ink-4)]">
           {icon}
           {title}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-lg font-semibold text-foreground">{value}</p>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{detail}</p>
+        <p className="text-lg font-semibold text-[var(--ink)]">{value}</p>
+        <p className="mt-1 text-xs leading-relaxed text-[var(--ink-4)]">{detail}</p>
       </CardContent>
     </Card>
   );
@@ -86,14 +92,29 @@ export function ProjectGapsPanel({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-4">
+      <div className="rounded-[var(--r)] border border-[#d6b678] bg-[#f4ead8]/70 px-4 py-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-sm font-medium text-foreground">Project Gap Review</p>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              These signals combine explicit paper limitations and open questions with methods or
-              datasets seen in sibling fields but not yet used inside this project set.
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium text-[var(--ink)]">Project Gap Review</p>
+              <TooltipProvider delayDuration={180}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[var(--ink-4)] hover:bg-[var(--paper)] hover:text-[var(--ink)]"
+                      aria-label="Gap review help"
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs rounded-[var(--r)] border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-xs leading-relaxed text-[var(--ink)] shadow-[var(--shadow-2)]">
+                    These signals combine explicit paper limitations and open questions with methods
+                    or datasets seen in sibling fields but not yet used inside this project set.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
           <Link
             href={buildProjectGraphHref({
@@ -110,7 +131,7 @@ export function ProjectGapsPanel({
               tab: "gaps",
               label: `${projectTitle} · Gap graph`,
             })}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-100"
+            className="inline-flex items-center gap-1.5 rounded-[var(--r)] border border-[#d6b678] bg-[var(--paper)] px-3 py-2 text-sm font-medium text-[#7a5a18] transition-colors hover:bg-[#f4ead8]"
           >
             <GitBranch className="h-3.5 w-3.5" />
             Open Gap Graph
@@ -123,25 +144,25 @@ export function ProjectGapsPanel({
           title="Unused Methods"
           value={gaps.unusedMethods.length}
           detail="Methods used in related fields but absent from this project set."
-          icon={<Wrench className="h-4 w-4 text-amber-500" />}
+          icon={<Wrench className="h-4 w-4 text-[#8a6d3b]" />}
         />
         <GapStat
           title="Unused Datasets"
           value={gaps.unusedDatasets.length}
           detail="Datasets that may open adjacent identification strategies."
-          icon={<AlertTriangle className="h-4 w-4 text-amber-500" />}
+          icon={<AlertTriangle className="h-4 w-4 text-[#8a6d3b]" />}
         />
         <GapStat
           title="Open Questions"
           value={gaps.openQuestions.length}
           detail="Question-shaped prompts extracted from paper limitations."
-          icon={<HelpCircle className="h-4 w-4 text-amber-500" />}
+          icon={<HelpCircle className="h-4 w-4 text-[#8a6d3b]" />}
         />
         <GapStat
           title="Limitations"
           value={gaps.limitations.length}
           detail="Constraint statements already acknowledged in the source papers."
-          icon={<Scale className="h-4 w-4 text-amber-500" />}
+          icon={<Scale className="h-4 w-4 text-[#8a6d3b]" />}
         />
       </div>
 
@@ -154,11 +175,11 @@ export function ProjectGapsPanel({
           actionMode="buttons"
         />
       ) : (
-        <Card className="rounded-xl border-dashed shadow-sm">
+        <Card className="rounded-[var(--r)] border-dashed shadow-[var(--shadow-1)]">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">No gap signals yet</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <CardContent className="space-y-2 text-sm text-[var(--ink-4)]">
             <p>
               This project currently has no extracted limitations, open questions, or sibling-field
               method/dataset gaps.
@@ -167,28 +188,6 @@ export function ProjectGapsPanel({
         </Card>
       )}
 
-      <Card className="rounded-xl shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">How to use this page</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>
-            Start with the unexplored methods and available datasets if you want the most actionable
-            extension paths.
-          </p>
-          <p>
-            Then use the open questions and limitations to decide whether the next step is more
-            identification, more data, or a narrower claim.
-          </p>
-          <Link
-            href={`/projects/${slug}/methods`}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
-          >
-            Inspect methods and data coverage
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </CardContent>
-      </Card>
     </div>
   );
 }

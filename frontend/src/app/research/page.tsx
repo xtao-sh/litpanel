@@ -67,10 +67,10 @@ function ViewModeToggle({
   const { t } = useI18n();
 
   return (
-    <div className={`paper-panel flex items-center gap-1 rounded-[1.2rem] px-2 py-1.5 shrink-0 ${className}`}>
+    <div className={`lp-card flex items-center gap-1 rounded-[var(--r-md)] px-2 py-1.5 shrink-0 ${className}`}>
       <button
         type="button"
-        className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-medium transition-colors ${viewMode === "list" ? "bg-foreground text-background" : "text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"}`}
+        className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-medium transition-colors ${viewMode === "list" ? "bg-[var(--ink)] text-[var(--paper)]" : "text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"}`}
         onClick={() => onChange("list")}
       >
         <List className="h-3 w-3" />
@@ -78,7 +78,7 @@ function ViewModeToggle({
       </button>
       <button
         type="button"
-        className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-medium transition-colors ${viewMode === "cluster" ? "bg-foreground text-background" : "text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"}`}
+        className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-medium transition-colors ${viewMode === "cluster" ? "bg-[var(--ink)] text-[var(--paper)]" : "text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"}`}
         onClick={() => onChange("cluster")}
       >
         <Layers className="h-3 w-3" />
@@ -86,7 +86,7 @@ function ViewModeToggle({
       </button>
       <button
         type="button"
-        className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-medium transition-colors ${viewMode === "timeline" ? "bg-foreground text-background" : "text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"}`}
+        className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-medium transition-colors ${viewMode === "timeline" ? "bg-[var(--ink)] text-[var(--paper)]" : "text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"}`}
         onClick={() => onChange("timeline")}
       >
         <Clock className="h-3 w-3" />
@@ -635,25 +635,25 @@ function ResearchPageInner() {
     return (
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-4xl flex-col items-center px-4 py-10">
         <div className="mb-6 flex items-center gap-3">
-          <div className="paper-panel flex h-16 w-16 items-center justify-center rounded-[1.4rem]">
-            <Microscope className="h-7 w-7 text-primary" />
+          <div className="lp-card flex h-16 w-16 items-center justify-center rounded-[var(--r-md)]">
+            <Microscope className="h-7 w-7 text-[var(--forest)]" />
           </div>
-          <Search className="h-8 w-8 text-primary/35" />
+          <Search className="h-8 w-8 text-[var(--forest)]/35" />
         </div>
 
         <p className="section-kicker mb-2">{t("research.empty.kicker")}</p>
-        <h1 className="font-display mb-2 text-[clamp(2.8rem,5vw,4.5rem)] text-foreground">
+        <h1 className="font-display mb-2 text-[clamp(2.8rem,5vw,4.5rem)] text-[var(--ink)]">
           {t("research.empty.title")}
         </h1>
-        <p className="mb-8 max-w-2xl text-center text-sm text-muted-foreground">
+        <p className="mb-8 max-w-2xl text-center text-sm text-[var(--ink-4)]">
           {t("research.empty.subtitle")}
         </p>
 
-        <div className="paper-panel mb-6 w-full rounded-[1.8rem] p-5 text-left">
-          <p className="text-sm font-medium text-foreground">
+        <div className="lp-card mb-6 w-full rounded-[var(--r-md)] p-5 text-left">
+          <p className="text-sm font-medium text-[var(--ink)]">
             {t("research.empty.workflowTitle")}
           </p>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-1 text-sm leading-relaxed text-[var(--ink-4)]">
             {t("research.empty.workflowBody")}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -680,14 +680,14 @@ function ResearchPageInner() {
           }}
           className="mb-8 w-full"
         >
-          <div className="paper-panel relative rounded-[1.8rem] p-2">
-            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+          <div className="lp-card relative rounded-[var(--r-md)] p-2">
+            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--ink-4)]" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("research.empty.searchPlaceholder")}
-              className="flex h-14 w-full rounded-[1.3rem] border border-input bg-background/75 pl-12 pr-4 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex h-14 w-full rounded-[var(--r-md)] border border-[var(--line)] bg-[var(--paper)]/75 pl-12 pr-4 text-base ring-offset-[var(--paper)] placeholder:text-[var(--ink-4)] focus-visible:bg-[var(--paper)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--forest)] focus-visible:ring-offset-2"
               autoFocus
             />
           </div>
@@ -696,7 +696,7 @@ function ResearchPageInner() {
         {/* Recent Sessions */}
         {sessions.length > 0 && (
           <div className="w-full mb-6">
-            <p className="mb-3 text-sm font-medium text-muted-foreground">
+            <p className="mb-3 text-sm font-medium text-[var(--ink-4)]">
               {t("research.empty.recentSessions")}
             </p>
             <div className="grid gap-2">
@@ -704,15 +704,15 @@ function ResearchPageInner() {
                 <button
                   key={session.id}
                   type="button"
-                  className="paper-panel group flex w-full items-center gap-3 rounded-[1.2rem] px-4 py-3 text-left transition-all hover:bg-[color:oklch(var(--accent)/0.45)]"
+                  className="lp-card group flex w-full items-center gap-3 rounded-[var(--r-md)] px-4 py-3 text-left transition-all hover:bg-[var(--paper-2)]"
                   onClick={() => handleRestoreSession(session)}
                 >
-                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <FileText className="h-4 w-4 shrink-0 text-[var(--ink-4)]" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground truncate">
+                    <p className="text-sm font-medium text-[var(--ink)] truncate">
                       {session.title}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="text-xs text-[var(--ink-4)] truncate">
                       &ldquo;{session.query}&rdquo;
                     </p>
                   </div>
@@ -720,23 +720,23 @@ function ResearchPageInner() {
                     <Badge variant="secondary" className="text-[10px]">
                       {t("common.counts.papers", { count: session.paperIds.length })}
                     </Badge>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-[10px] text-[var(--ink-4)]">
                       {new Date(session.updatedAt).toLocaleDateString()}
                     </span>
                     {confirmDeleteId === session.id ? (
                       <div className="flex items-center gap-1 text-xs" onClick={(e) => e.stopPropagation()}>
-                        <span className="text-red-600">{t("research.empty.deletePrompt")}</span>
+                        <span className="text-[#8a3318]">{t("research.empty.deletePrompt")}</span>
                         <button
                           type="button"
                           onClick={(e) => { handleDeleteSession(session.id, e); setConfirmDeleteId(null); }}
-                          className="text-red-600 font-medium hover:underline"
+                          className="text-[#8a3318] font-medium hover:underline"
                         >
                           {t("common.actions.yes")}
                         </button>
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}
-                          className="text-muted-foreground hover:underline"
+                          className="text-[var(--ink-4)] hover:underline"
                         >
                           {t("common.actions.no")}
                         </button>
@@ -744,11 +744,11 @@ function ResearchPageInner() {
                     ) : (
                       <button
                         type="button"
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 transition-all"
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[#f4dfd5] transition-all"
                         onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(session.id); }}
                         title={t("research.empty.deleteSession")}
                       >
-                        <Trash2 className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
+                        <Trash2 className="h-3.5 w-3.5 text-[var(--rust)] hover:text-[#8a3318]" />
                       </button>
                     )}
                   </div>
@@ -760,13 +760,13 @@ function ResearchPageInner() {
 
         {/* Example queries */}
         <div className="w-full">
-          <p className="mb-3 text-sm font-medium text-muted-foreground">{t("research.empty.try")}</p>
+          <p className="mb-3 text-sm font-medium text-[var(--ink-4)]">{t("research.empty.try")}</p>
           <div className="grid gap-2">
             {EXAMPLE_QUERIES.map((example) => (
               <button
                 key={example}
                 type="button"
-                className="paper-panel w-full rounded-[1.2rem] px-4 py-3 text-left text-sm text-foreground transition-all hover:bg-[color:oklch(var(--accent)/0.45)]"
+                className="lp-card w-full rounded-[var(--r-md)] px-4 py-3 text-left text-sm text-[var(--ink)] transition-all hover:bg-[var(--paper-2)]"
                 onClick={() => handleExampleClick(example)}
               >
                 &ldquo;{example}&rdquo;
@@ -783,10 +783,10 @@ function ResearchPageInner() {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="flex min-h-[calc(100vh-5rem)] flex-col bg-background">
+    <div className="flex min-h-[calc(100vh-5rem)] flex-col bg-[var(--paper)]">
       {/* Error banner */}
       {(papersError || landscapeError || projectError) && (
-        <div className="mx-4 mt-2 flex items-center gap-2 rounded-[1rem] border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
+        <div className="mx-4 mt-2 flex items-center gap-2 rounded-[var(--r-md)] border border-[#da9a80] bg-[#f4dfd5] px-4 py-2.5 text-sm text-[#8a3318]">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>
             {papersError
@@ -799,10 +799,10 @@ function ResearchPageInner() {
       )}
 
       {compareCount > 0 && (
-        <div className="mx-4 mt-2 rounded-[1.35rem] border border-primary/15 bg-primary/10 px-4 py-3">
+        <div className="mx-4 mt-2 rounded-[var(--r-md)] border border-[var(--forest)]/15 bg-[var(--forest-soft)] px-4 py-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-sm font-medium text-foreground">
+              <p className="text-sm font-medium text-[var(--ink)]">
                 {t(compareCount === 1 ? "research.compare.selected" : "research.compare.selectedPlural", { count: compareCount })}
               </p>
             </div>
@@ -839,13 +839,13 @@ function ResearchPageInner() {
         extraActions={
           allPaperIds.length > 0 ? (
             saveDialogOpen ? (
-              <div className="flex items-center gap-2 rounded-lg border border-border bg-background p-1.5 shadow-lg">
+              <div className="flex items-center gap-2 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] p-1.5 shadow-[var(--shadow-2)]">
                 <input
                   type="text"
                   value={sessionTitle}
                   onChange={(e) => setSessionTitle(e.target.value)}
                   placeholder={t("research.saveSession.placeholder")}
-                  className="h-7 w-36 rounded-md border border-input px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="h-7 w-36 rounded-[var(--r)] border border-[var(--line)] px-2 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleSaveSession();
@@ -888,15 +888,15 @@ function ResearchPageInner() {
       />
 
       {/* Compact context and primary actions */}
-      <div className="mx-4 mt-2 flex flex-col gap-3 rounded-[1.2rem] border border-border/70 bg-card/75 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+      <div className="mx-4 mt-2 flex flex-col gap-3 rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)]/75 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0">
           <p
-            className="truncate text-sm font-medium text-foreground"
+            className="truncate text-sm font-medium text-[var(--ink)]"
             title={t("research.scope.body")}
           >
             {t("research.scope.analyzing", { count: allPaperIds.length.toLocaleString(), query: submittedQuery })}
           </p>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--ink-4)]">
             <span>{t("research.scope.showing", { start: visibleRangeStart, end: visibleRangeEnd, total: papersTotal.toLocaleString() })}</span>
             {activeFilterCount > 0 && (
               <span>{t(activeFilterCount === 1 ? "research.scope.activeFilters" : "research.scope.activeFiltersPlural", { count: activeFilterCount })}</span>
@@ -905,7 +905,7 @@ function ResearchPageInner() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {allPaperIds.length >= 4 && (
-            <ViewModeToggle className="border border-border/70 bg-background/70" viewMode={viewMode} onChange={handleViewModeChange} />
+            <ViewModeToggle className="border border-[var(--line-soft)] bg-[var(--paper)]" viewMode={viewMode} onChange={handleViewModeChange} />
           )}
           {submittedQuery && (
             <Button asChild variant="outline" size="sm" className="h-9 rounded-full text-xs">
@@ -938,7 +938,7 @@ function ResearchPageInner() {
       {/* Mobile tabs */}
       <div className="block xl:hidden">
         <Tabs value={mobileTab} onValueChange={setMobileTab}>
-          <TabsList className="paper-panel mx-4 mt-2 h-10 gap-1 rounded-[1.2rem] p-1">
+          <TabsList className="lp-card mx-4 mt-2 h-10 gap-1 rounded-[var(--r-md)] p-1">
             <TabsTrigger value="results" className="px-4 text-xs">
               {t("research.tabs.results")}
             </TabsTrigger>
@@ -981,7 +981,7 @@ function ResearchPageInner() {
       {/* Desktop three-column layout */}
       <div className="hidden flex-1 overflow-hidden xl:flex">
         {/* Left: Results list */}
-        <div className="w-[420px] shrink-0 overflow-hidden border-r border-border/70 bg-card/30 px-3 pb-3 pt-3 flex flex-col">
+        <div className="w-[420px] shrink-0 overflow-hidden border-r border-[var(--line-soft)] bg-[var(--paper)]/30 px-3 pb-3 pt-3 flex flex-col">
           {renderResultsContent()}
         </div>
 
@@ -999,7 +999,7 @@ function ResearchPageInner() {
 
         {/* Right: Chat (collapsible) */}
         {chatOpen ? (
-          <div className="w-[380px] shrink-0 bg-background/30 px-3 py-3">
+          <div className="w-[380px] shrink-0 bg-[var(--paper)]/30 px-3 py-3">
             <ResearchChat
               open={chatOpen}
               onToggle={handleChatToggle}

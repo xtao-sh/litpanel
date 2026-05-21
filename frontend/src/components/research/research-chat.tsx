@@ -378,7 +378,7 @@ export function ResearchChat({
       <Button
         variant="default"
         size="sm"
-        className="fixed bottom-6 right-6 z-30 gap-2 rounded-full px-4 py-2 shadow-lg lg:static lg:shadow-none"
+        className="fixed bottom-6 right-6 z-30 gap-2 rounded-full px-4 py-2 shadow-[var(--shadow-2)] lg:static lg:shadow-none"
         onClick={onToggle}
       >
         <Sparkles className="h-4 w-4" />
@@ -388,15 +388,15 @@ export function ResearchChat({
   }
 
   return (
-    <div className="paper-panel flex h-full w-full flex-col rounded-[1.45rem] bg-background/95 backdrop-blur-md">
+    <div className="lp-card flex h-full w-full flex-col rounded-[var(--r-md)] bg-[var(--paper)]/95 backdrop-blur-md">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      <div className="flex items-center justify-between border-b border-[var(--line-soft)] px-4 py-3">
         <div className="flex items-center gap-2">
           <div>
             <p className="section-kicker">{t("research.chat.kicker")}</p>
             <div className="mt-1 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <h3 className="font-display text-[1.35rem] text-foreground">{t("research.chat.title")}</h3>
+              <Sparkles className="h-4 w-4 text-[var(--forest)]" />
+              <h3 className="font-display text-[1.35rem] text-[var(--ink)]">{t("research.chat.title")}</h3>
             </div>
           </div>
         </div>
@@ -425,9 +425,9 @@ export function ResearchChat({
 
       {/* Context banner */}
       {searchQuery && (
-        <div className="flex items-center gap-2 border-b border-border/50 bg-[color:oklch(var(--accent)/0.24)] px-4 py-2">
-          <MessageSquare className="h-3 w-3 shrink-0 text-primary/70" />
-          <p className="truncate text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 border-b border-[var(--line-soft)]/50 bg-[var(--paper-2)] px-4 py-2">
+          <MessageSquare className="h-3 w-3 shrink-0 text-[var(--forest)]" />
+          <p className="truncate text-xs text-[var(--ink-4)]">
             {t("research.chat.context", { count: totalPapers.toLocaleString(), query: searchQuery })}
           </p>
         </div>
@@ -437,10 +437,10 @@ export function ResearchChat({
       <div className="flex-1 overflow-y-auto px-3 py-3">
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-2">
-            <div className="paper-panel mb-4 flex h-12 w-12 items-center justify-center rounded-[1rem]">
-              <Sparkles className="h-5 w-5 text-primary" />
+            <div className="lp-card mb-4 flex h-12 w-12 items-center justify-center rounded-[var(--r-md)]">
+              <Sparkles className="h-5 w-5 text-[var(--forest)]" />
             </div>
-            <p className="mb-4 text-center text-xs text-muted-foreground">
+            <p className="mb-4 text-center text-xs text-[var(--ink-4)]">
               {t("research.chat.empty")}
             </p>
             {/* Suggested questions */}
@@ -449,7 +449,7 @@ export function ResearchChat({
                 <button
                   key={q}
                   type="button"
-                  className="paper-panel w-full rounded-[1rem] px-3 py-2 text-left text-xs text-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)]"
+                  className="lp-card w-full rounded-[var(--r-md)] px-3 py-2 text-left text-xs text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                   onClick={() => submitQuestion(q)}
                 >
                   {q}
@@ -468,9 +468,9 @@ export function ResearchChat({
       </div>
 
       {/* Input */}
-      <div className="shrink-0 border-t border-border bg-background/80 px-3 py-2">
+      <div className="shrink-0 border-t border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2">
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <div className="paper-panel flex flex-1 rounded-[1rem] p-1">
+          <div className="lp-card flex flex-1 rounded-[var(--r-md)] p-1">
             <input
               ref={inputRef}
               type="text"
@@ -478,7 +478,7 @@ export function ResearchChat({
               onChange={(e) => setInput(e.target.value)}
               placeholder={t("research.chat.placeholder")}
               disabled={isStreaming}
-              className="flex h-9 flex-1 rounded-[0.8rem] border border-input bg-background/75 px-3 text-sm placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-9 flex-1 rounded-[0.8rem] border border-[var(--line)] bg-[var(--paper)]/75 px-3 text-sm placeholder:text-[var(--ink-4)] focus-visible:bg-[var(--paper)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--forest)] disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
           <Button

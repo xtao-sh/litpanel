@@ -44,20 +44,20 @@ function CompareContent() {
   if (error) {
     return (
       <div className="space-y-4">
-        <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Link href={backHref} className="transition-colors hover:text-foreground">
+        <nav className="flex items-center gap-1.5 text-xs text-[var(--ink-4)]">
+          <Link href={backHref} className="transition-colors hover:text-[var(--ink)]">
             {sourceLabel}
           </Link>
           <span>/</span>
-          <span className="text-foreground">Compare</span>
+          <span className="text-[var(--ink)]">Compare</span>
         </nav>
-        <div className="paper-panel flex flex-col items-center justify-center rounded-[1.8rem] px-6 py-24 text-center">
+        <div className="lp-card flex flex-col items-center justify-center rounded-[var(--r-md)] px-6 py-24 text-center">
           <p className="section-kicker">Comparison unavailable</p>
-          <h2 className="font-display mt-3 text-[2rem] text-foreground">Cannot compare papers</h2>
-          <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">{error}</p>
+          <h2 className="font-display mt-3 text-[2rem] text-[var(--ink)]">Cannot compare papers</h2>
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-[var(--ink-4)]">{error}</p>
           <Link
             href={backHref}
-            className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/15"
+            className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-[var(--forest)] bg-[var(--forest-soft)] px-4 py-2 text-sm font-medium text-[var(--forest)] hover:bg-[var(--forest-soft)]"
           >
             <ArrowLeft className="h-4 w-4" />
             {backLabel}
@@ -69,21 +69,21 @@ function CompareContent() {
 
   if (!result || result.papers.length === 0) {
     return (
-      <div className="paper-panel flex flex-col items-center justify-center rounded-[1.8rem] px-6 py-24 text-center">
+      <div className="lp-card flex flex-col items-center justify-center rounded-[var(--r-md)] px-6 py-24 text-center">
         <p className="section-kicker">Empty comparison</p>
-        <p className="mt-3 text-sm text-muted-foreground">No results to display.</p>
+        <p className="mt-3 text-sm text-[var(--ink-4)]">No results to display.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Link href={backHref} className="transition-colors hover:text-foreground">
+      <nav className="flex items-center gap-1.5 text-xs text-[var(--ink-4)]">
+        <Link href={backHref} className="transition-colors hover:text-[var(--ink)]">
           {sourceLabel}
         </Link>
         <span>/</span>
-        <span className="text-foreground">Compare ({result.papers.length} papers)</span>
+        <span className="text-[var(--ink)]">Compare ({result.papers.length} papers)</span>
       </nav>
 
       <ComparisonTableView
@@ -97,7 +97,7 @@ function CompareContent() {
       <div className="pt-2">
         <Link
           href={backHref}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border/75 bg-background/85 px-4 py-2 text-sm font-medium text-primary hover:bg-accent/50"
+          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-4 py-2 text-sm font-medium text-[var(--forest)] hover:bg-[var(--paper-2)]"
         >
           <ArrowLeft className="h-4 w-4" />
           {backLabel}

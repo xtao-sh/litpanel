@@ -6,7 +6,7 @@ import zhCN from "./messages/zh-CN";
 
 export type Locale = "en" | "zh-CN";
 
-const STORAGE_KEY = "ui-locale";
+const STORAGE_KEY = "ui-locale-v2";
 
 type MessageTree = Readonly<Record<string, unknown>>;
 
@@ -27,7 +27,7 @@ function detectInitialLocale(): Locale {
   if (typeof window === "undefined") return "en";
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored === "en" || stored === "zh-CN") return stored;
-  return window.navigator.language.toLowerCase().startsWith("zh") ? "zh-CN" : "en";
+  return "en";
 }
 
 function lookupMessage(tree: MessageTree, key: string): string | null {

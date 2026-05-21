@@ -30,10 +30,10 @@ const DIMENSION_GROUPS: Record<string, string[]> = {
 };
 
 function barGradient(score: number): string {
-  if (score >= 4.5) return "bg-gradient-to-r from-green-300 to-green-500";
-  if (score >= 3.5) return "bg-gradient-to-r from-blue-300 to-blue-500";
-  if (score >= 2.5) return "bg-gradient-to-r from-yellow-300 to-yellow-500";
-  return "bg-gradient-to-r from-gray-300 to-gray-400";
+  if (score >= 4.5) return "bg-gradient-to-r from-[var(--forest-soft)] to-[var(--forest)]";
+  if (score >= 3.5) return "bg-gradient-to-r from-[#dfe7f2] to-[#2c4870]";
+  if (score >= 2.5) return "bg-gradient-to-r from-[#f4ead8] to-[#b88a3b]";
+  return "bg-gradient-to-r from-[var(--paper-3)] to-[var(--ink-5)]";
 }
 
 function formatDimension(dim: string): string {
@@ -79,7 +79,7 @@ export function ScoreBars({ scores }: ScoreBarsProps) {
 
   if (groups.length === 0) {
     return (
-      <p className="text-sm text-gray-400">No scores available</p>
+      <p className="text-sm text-[var(--ink-5)]">No scores available</p>
     );
   }
 
@@ -87,22 +87,22 @@ export function ScoreBars({ scores }: ScoreBarsProps) {
     <div className="space-y-4">
       {groups.map((group) => (
         <div key={group.label}>
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
             {group.label}
           </h4>
           <div className="space-y-1.5">
             {group.items.map(({ dim, score }) => (
               <div key={dim} className="flex items-center gap-2">
-                <span className="w-36 shrink-0 truncate text-xs text-gray-600">
+                <span className="w-36 shrink-0 truncate text-xs text-[var(--ink-3)]">
                   {formatDimension(dim)}
                 </span>
-                <div className="flex h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+                <div className="flex h-2.5 flex-1 overflow-hidden rounded-full bg-[var(--paper-2)]">
                   <div
                     className={`h-full rounded-full transition-all ${barGradient(score)}`}
                     style={{ width: `${(score / 5) * 100}%` }}
                   />
                 </div>
-                <span className="w-8 shrink-0 text-right font-mono text-sm text-gray-700">
+                <span className="w-8 shrink-0 text-right font-mono text-sm text-[var(--ink-3)]">
                   {score}
                 </span>
               </div>

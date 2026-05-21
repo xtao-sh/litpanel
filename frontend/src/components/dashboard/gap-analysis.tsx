@@ -42,13 +42,13 @@ export function GapAnalysisCard({ data, loading }: GapAnalysisCardProps) {
           </CardTitle>
           <Link
             href="/maps/frontier_gaps"
-            className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+            className="inline-flex items-center gap-1 text-xs font-medium text-[#2c4870] hover:text-[#223a5e] transition-colors"
           >
             {t("dashboard.gapAnalysis.frontierGaps")}
             <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
-        <p className="text-xs leading-relaxed text-muted-foreground">
+        <p className="text-xs leading-relaxed text-[var(--ink-4)]">
           {t("dashboard.gapAnalysis.body")}
         </p>
       </CardHeader>
@@ -80,9 +80,9 @@ export function GapAnalysisCard({ data, loading }: GapAnalysisCardProps) {
             {/* Bridge Atoms */}
             {data.bridgeAtoms.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                <h3 className="text-sm font-semibold text-[var(--ink-3)] mb-2">
                   {t("dashboard.gapAnalysis.bridgeAtoms")}
-                  <span className="ml-1 text-xs font-normal text-gray-400">
+                  <span className="ml-1 text-xs font-normal text-[var(--ink-5)]">
                     ({t("dashboard.gapAnalysis.connectingFields")})
                   </span>
                 </h3>
@@ -93,11 +93,11 @@ export function GapAnalysisCard({ data, loading }: GapAnalysisCardProps) {
                         <TooltipTrigger asChild>
                           <Link
                             href={`/atom/${atom.slug}`}
-                            className="group inline-flex items-center gap-1.5 transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-primary/10"
+                            className="group inline-flex items-center gap-1.5 transition-all duration-200 hover:scale-[1.03] hover:shadow-[var(--shadow-2)] "
                           >
                             <Badge variant={getAtomBadgeVariant(atom.type)} className="cursor-pointer">
                               {atom.title}
-                              <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-white/70 px-1.5 py-0 text-xs font-bold leading-4">
+                              <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-[var(--paper)]/70 px-1.5 py-0 text-xs font-bold leading-4">
                                 {atom.fieldCount}
                               </span>
                             </Badge>
@@ -114,7 +114,7 @@ export function GapAnalysisCard({ data, loading }: GapAnalysisCardProps) {
                             {atom.connectedFields.map((f) => (
                               <span
                                 key={f}
-                                className="inline-block rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700"
+                                className="inline-block rounded bg-[#e9eef6] px-1.5 py-0.5 text-xs text-[#223a5e]"
                               >
                                 {f}
                               </span>
@@ -131,34 +131,34 @@ export function GapAnalysisCard({ data, loading }: GapAnalysisCardProps) {
             {/* Weak Field Connections */}
             {data.weakConnections.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                <h3 className="text-sm font-semibold text-[var(--ink-3)] mb-2">
                   {t("dashboard.gapAnalysis.weakPairs")}
                 </h3>
-                <div className="overflow-hidden rounded-lg border border-border">
+                <div className="overflow-hidden rounded-[var(--r)] border border-[var(--line-soft)]">
                   <table className="min-w-full text-sm">
                     <thead>
-                      <tr className="bg-muted/50 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      <tr className="bg-[var(--paper-2)]/50 text-left text-xs font-medium uppercase tracking-wide text-[var(--ink-4)]">
                         <th className="px-3 py-2.5">{t("dashboard.gapAnalysis.fieldA")}</th>
                         <th className="px-3 py-2.5">{t("dashboard.gapAnalysis.fieldB")}</th>
                         <th className="px-3 py-2.5 text-right">{t("dashboard.gapAnalysis.sharedAtoms")}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border">
+                    <tbody className="divide-y divide-[var(--line-soft)]">
                       {data.weakConnections.map((wc) => (
                         <tr
                           key={`${wc.fieldA}-${wc.fieldB}`}
-                          className="hover:bg-accent/50 transition-colors"
+                          className="hover:bg-[var(--paper-2)] transition-colors"
                         >
-                          <td className="px-3 py-2 text-foreground">{wc.fieldA}</td>
-                          <td className="px-3 py-2 text-foreground">{wc.fieldB}</td>
+                          <td className="px-3 py-2 text-[var(--ink)]">{wc.fieldA}</td>
+                          <td className="px-3 py-2 text-[var(--ink)]">{wc.fieldB}</td>
                           <td className="px-3 py-2 text-right">
                             <span
                               className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                                 wc.sharedAtomCount === 0
-                                  ? "bg-red-100 text-red-700"
+                                  ? "bg-[#f4dfd5] text-[#8a3318]"
                                   : wc.sharedAtomCount <= 2
-                                    ? "bg-amber-100 text-amber-700"
-                                    : "bg-green-100 text-green-700"
+                                    ? "bg-[#f4ead8] text-[#7a5a18]"
+                                    : "bg-[var(--forest-soft)] text-[var(--forest-2)]"
                               }`}
                             >
                               {wc.sharedAtomCount}
@@ -173,13 +173,13 @@ export function GapAnalysisCard({ data, loading }: GapAnalysisCardProps) {
             )}
 
             {/* Orphan atom count */}
-            <div className="flex items-center gap-3 rounded-lg bg-muted/60 px-4 py-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
-                <Unlink className="h-4 w-4 text-amber-600" />
+            <div className="flex items-center gap-3 rounded-[var(--r)] bg-[var(--paper-2)]/60 px-4 py-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f4ead8]">
+                <Unlink className="h-4 w-4 text-[#7a5a18]" />
               </div>
-              <p className="text-sm text-foreground">
+              <p className="text-sm text-[var(--ink)]">
                 {t("dashboard.gapAnalysis.orphanAtoms", { count: data.totalOrphanAtoms.toLocaleString() })}
-                <span className="ml-1 text-xs text-muted-foreground">
+                <span className="ml-1 text-xs text-[var(--ink-4)]">
                   ({t("dashboard.gapAnalysis.expansionPoints")})
                 </span>
               </p>

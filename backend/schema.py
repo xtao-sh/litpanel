@@ -227,6 +227,11 @@ class Atom:
         return await resolvers.get_atom_paper_count(self.slug)
 
     @strawberry.field
+    async def year_distribution(self) -> list[YearCount]:
+        rows = await resolvers.get_atom_year_distribution(self.slug)
+        return [YearCount(year=r["year"], count=r["count"]) for r in rows]
+
+    @strawberry.field
     async def similar_atoms(self, limit: int = 10) -> list[SimilarAtom]:
         """Atoms semantically similar (via embeddings)."""
         rows = await resolvers.get_similar_atoms(self.slug, limit=limit)
@@ -425,6 +430,7 @@ class GraphNode:
     fields: list[str]
     theme: Optional[str] = None
     paper_count: Optional[int] = None
+    visible_paper_count: Optional[int] = None
     is_seed: bool = False
 
 
@@ -1251,6 +1257,11 @@ class Query:
         )
 
     @strawberry.field
+    async def top_atoms(self, limit: int = 20) -> list[Atom]:
+        rows = await resolvers.get_top_atoms(limit=max(1, min(limit, 100)))
+        return [_dict_to_atom(d) for d in rows]
+
+    @strawberry.field
     async def atom_themes(
         self,
         atom_type: Optional[str] = None,
@@ -1464,6 +1475,7 @@ class Query:
                     fields=n.get("fields", []),
                     theme=n.get("theme"),
                     paper_count=n.get("paper_count"),
+                    visible_paper_count=n.get("visible_paper_count"),
                     is_seed=n.get("is_seed", False),
                 )
                 for n in data["nodes"]
@@ -1500,6 +1512,7 @@ class Query:
                     fields=n.get("fields", []),
                     theme=n.get("theme"),
                     paper_count=n.get("paper_count"),
+                    visible_paper_count=n.get("visible_paper_count"),
                     is_seed=n.get("is_seed", False),
                 )
                 for n in data["nodes"]
@@ -1536,6 +1549,7 @@ class Query:
                     fields=n.get("fields", []),
                     theme=n.get("theme"),
                     paper_count=n.get("paper_count"),
+                    visible_paper_count=n.get("visible_paper_count"),
                     is_seed=n.get("is_seed", False),
                 )
                 for n in data["nodes"]

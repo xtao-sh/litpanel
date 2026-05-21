@@ -305,15 +305,15 @@ function AskPageInner() {
     >
       {/* Header */}
       <div className="shrink-0 pb-4">
-        <div className="paper-panel rounded-[1.8rem] px-6 py-5">
+        <div className="lp-card rounded-[var(--r-md)] px-6 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="paper-panel flex h-11 w-11 items-center justify-center rounded-[1rem]">
-                <Sparkles className="h-5 w-5 text-primary" />
+              <div className="lp-card flex h-11 w-11 items-center justify-center rounded-[var(--r-md)]">
+                <Sparkles className="h-5 w-5 text-[var(--forest)]" />
               </div>
               <div>
                 <p className="section-kicker">Research assistant</p>
-                <h1 className="font-display text-[2rem] text-foreground">
+                <h1 className="font-display text-[2rem] text-[var(--ink)]">
                   Ask the Knowledge Base
                 </h1>
               </div>
@@ -321,9 +321,9 @@ function AskPageInner() {
             <div className="flex items-center gap-2">
               {/* Session indicator */}
               {sessionId && turnCount > 0 && (
-                <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5">
-                  <MessageCircle className="h-3.5 w-3.5 text-primary" />
-                  <span className="text-xs font-medium text-primary">
+                <div className="flex items-center gap-1.5 rounded-full bg-[var(--forest-soft)] px-3 py-1.5">
+                  <MessageCircle className="h-3.5 w-3.5 text-[var(--forest)]" />
+                  <span className="text-xs font-medium text-[var(--forest)]">
                     {turnCount} {turnCount === 1 ? "turn" : "turns"}
                   </span>
                 </div>
@@ -342,11 +342,11 @@ function AskPageInner() {
               )}
             </div>
           </div>
-          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--ink-4)]">
             Ask questions about your research and get AI-generated answers with
             citations from the papers in your {appConfig.corpusLabel}.
             {sessionId && turnCount > 0 && (
-              <span className="ml-1 text-primary">
+              <span className="ml-1 text-[var(--forest)]">
                 The assistant is keeping the thread context.
               </span>
             )}
@@ -356,9 +356,9 @@ function AskPageInner() {
 
       {/* Paper context banner */}
       {paperIdParam && (
-        <div className="paper-panel mb-4 shrink-0 flex items-center gap-2 rounded-[1.15rem] px-4 py-2.5">
-          <MessageCircle className="h-4 w-4 text-primary shrink-0" />
-          <span className="text-sm text-foreground">
+        <div className="lp-card mb-4 shrink-0 flex items-center gap-2 rounded-[var(--r-md)] px-4 py-2.5">
+          <MessageCircle className="h-4 w-4 text-[var(--forest)] shrink-0" />
+          <span className="text-sm text-[var(--ink)]">
             Asking about paper <span className="font-mono font-semibold">{paperIdParam}</span>
           </span>
         </div>
@@ -366,19 +366,19 @@ function AskPageInner() {
 
       {/* Messages area */}
       <div
-        className={`paper-panel overflow-y-auto rounded-[1.7rem] px-4 ${
+        className={`lp-card overflow-y-auto rounded-[var(--r-md)] px-4 ${
           isEmpty ? "min-h-[26rem] py-6" : "flex-1"
         }`}
       >
         {isEmpty ? (
           <div className="mx-auto flex max-w-2xl flex-col items-center px-4 pt-4">
-            <div className="paper-panel mb-5 flex h-14 w-14 items-center justify-center rounded-[1.15rem]">
-              <Sparkles className="h-7 w-7 text-primary" />
+            <div className="lp-card mb-5 flex h-14 w-14 items-center justify-center rounded-[var(--r-md)]">
+              <Sparkles className="h-7 w-7 text-[var(--forest)]" />
             </div>
-            <p className="mb-3 text-center text-sm font-medium text-foreground">
+            <p className="mb-3 text-center text-sm font-medium text-[var(--ink)]">
               Start with a question, then keep the thread open while you refine it.
             </p>
-            <p className="mb-6 text-center text-sm leading-relaxed text-muted-foreground">
+            <p className="mb-6 text-center text-sm leading-relaxed text-[var(--ink-4)]">
               Ask a question to get started. The AI will search the knowledge
               base and provide an answer with citations.
             </p>
@@ -422,9 +422,9 @@ function AskPageInner() {
       </div>
 
       {/* Input area */}
-      <div className={`shrink-0 border-t border-border/70 bg-card/60 ${isEmpty ? "pt-3 pb-4" : "pt-4 pb-2"}`}>
+      <div className={`shrink-0 border-t border-[var(--line-soft)] bg-[var(--paper)]/60 ${isEmpty ? "pt-3 pb-4" : "pt-4 pb-2"}`}>
         <form onSubmit={handleSubmit} className="flex items-end gap-3">
-          <div className="paper-panel flex flex-1 rounded-[1.15rem] p-1.5">
+          <div className="lp-card flex flex-1 rounded-[var(--r-md)] p-1.5">
             <textarea
               ref={inputRef}
               value={input}
@@ -444,7 +444,7 @@ function AskPageInner() {
               placeholder="Ask a question about your research knowledge..."
               disabled={isStreaming}
               rows={1}
-              className="flex min-h-[48px] max-h-[120px] flex-1 resize-none rounded-[0.95rem] border border-border bg-background/80 px-5 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex min-h-[48px] max-h-[120px] flex-1 resize-none rounded-[0.95rem] border border-[var(--line-soft)] bg-[var(--paper)] px-5 py-3 text-sm ring-offset-[var(--paper)] placeholder:text-[var(--ink-4)] focus-visible:bg-[var(--paper)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--forest)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
           {isStreaming ? (
@@ -453,7 +453,7 @@ function AskPageInner() {
               onClick={() => {
                 if (abortRef.current) abortRef.current.abort();
               }}
-              className="shrink-0 rounded-full bg-red-600 px-3 py-2 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+              className="shrink-0 rounded-full bg-[var(--rust)] px-3 py-2 text-[var(--paper)] text-sm font-medium hover:bg-[#8a3318] transition-colors"
             >
               Stop
             </button>
@@ -462,7 +462,7 @@ function AskPageInner() {
               type="submit"
               size="icon"
               disabled={!input.trim()}
-              className="h-12 w-12 shrink-0 rounded-full shadow-sm"
+              className="h-12 w-12 shrink-0 rounded-full shadow-[var(--shadow-1)]"
             >
               <Send className="h-4 w-4" />
             </Button>

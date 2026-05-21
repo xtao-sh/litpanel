@@ -18,24 +18,24 @@ interface FieldChartProps {
 }
 
 const FIELD_COLORS = [
-  "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef",
-  "#ec4899", "#f43f5e", "#ef4444", "#f97316", "#f59e0b",
-  "#eab308", "#84cc16", "#22c55e", "#14b8a6", "#06b6d4",
+  "#15803d", "#2c4870", "#b88a3b", "#8a3318", "#4a463c",
+  "#166534", "#6f86a6", "#d6b678", "#b54820", "#807968",
+  "#dcebe1", "#e9eef6", "#f4ead8", "#f4dfd5", "#a8a193",
 ];
 const FIELD_SKELETON_WIDTHS = ["34%", "46%", "58%", "41%", "63%", "49%", "72%", "54%", "67%", "39%"];
 
 const nivoTheme = {
-  text: { fontSize: 14, fontFamily: "Inter, system-ui, sans-serif", fill: "#64748B" },
-  grid: { line: { stroke: "#E2E8F0", strokeWidth: 1, strokeDasharray: "4 4" } },
+  text: { fontSize: 14, fontFamily: "Inter, system-ui, sans-serif", fill: "#807968" },
+  grid: { line: { stroke: "#e6e1d3", strokeWidth: 1, strokeDasharray: "4 4" } },
   axis: {
-    ticks: { text: { fill: "#64748B", fontSize: 14 } },
-    legend: { text: { fill: "#475569", fontSize: 14, fontWeight: 500 } },
+    ticks: { text: { fill: "#807968", fontSize: 14 } },
+    legend: { text: { fill: "#4a463c", fontSize: 14, fontWeight: 500 } },
     domain: { line: { stroke: "transparent" } },
   },
   tooltip: {
     container: {
-      background: "#fff",
-      border: "1px solid #E2E8F0",
+      background: "#fafaf7",
+      border: "1px solid #e6e1d3",
       borderRadius: "8px",
       boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
       fontSize: 13,
@@ -107,7 +107,7 @@ export function FieldChart({ data, loading }: FieldChartProps) {
               enableLabel={true}
               label={(d) => d.value != null ? String(d.value) : ""}
               labelSkipWidth={30}
-              labelTextColor="#fff"
+              labelTextColor="#fafaf7"
               animate={true}
               motionConfig="gentle"
               theme={nivoTheme}

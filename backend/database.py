@@ -758,6 +758,9 @@ def create_library(
     name: str,
     discipline: str = "",
     description: str = "",
+    papers_dir: str = "",
+    knowledge_base_dir: str = "",
+    agent_db_path: str = "",
 ) -> dict[str, object]:
     conn = get_connection()
     cur = conn.cursor()
@@ -769,12 +772,21 @@ def create_library(
         slug = f"{base_slug}-{suffix}"
         suffix += 1
 
-    papers_dir = str(PAPERS_DIR / slug)
-    knowledge_base_dir = str(KNOWLEDGE_BASE_DIR / slug)
-    agent_db_path = str(AGENT_DB_PATH.parent / f"{slug}_agent.db")
+    papers_dir = str(Path(papers_dir).expanduser()) if papers_dir.strip() else str(PAPERS_DIR / slug)
+    knowledge_base_dir = (
+        str(Path(knowledge_base_dir).expanduser())
+        if knowledge_base_dir.strip()
+        else str(KNOWLEDGE_BASE_DIR / slug)
+    )
+    agent_db_path = (
+        str(Path(agent_db_path).expanduser())
+        if agent_db_path.strip()
+        else str(AGENT_DB_PATH.parent / f"{slug}_agent.db")
+    )
 
     Path(papers_dir).mkdir(parents=True, exist_ok=True)
     Path(knowledge_base_dir).mkdir(parents=True, exist_ok=True)
+    Path(agent_db_path).parent.mkdir(parents=True, exist_ok=True)
 
     cur.execute(
         """
@@ -1365,7 +1377,7 @@ def get_paper_processing_state(
                     ELSE ''
                 END AS last_error
             """
-            binds = [library_id, f"library:{library_id}", paper_id]
+            binds = [f"library:{library_id}", library_id, paper_id]
 
         row = conn.execute(
             f"""
@@ -1553,7 +1565,29 @@ def update_library(
     name: str,
     discipline: str = "",
     description: str = "",
+    papers_dir: str = "",
+    knowledge_base_dir: str = "",
+    agent_db_path: str = "",
 ) -> dict[str, object] | None:
+    current = get_library(library_id)
+    if current is None:
+        return None
+
+    next_papers_dir = str(Path(papers_dir).expanduser()) if papers_dir.strip() else str(current["papers_dir"])
+    next_knowledge_base_dir = (
+        str(Path(knowledge_base_dir).expanduser())
+        if knowledge_base_dir.strip()
+        else str(current["knowledge_base_dir"])
+    )
+    next_agent_db_path = (
+        str(Path(agent_db_path).expanduser())
+        if agent_db_path.strip()
+        else str(current["agent_db_path"])
+    )
+    Path(next_papers_dir).mkdir(parents=True, exist_ok=True)
+    Path(next_knowledge_base_dir).mkdir(parents=True, exist_ok=True)
+    Path(next_agent_db_path).expanduser().parent.mkdir(parents=True, exist_ok=True)
+
     conn = get_connection()
     conn.execute(
         """
@@ -1561,10 +1595,21 @@ def update_library(
         SET name = ?,
             discipline = ?,
             description = ?,
+            papers_dir = ?,
+            knowledge_base_dir = ?,
+            agent_db_path = ?,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
         """,
-        (name.strip(), discipline.strip(), description.strip(), library_id),
+        (
+            name.strip(),
+            discipline.strip(),
+            description.strip(),
+            next_papers_dir,
+            next_knowledge_base_dir,
+            next_agent_db_path,
+            library_id,
+        ),
     )
     conn.commit()
     conn.close()

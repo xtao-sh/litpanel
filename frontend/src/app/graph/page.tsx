@@ -5,7 +5,17 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useLazyQuery } from "@apollo/client/react";
-import { ArrowLeft, Loader2, Network, GitBranch, Info } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  GitBranch,
+  Loader2,
+  Network,
+  PanelRightClose,
+  PanelRightOpen,
+  RotateCcw,
+  Search,
+} from "lucide-react";
 import {
   GET_PAPER_NETWORK,
   GET_ATOM_NEIGHBORHOOD,
@@ -14,10 +24,11 @@ import {
   SEARCH,
 } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
-import { GraphControls } from "@/components/graph/graph-controls";
 import { NodeDetail } from "@/components/graph/node-detail";
 import type { LayoutName } from "@/components/graph/cytoscape-graph";
+import { useI18n } from "@/lib/i18n/locale-context";
 import type {
+  GraphEdge,
   GraphNode,
   NetworkGraph,
   ResearchFilter,
@@ -64,20 +75,20 @@ function buildResearchFilterInput(filters: ResearchFilter): Record<string, unkno
   return Object.keys(filterInput).length > 0 ? filterInput : null;
 }
 
-function getSourceLabel(source?: string | null): string {
+function getSourceLabel(t: (key: string) => string, source?: string | null): string {
   switch (source) {
     case "research":
-      return "Back to Research";
+      return t("graph.back.research");
     case "paper":
-      return "Back to Paper";
+      return t("graph.back.paper");
     case "ask":
-      return "Back to Ask";
+      return t("graph.back.ask");
     case "project":
-      return "Back to Project";
+      return t("graph.back.project");
     case "latest":
-      return "Back to Latest Research";
+      return t("graph.back.latest");
     default:
-      return "Back";
+      return t("graph.back.default");
   }
 }
 
@@ -108,91 +119,331 @@ interface NodeConnectionSummary {
   count: number;
 }
 
+interface GraphOverviewItem {
+  id: string;
+  label: string;
+  meta: string;
+}
+
+interface GraphOverviewGroup {
+  id: string;
+  label: string;
+  count: number;
+  nodeIds: string[];
+  edgeIds: string[];
+  items: GraphOverviewItem[];
+}
+
 const GRAPH_NODE_LEGEND = [
-  { label: "Papers", shape: "circle", color: "#3b82f6" },
-  { label: "Methods", shape: "square", color: "#22c55e" },
-  { label: "Datasets", shape: "hexagon", color: "#a855f7" },
-  { label: "Mechanisms", shape: "diamond", color: "#f97316" },
-  { label: "Puzzles", shape: "triangle", color: "#ef4444" },
+  { type: "paper", labelKey: "graph.nodeTypes.paper", color: "#2c4870" },
+  { type: "method", labelKey: "graph.nodeTypes.method", color: "#15803d" },
+  { type: "dataset", labelKey: "graph.nodeTypes.dataset", color: "#2c4870" },
+  { type: "mechanism", labelKey: "graph.nodeTypes.mechanism", color: "#b88a3b" },
+  { type: "puzzle", labelKey: "graph.nodeTypes.puzzle", color: "#b54820" },
 ] as const;
 
-function formatRelationLabel(relation: string): string {
+const RELATION_LABEL_KEYS: Record<string, string> = {
+  uses_dataset: "graph.relations.usesDataset",
+  uses_method: "graph.relations.usesMethod",
+  addresses_puzzle: "graph.relations.addressesPuzzle",
+  engages_mechanism: "graph.relations.engagesMechanism",
+  co_occurs: "graph.relations.coOccurs",
+  cites: "graph.relations.cites",
+  cited_by: "graph.relations.citedBy",
+};
+
+function formatRelationLabel(relation: string, t: (key: string) => string): string {
+  const key = RELATION_LABEL_KEYS[relation];
+  if (key) return t(key);
   return relation
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 }
 
-function GraphLegend({
-  relationSummaries,
+function graphEdgeId(edge: GraphEdge): string {
+  return `${edge.source}-${edge.target}-${edge.relation}`;
+}
+
+const LAYOUT_OPTIONS: { value: LayoutName; labelKey: string }[] = [
+  { value: "map", labelKey: "graph.layouts.map" },
+  { value: "cose", labelKey: "graph.layouts.force" },
+  { value: "concentric", labelKey: "graph.layouts.concentric" },
+  { value: "breadthfirst", labelKey: "graph.layouts.layers" },
+  { value: "circle", labelKey: "graph.layouts.circle" },
+  { value: "grid", labelKey: "graph.layouts.grid" },
+];
+
+function GraphToolbar({
+  title,
+  returnTo,
+  source,
+  searchQuery,
+  onSearchChange,
+  onSearchSubmit,
+  depth,
+  onDepthChange,
+  disabledDepths,
+  depthHint,
+  visibleTypes,
+  onToggleType,
+  showPeripheralPapers,
+  peripheralPaperCount,
+  onTogglePeripheralPapers,
+  layout,
+  onLayoutChange,
+  onReset,
+  nodeCount,
+  edgeCount,
 }: {
-  relationSummaries: NodeConnectionSummary[];
+  title?: string;
+  returnTo?: string;
+  source?: string;
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
+  onSearchSubmit: (value: string) => void;
+  depth: number;
+  onDepthChange: (depth: number) => void;
+  disabledDepths: Set<number>;
+  depthHint: string | null;
+  visibleTypes: Set<string>;
+  onToggleType: (type: string) => void;
+  showPeripheralPapers: boolean;
+  peripheralPaperCount: number;
+  onTogglePeripheralPapers: () => void;
+  layout: LayoutName;
+  onLayoutChange: (layout: LayoutName) => void;
+  onReset: () => void;
+  nodeCount: number;
+  edgeCount: number;
 }) {
+  const { t } = useI18n();
+  const [layoutOpen, setLayoutOpen] = useState(false);
+  const activeLayout = LAYOUT_OPTIONS.find((item) => item.value === layout);
+
   return (
-    <div className="paper-panel absolute bottom-4 left-4 z-10 max-w-[280px] rounded-[1.35rem] px-4 py-3">
-      <p className="section-kicker">Reading key</p>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {GRAPH_NODE_LEGEND.map((item) => (
-          <div
-            key={item.label}
-            className="inline-flex items-center gap-2 rounded-full bg-background/80 px-2.5 py-1 text-[11px] text-muted-foreground"
-          >
-            <span
-              className="inline-block h-2.5 w-2.5 shrink-0"
-              style={{
-                backgroundColor: item.color,
-                borderRadius:
-                  item.shape === "circle"
-                    ? "999px"
-                    : item.shape === "square"
-                      ? "4px"
-                      : item.shape === "diamond"
-                        ? "2px"
-                        : "0",
-                clipPath:
-                  item.shape === "triangle"
-                    ? "polygon(50% 0%, 0% 100%, 100% 100%)"
-                    : item.shape === "hexagon"
-                      ? "polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%)"
-                      : item.shape === "diamond"
-                        ? "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)"
-                        : undefined,
-              }}
-            />
-            {item.label}
+    <div className="absolute left-4 right-4 top-4 z-20 rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-3 backdrop-blur-md">
+      <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center">
+        <div className="flex min-w-0 items-center gap-2">
+          {returnTo ? (
+            <Button asChild variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-full" title={getSourceLabel(t, source)}>
+              <Link href={returnTo}>
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+          ) : null}
+          <div className="min-w-0">
+            <p className="section-kicker">{t("graph.toolbar.kicker")}</p>
+            {title ? (
+              <h1 className="truncate text-base font-semibold text-[var(--ink)]">{title}</h1>
+            ) : null}
           </div>
-        ))}
+        </div>
+
+        <form
+          className="flex min-w-[260px] flex-1 items-center gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSearchSubmit(searchQuery);
+          }}
+        >
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--ink-4)]" />
+            <input
+              value={searchQuery}
+              onChange={(event) => onSearchChange(event.target.value)}
+              placeholder={t("graph.toolbar.searchPlaceholder")}
+              className="h-9 w-full rounded-full border border-[var(--line-soft)] bg-[var(--paper)] pl-9 pr-3 text-sm outline-none transition focus:border-[var(--forest)]"
+            />
+          </div>
+          <Button type="submit" size="sm" className="h-9 rounded-full px-4 text-xs">
+            {t("common.actions.search")}
+          </Button>
+        </form>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] p-1" title={depthHint ?? t("graph.toolbar.depthTitle")}>
+            {[1, 2, 3].map((item) => (
+              <button
+                key={item}
+                type="button"
+                disabled={disabledDepths.has(item)}
+                onClick={() => onDepthChange(item)}
+                className={`h-7 min-w-7 rounded-full px-2 text-xs font-medium transition disabled:opacity-35 ${
+                  depth === item
+                    ? "bg-[var(--ink)] text-[var(--paper)]"
+                    : "text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
+                }`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+          {depthHint ? (
+            <p className="max-w-[18rem] text-[11px] leading-snug text-[var(--ink-4)]">
+              {depthHint}
+            </p>
+          ) : null}
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setLayoutOpen((open) => !open)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-xs font-medium text-[var(--ink-4)] hover:text-[var(--ink)]"
+            >
+              {t(activeLayout?.labelKey ?? "graph.layouts.force")}
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+            {layoutOpen && (
+              <div className="lp-card absolute right-0 top-full z-30 mt-2 w-44 rounded-[var(--r-md)] p-1">
+                {LAYOUT_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      onLayoutChange(option.value);
+                      setLayoutOpen(false);
+                    }}
+                    className={`flex w-full rounded-[0.8rem] px-3 py-1.5 text-left text-xs ${
+                      layout === option.value
+                        ? "bg-[var(--paper-3)] text-[var(--ink)]"
+                        : "text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
+                    }`}
+                  >
+                    {t(option.labelKey)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={onReset} title={t("common.actions.reset")}>
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-      <div className="mt-3 space-y-1.5">
-        <p className="text-xs font-medium text-foreground">Visible relations</p>
-        {relationSummaries.length > 0 ? (
-          relationSummaries.slice(0, 4).map((item) => (
-            <div key={item.relation} className="flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>{formatRelationLabel(item.relation)}</span>
-              <span className="rounded-full bg-background/80 px-1.5 py-0.5 text-foreground">
-                {item.count}
-              </span>
-            </div>
-          ))
-        ) : (
-          <p className="text-[11px] text-muted-foreground">
-            Select a node to see which relation types are active around it.
-          </p>
-        )}
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {GRAPH_NODE_LEGEND.map((item) => {
+            const isVisible = visibleTypes.has(item.type);
+            return (
+              <button
+                key={item.type}
+                type="button"
+                onClick={() => onToggleType(item.type)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition ${
+                  isVisible
+                    ? "border-[var(--line-soft)] bg-[var(--paper)] text-[var(--ink)]"
+                    : "border-transparent bg-[var(--paper-2)] text-[var(--ink-4)]"
+                }`}
+              >
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
+                {t(item.labelKey)}
+              </button>
+            );
+          })}
+          {peripheralPaperCount > 0 ? (
+            <button
+              type="button"
+              onClick={onTogglePeripheralPapers}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition ${
+                showPeripheralPapers
+                  ? "border-[var(--line-soft)] bg-[var(--paper)] text-[var(--ink)]"
+                  : "border-transparent bg-[var(--paper-2)] text-[var(--ink-4)]"
+              }`}
+              title={t("graph.toolbar.peripheralHint")}
+            >
+              {t("graph.toolbar.peripheralPapers", {
+                count: peripheralPaperCount.toLocaleString(),
+              })}
+            </button>
+          ) : null}
+        </div>
+        <p className="text-xs text-[var(--ink-4)]">
+          {t("graph.toolbar.counts", { nodes: nodeCount.toLocaleString(), edges: edgeCount.toLocaleString() })}
+        </p>
       </div>
     </div>
   );
 }
 
-function GraphSummaryCard({ summary }: { summary: string }) {
+function GraphContextPanel({
+  summary,
+  groups = [],
+  activeGroupId,
+  onGroupClick,
+  onGroupHover,
+  onGroupLeave,
+}: {
+  summary: string | null;
+  groups: GraphOverviewGroup[];
+  activeGroupId: string | null;
+  onGroupClick: (groupId: string) => void;
+  onGroupHover: (groupId: string) => void;
+  onGroupLeave: () => void;
+}) {
+  const { t } = useI18n();
+  const activeGroup = groups.find((group) => group.id === activeGroupId) ?? null;
+
   return (
-    <div className="paper-panel max-w-[360px] rounded-[1.2rem] px-4 py-3">
-      <div className="flex items-start gap-2">
-        <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-        <div className="space-y-1">
-          <p className="section-kicker">Graph scope</p>
-          <p className="text-xs leading-relaxed text-foreground/90">{summary}</p>
-        </div>
+    <div className="lp-card w-80 rounded-[var(--r-md)] bg-[var(--paper)] p-4 backdrop-blur-md">
+      <p className="section-kicker">{t("graph.context.kicker")}</p>
+      <h2 className="mt-1 text-lg font-semibold text-[var(--ink)]">{t("graph.context.title")}</h2>
+      {summary ? (
+        <p className="mt-3 text-xs leading-relaxed text-[var(--ink-4)]" title={summary}>
+          {summary.length > 240 ? `${summary.slice(0, 237)}...` : summary}
+        </p>
+      ) : null}
+      <div className="mt-4 space-y-1.5">
+        {groups.map((group) => {
+          const isActive = group.id === activeGroupId;
+          return (
+            <button
+              key={group.id}
+              type="button"
+              onClick={() => onGroupClick(group.id)}
+              onMouseEnter={() => onGroupHover(group.id)}
+              onMouseLeave={onGroupLeave}
+              className={`flex w-full items-center justify-between rounded-[0.75rem] border px-3 py-2 text-left text-xs transition ${
+                isActive
+                  ? "border-[var(--forest)] bg-[var(--forest-soft)] text-[var(--ink)]"
+                  : "border-[var(--line-soft)] bg-[var(--paper)] text-[var(--ink-4)] hover:border-[var(--forest)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
+              }`}
+            >
+              <span className="truncate">{group.label}</span>
+              <span className="rounded-full bg-[var(--paper)] px-2 py-0.5 text-[var(--ink)]">
+                {group.count.toLocaleString()}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-4 border-t border-[var(--line-soft)] pt-3">
+        {activeGroup ? (
+          <>
+            <div className="flex items-center justify-between gap-2">
+              <p className="truncate text-xs font-medium text-[var(--ink)]">{activeGroup.label}</p>
+              <span className="text-[11px] text-[var(--ink-4)]">
+                {t("graph.context.itemCount", { count: activeGroup.items.length.toLocaleString() })}
+              </span>
+            </div>
+            {activeGroup.items.length > 0 ? (
+              <div className="mt-2 max-h-64 space-y-1 overflow-y-auto pr-1">
+                {activeGroup.items.slice(0, 80).map((item) => (
+                  <div key={item.id} className="rounded-[0.65rem] border border-[var(--line-soft)] bg-[var(--paper)] px-2.5 py-2">
+                    <p className="line-clamp-2 text-xs font-medium leading-snug text-[var(--ink)]">{item.label}</p>
+                    <p className="mt-1 truncate text-[11px] text-[var(--ink-4)]">{item.meta}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-[var(--ink-4)]">{t("graph.context.emptyGroup")}</p>
+            )}
+          </>
+        ) : (
+          <p className="text-xs text-[var(--ink-4)]">{t("graph.context.clickGroupHint")}</p>
+        )}
       </div>
     </div>
   );
@@ -208,8 +459,10 @@ export default function GraphPage() {
 
 function GraphPageInner() {
   const searchParams = useSearchParams();
+  const { t } = useI18n();
   const initialQuery = (searchParams.get("q") ?? "").trim();
   const initialMode = (searchParams.get("mode") ?? "").trim();
+  const initialPaperId = (searchParams.get("paperId") ?? "").trim();
   const initialContextQuery = (searchParams.get("contextQuery") ?? "").trim();
   const initialPaperIds = useMemo(
     () => parseStringArray(searchParams.get("ids")),
@@ -232,7 +485,9 @@ function GraphPageInner() {
   );
 
   const [searchQuery, setSearchQuery] = useState(
-    initialMode === "paper-set" && initialContextQuery
+    initialMode === "paper" && initialPaperId
+      ? initialLabel || initialPaperId
+      : initialMode === "paper-set" && initialContextQuery
       ? initialContextQuery
       : initialMode === "paper-ids" && initialLabel
         ? initialLabel
@@ -243,7 +498,11 @@ function GraphPageInner() {
   const [visibleTypes, setVisibleTypes] = useState<Set<string>>(
     new Set(ALL_TYPES)
   );
+  const [showPeripheralPapers, setShowPeripheralPapers] = useState(false);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [overviewOpen, setOverviewOpen] = useState(false);
+  const [activeOverviewGroupId, setActiveOverviewGroupId] = useState<string | null>(null);
+  const [hoveredOverviewGroupId, setHoveredOverviewGroupId] = useState<string | null>(null);
   const [graphData, setGraphData] = useState<NetworkGraph | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -293,7 +552,7 @@ function GraphPageInner() {
           setSearchMessage(net?.warningMessage ?? null);
           setGraphData(null);
         } else if (!net || net.nodes.length === 0) {
-          setErrorMsg("No results found for that paper ID.");
+          setErrorMsg(t("graph.errors.noPaper"));
           setSearchMessage(net?.warningMessage ?? null);
           setGraphData(null);
         } else {
@@ -303,9 +562,9 @@ function GraphPageInner() {
             net.warningMessage
               ? net.warningMessage
               : paperNodeCount <= 1
-              ? `"${nextContext?.label ?? paperId}" is currently linked only to atoms that are unique to this paper in the knowledge base, so depth 2 and 3 will match depth 1. Try topic keywords to open a broader paper-set graph.`
+              ? t("graph.messages.paperIsolated", { label: nextContext?.label ?? paperId })
               : net.nodes.length <= 1 || net.edges.length === 0
-                ? `"${nextContext?.label ?? paperId}" does not yet have structured graph links. Try topic keywords to open a broader paper-set graph.`
+                ? t("graph.messages.noLinks", { label: nextContext?.label ?? paperId })
                 : null
           );
           setGraphData(net);
@@ -317,12 +576,12 @@ function GraphPageInner() {
           });
         }
       } catch (err) {
-        setErrorMsg(err instanceof Error ? err.message : "Failed to load paper network.");
+        setErrorMsg(err instanceof Error ? err.message : t("graph.errors.loadPaper"));
         setGraphData(null);
       }
       setHasSearched(true);
     },
-    [fetchPaperNetwork, graphContext, initialReturnTo, initialSource]
+    [fetchPaperNetwork, graphContext, initialReturnTo, initialSource, t]
   );
 
   const loadAtomNeighborhood = useCallback(
@@ -339,7 +598,7 @@ function GraphPageInner() {
           setSearchMessage(net?.warningMessage ?? null);
           setGraphData(null);
         } else if (!net || net.nodes.length === 0) {
-          setErrorMsg("No results found for that atom slug.");
+          setErrorMsg(t("graph.errors.noAtom"));
           setSearchMessage(net?.warningMessage ?? null);
           setGraphData(null);
         } else {
@@ -348,7 +607,7 @@ function GraphPageInner() {
             net.warningMessage
               ? net.warningMessage
               : net.nodes.length <= 1 || net.edges.length === 0
-              ? `"${nextContext?.label ?? slug}" does not yet connect to a larger visible neighborhood.`
+              ? t("graph.messages.smallNeighborhood", { label: nextContext?.label ?? slug })
               : null
           );
           setGraphData(net);
@@ -360,12 +619,12 @@ function GraphPageInner() {
           });
         }
       } catch (err) {
-        setErrorMsg(err instanceof Error ? err.message : "Failed to load atom neighborhood.");
+        setErrorMsg(err instanceof Error ? err.message : t("graph.errors.loadAtom"));
         setGraphData(null);
       }
       setHasSearched(true);
     },
-    [fetchAtomNeighborhood, graphContext, initialReturnTo, initialSource]
+    [fetchAtomNeighborhood, graphContext, initialReturnTo, initialSource, t]
   );
 
   const loadPaperSetNetwork = useCallback(
@@ -382,7 +641,7 @@ function GraphPageInner() {
           setSearchMessage(net?.warningMessage ?? null);
           setGraphData(null);
         } else if (!net || net.nodes.length === 0) {
-          setErrorMsg("No graphable structure was found for the current paper set.");
+          setErrorMsg(t("graph.errors.noSetGraph"));
           setSearchMessage(net?.warningMessage ?? null);
           setGraphData(null);
         } else {
@@ -397,12 +656,12 @@ function GraphPageInner() {
           });
         }
       } catch (err) {
-        setErrorMsg(err instanceof Error ? err.message : "Failed to load paper-set network.");
+        setErrorMsg(err instanceof Error ? err.message : t("graph.errors.loadSet"));
         setGraphData(null);
       }
       setHasSearched(true);
     },
-    [fetchPaperSetNetwork]
+    [fetchPaperSetNetwork, t]
   );
 
   const loadResearchContextGraph = useCallback(
@@ -436,7 +695,7 @@ function GraphPageInner() {
         const paperIds = result.data?.researchPapers?.allPaperIds ?? [];
 
         if (paperIds.length === 0) {
-          setErrorMsg(`No matched papers found for "${trimmedQuery}".`);
+          setErrorMsg(t("graph.errors.noMatches", { query: trimmedQuery }));
           setGraphData(null);
           setHasSearched(true);
           setPaperSetScope(null);
@@ -458,7 +717,7 @@ function GraphPageInner() {
         setErrorMsg(
           err instanceof Error
             ? err.message
-            : "Failed to build a graph for the current research scope."
+            : t("graph.errors.buildScope")
         );
         setGraphData(null);
         setHasSearched(true);
@@ -472,6 +731,7 @@ function GraphPageInner() {
       initialReturnTo,
       initialSource,
       loadPaperSetNetwork,
+      t,
     ]
   );
 
@@ -507,7 +767,7 @@ function GraphPageInner() {
       }
 
       setSearchMessage(
-        `Showing a topic graph for "${trimmed}". Use a paper ID or atom slug if you want a single-entity neighborhood instead.`
+        t("graph.messages.topicGraph", { query: trimmed })
       );
       await loadResearchContextGraph(trimmed, {}, depth, {
         label: trimmed,
@@ -522,6 +782,7 @@ function GraphPageInner() {
       loadAtomNeighborhood,
       loadPaperNetwork,
       loadResearchContextGraph,
+      t,
     ]
   );
 
@@ -529,42 +790,45 @@ function GraphPageInner() {
   useEffect(() => {
     if (initialSearchDone.current) return;
 
+    if (initialMode === "paper" && initialPaperId) {
+      initialSearchDone.current = true;
+      void loadPaperNetwork(initialPaperId.toLowerCase(), depth, {
+        label: initialLabel || initialPaperId,
+        source: initialSource,
+        returnTo: initialReturnTo,
+      });
+      return;
+    }
+
     if (initialMode === "paper-set" && initialContextQuery) {
       initialSearchDone.current = true;
-      const timer = window.setTimeout(() => {
-        void loadResearchContextGraph(initialContextQuery, initialFilters, depth, {
-          label: initialLabel || initialContextQuery,
-          source: initialSource,
-          returnTo: initialReturnTo,
-        });
-      }, 0);
-      return () => window.clearTimeout(timer);
+      void loadResearchContextGraph(initialContextQuery, initialFilters, depth, {
+        label: initialLabel || initialContextQuery,
+        source: initialSource,
+        returnTo: initialReturnTo,
+      });
+      return;
     }
 
     if (initialMode === "paper-ids" && initialPaperIds.length > 0) {
       initialSearchDone.current = true;
-      const timer = window.setTimeout(() => {
-        const scope: PaperSetScope = {
-          query: initialLabel || initialPaperIds[0],
-          label: initialLabel || "Selected papers",
-          filters: {},
-          source: initialSource,
-          returnTo: initialReturnTo,
-          paperIds: initialPaperIds,
-        };
-        setPaperSetScope(scope);
-        setSearchQuery(scope.label);
-        void loadPaperSetNetwork(scope, depth);
-      }, 0);
-      return () => window.clearTimeout(timer);
+      const scope: PaperSetScope = {
+        query: initialLabel || initialPaperIds[0],
+        label: initialLabel || "Selected papers",
+        filters: {},
+        source: initialSource,
+        returnTo: initialReturnTo,
+        paperIds: initialPaperIds,
+      };
+      setPaperSetScope(scope);
+      setSearchQuery(scope.label);
+      void loadPaperSetNetwork(scope, depth);
+      return;
     }
 
     if (initialQuery) {
       initialSearchDone.current = true;
-      const timer = window.setTimeout(() => {
-        void handleSearchSubmit(initialQuery);
-      }, 0);
-      return () => window.clearTimeout(timer);
+      void handleSearchSubmit(initialQuery);
     }
   }, [
     depth,
@@ -573,10 +837,12 @@ function GraphPageInner() {
     initialFilters,
     initialLabel,
     initialMode,
+    initialPaperId,
     initialPaperIds,
     initialQuery,
     initialReturnTo,
     initialSource,
+    loadPaperNetwork,
     loadResearchContextGraph,
     loadPaperSetNetwork,
   ]);
@@ -665,6 +931,10 @@ function GraphPageInner() {
     setDepth(1);
     setLayout("cose");
     setVisibleTypes(new Set(ALL_TYPES));
+    setShowPeripheralPapers(false);
+    setOverviewOpen(false);
+    setActiveOverviewGroupId(null);
+    setHoveredOverviewGroupId(null);
     setHasSearched(false);
     setErrorMsg(null);
     setSearchMessage(null);
@@ -697,6 +967,37 @@ function GraphPageInner() {
       .sort((a, b) => b.count - a.count);
   }, [graphData, selectedNode]);
 
+  const selectedRelatedNodes = useMemo(() => {
+    if (!selectedNode || !graphData) return [];
+    const nodesById = new Map(graphData.nodes.map((node) => [node.id, node]));
+    return graphData.edges
+      .filter((edge) => edge.source === selectedNode.id || edge.target === selectedNode.id)
+      .map((edge) => {
+        const otherId = edge.source === selectedNode.id ? edge.target : edge.source;
+        const other = nodesById.get(otherId);
+        if (!other) return null;
+        return {
+          id: other.id,
+          label: other.label,
+          type: other.type,
+          relation: edge.relation,
+        };
+      })
+      .filter((item): item is { id: string; label: string; type: string; relation: string } => Boolean(item))
+      .slice(0, 12);
+  }, [graphData, selectedNode]);
+
+  const visibleRelationSummaries = useMemo<NodeConnectionSummary[]>(() => {
+    if (!graphData) return [];
+    const relationCounts = new Map<string, number>();
+    filteredEdges.forEach((edge) => {
+      relationCounts.set(edge.relation, (relationCounts.get(edge.relation) ?? 0) + 1);
+    });
+    return Array.from(relationCounts.entries())
+      .map(([relation, count]) => ({ relation, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [filteredEdges, graphData]);
+
   const paperSetDiagnostics = useMemo(() => {
     if (!graphData || graphData.mode !== "paper_set") return null;
 
@@ -722,61 +1023,236 @@ function GraphPageInner() {
     if (!graphData) return null;
 
     if (graphData.mode === "paper_set") {
-      const label = graphContext?.label || paperSetScope?.label || "Research Graph";
+      const label = graphContext?.label || paperSetScope?.label || t("graph.title");
       const sourcePaperCount = graphData.sourcePaperCount ?? paperSetScope?.paperIds.length ?? 0;
-      const truncationNote = graphData.truncated
-        ? ` Showing the first ${graphData.seedCount} seed papers to keep the graph readable.`
-        : "";
+      const pieces = [
+        t("graph.summary.paperSet", {
+          label,
+          matched: sourcePaperCount.toLocaleString(),
+          seed: graphData.seedCount.toLocaleString(),
+          papers: graphData.totalPaperNodes.toLocaleString(),
+          depth,
+        }),
+      ];
+      if (graphData.truncated) {
+        pieces.push(t("graph.summary.truncated", { count: graphData.seedCount.toLocaleString() }));
+      }
       const isolationNote =
         paperSetDiagnostics && paperSetDiagnostics.isolatedSeedCount > 0
-          ? ` ${paperSetDiagnostics.isolatedSeedCount} seed paper${paperSetDiagnostics.isolatedSeedCount === 1 ? " is" : "s are"} currently isolated because they do not share visible atoms with the connected core.`
-          : "";
-      const depthNote =
-        depth === 1
-          ? "Depth 1 keeps only atoms shared within the current seed set."
-          : depth === 2
-            ? paperSetDiagnostics && paperSetDiagnostics.paperNodeCount === paperSetDiagnostics.seedPaperCount
-              ? "Depth 2 added atoms around the seed papers, but no additional paper nodes surfaced in the current library."
-              : "Depth 2 adds all atoms attached to the current seed papers."
-            : paperSetDiagnostics && paperSetDiagnostics.contextualPaperCount === 0
-              ? "Depth 3 looked for outside papers through the visible atoms, but none were found yet."
-              : `Depth 3 adds contextual outside papers linked through the visible atoms. ${paperSetDiagnostics?.contextualPaperCount ?? 0} outside paper${paperSetDiagnostics?.contextualPaperCount === 1 ? "" : "s"} added in this view.`;
-      return `${label} · ${sourcePaperCount.toLocaleString()} matched papers · ${graphData.seedCount} seed papers · ${graphData.totalPaperNodes} paper nodes in view.${truncationNote} ${depthNote}${isolationNote}`;
+          ? t("graph.summary.isolated", { count: paperSetDiagnostics.isolatedSeedCount.toLocaleString() })
+          : null;
+      if (isolationNote) pieces.push(isolationNote);
+      return pieces.join(" · ");
     }
 
     return searchMessage;
-  }, [depth, graphContext, graphData, paperSetDiagnostics, paperSetScope, searchMessage]);
+  }, [depth, graphContext, graphData, paperSetDiagnostics, paperSetScope, searchMessage, t]);
+
+  const graphTitle = graphContext?.label || paperSetScope?.label || searchQuery || t("graph.title");
+  const visiblePaperShape = useMemo(() => {
+    const connectedIds = new Set<string>();
+    filteredEdges.forEach((edge) => {
+      connectedIds.add(edge.source);
+      connectedIds.add(edge.target);
+    });
+    let corePaperCount = 0;
+    let isolatedPaperCount = 0;
+    filteredNodes.forEach((node) => {
+      if (node.type !== "paper") return;
+      if (connectedIds.has(node.id)) {
+        corePaperCount += 1;
+      } else {
+        isolatedPaperCount += 1;
+      }
+    });
+    return { corePaperCount, isolatedPaperCount };
+  }, [filteredEdges, filteredNodes]);
+
+  const displayedNodes = useMemo(() => {
+    if (showPeripheralPapers) return filteredNodes;
+    const connectedIds = new Set<string>();
+    filteredEdges.forEach((edge) => {
+      connectedIds.add(edge.source);
+      connectedIds.add(edge.target);
+    });
+    return filteredNodes.filter((node) => node.type !== "paper" || connectedIds.has(node.id));
+  }, [filteredEdges, filteredNodes, showPeripheralPapers]);
+
+  const displayedNodeIds = useMemo(
+    () => new Set(displayedNodes.map((node) => node.id)),
+    [displayedNodes]
+  );
+
+  const displayedEdges = useMemo(
+    () =>
+      filteredEdges.filter(
+        (edge) => displayedNodeIds.has(edge.source) && displayedNodeIds.has(edge.target)
+      ),
+    [displayedNodeIds, filteredEdges]
+  );
+
+  const overviewGroups = useMemo<GraphOverviewGroup[]>(() => {
+    if (!graphData) return [];
+
+    const nodesById = new Map(filteredNodes.map((node) => [node.id, node]));
+    const connectedIds = new Set<string>();
+    filteredEdges.forEach((edge) => {
+      connectedIds.add(edge.source);
+      connectedIds.add(edge.target);
+    });
+
+    const formatNodeMeta = (node: GraphNode) => {
+      if (node.type === "paper") {
+        const details = [node.year?.toString(), ...(node.fields ?? []).slice(0, 2)].filter(Boolean);
+        return details.length > 0 ? details.join(" · ") : t("graph.nodeTypes.paper");
+      }
+      const paperCount = node.visiblePaperCount ?? node.paperCount;
+      return paperCount != null
+        ? `${t(`graph.nodeTypes.${node.type}`)} · ${t("graph.context.paperCount", {
+            count: paperCount.toLocaleString(),
+          })}`
+        : t(`graph.nodeTypes.${node.type}`);
+    };
+
+    const nodeItems = (items: GraphNode[]) =>
+      items
+        .slice()
+        .sort((a, b) => {
+          const sizeDelta = (b.size ?? 0) - (a.size ?? 0);
+          return sizeDelta !== 0 ? sizeDelta : a.label.localeCompare(b.label);
+        })
+        .map((node) => ({
+          id: node.id,
+          label: node.label,
+          meta: formatNodeMeta(node),
+        }));
+
+    const edgeItems = (items: GraphEdge[]) =>
+      items.map((edge) => {
+        const source = nodesById.get(edge.source);
+        const target = nodesById.get(edge.target);
+        return {
+          id: graphEdgeId(edge),
+          label: `${source?.label ?? edge.source} -> ${target?.label ?? edge.target}`,
+          meta: formatRelationLabel(edge.relation, t),
+        };
+      });
+
+    const corePapers = filteredNodes.filter(
+      (node) => node.type === "paper" && connectedIds.has(node.id)
+    );
+    const isolatedPapers = filteredNodes.filter(
+      (node) => node.type === "paper" && !connectedIds.has(node.id)
+    );
+    const relationGroups = visibleRelationSummaries.map((relation) => {
+      const relationEdges = displayedEdges.filter((edge) => edge.relation === relation.relation);
+      const relationNodeIds = new Set<string>();
+      relationEdges.forEach((edge) => {
+        relationNodeIds.add(edge.source);
+        relationNodeIds.add(edge.target);
+      });
+      const atomNodes = Array.from(relationNodeIds)
+        .map((id) => nodesById.get(id))
+        .filter((node): node is GraphNode => node != null && node.type !== "paper");
+
+      return {
+        id: `relation:${relation.relation}`,
+        label: formatRelationLabel(relation.relation, t),
+        count: relation.count,
+        nodeIds: Array.from(relationNodeIds),
+        edgeIds: relationEdges.map(graphEdgeId),
+        items: nodeItems(atomNodes),
+      };
+    });
+
+    return [
+      {
+        id: "nodes",
+        label: t("graph.context.nodes"),
+        count: displayedNodes.length,
+        nodeIds: displayedNodes.map((node) => node.id),
+        edgeIds: displayedEdges.map(graphEdgeId),
+        items: nodeItems(displayedNodes),
+      },
+      {
+        id: "edges",
+        label: t("graph.context.edges"),
+        count: displayedEdges.length,
+        nodeIds: Array.from(displayedNodeIds),
+        edgeIds: displayedEdges.map(graphEdgeId),
+        items: edgeItems(displayedEdges),
+      },
+      {
+        id: "core-papers",
+        label: t("graph.context.corePapers"),
+        count: corePapers.length,
+        nodeIds: corePapers.map((node) => node.id),
+        edgeIds: displayedEdges
+          .filter((edge) => corePapers.some((node) => node.id === edge.source || node.id === edge.target))
+          .map(graphEdgeId),
+        items: nodeItems(corePapers),
+      },
+      {
+        id: "isolated-papers",
+        label: t("graph.context.isolatedPapers"),
+        count: isolatedPapers.length,
+        nodeIds: isolatedPapers.map((node) => node.id),
+        edgeIds: [],
+        items: nodeItems(isolatedPapers),
+      },
+      ...relationGroups,
+    ];
+  }, [
+    displayedEdges,
+    displayedNodeIds,
+    displayedNodes,
+    filteredEdges,
+    filteredNodes,
+    graphData,
+    t,
+    visibleRelationSummaries,
+  ]);
+
+  useEffect(() => {
+    if (!activeOverviewGroupId) return;
+    if (!overviewGroups.some((group) => group.id === activeOverviewGroupId)) {
+      setActiveOverviewGroupId(null);
+    }
+  }, [activeOverviewGroupId, overviewGroups]);
+
+  const focusedOverviewGroup = useMemo(() => {
+    const focusedId = hoveredOverviewGroupId ?? activeOverviewGroupId;
+    return overviewGroups.find((group) => group.id === focusedId) ?? null;
+  }, [activeOverviewGroupId, hoveredOverviewGroupId, overviewGroups]);
+
+  const displayedNodeCount = displayedNodes.length;
 
   const disabledDepths = useMemo(() => {
-    if (!graphData) return new Set<number>();
-    if ((graphData.mode === "paper" || graphData.mode === "atom") && graphData.totalPaperNodes <= 1) {
-      return new Set([2, 3]);
-    }
     return new Set<number>();
-  }, [graphData]);
+  }, []);
 
   const depthHint = useMemo(() => {
     if (!graphData) return null;
     if ((graphData.mode === "paper" || graphData.mode === "atom") && graphData.totalPaperNodes <= 1) {
-      return "No additional papers are connected through the current entity yet, so deeper hops will not change this graph.";
+      return t("graph.depthHint.entityNoMore");
     }
     if (graphData.mode === "paper_set") {
       return depth === 1
-        ? "Depth 1 keeps only atoms shared within the current seed set."
+        ? t("graph.depthHint.level1")
         : depth === 2
           ? paperSetDiagnostics && paperSetDiagnostics.paperNodeCount === paperSetDiagnostics.seedPaperCount
-            ? "Depth 2 expanded the seed papers into their attached atoms, but it did not reveal any additional paper nodes."
-            : "Depth 2 adds all atoms attached to the visible seed papers."
+            ? t("graph.depthHint.level2NoNew")
+            : t("graph.depthHint.level2")
           : paperSetDiagnostics && paperSetDiagnostics.contextualPaperCount === 0
-            ? "Depth 3 tried to bring in outside papers through the visible atoms, but none were found in the current library."
-            : `Depth 3 adds outside papers linked through the visible atoms. ${paperSetDiagnostics?.contextualPaperCount ?? 0} outside paper${paperSetDiagnostics?.contextualPaperCount === 1 ? "" : "s"} are currently visible.`;
+            ? t("graph.depthHint.level3NoNew")
+            : t("graph.depthHint.level3", { count: paperSetDiagnostics?.contextualPaperCount ?? 0 });
     }
     return null;
-  }, [depth, graphData, paperSetDiagnostics]);
+  }, [depth, graphData, paperSetDiagnostics, t]);
 
   return (
-    <div className="-m-6 flex h-[calc(100vh-4rem)] flex-col lg:-m-8">
-      <div className="relative flex-1">
+    <div className="graph-shell">
+      <div className="graph-stage graph-stage-app" data-screen-label="Network graph">
         {graphData && graphData.nodes.length > 0 ? (
           <div className="h-full w-full">
             <CytoscapeGraph
@@ -784,13 +1260,12 @@ function GraphPageInner() {
               edges={graphData.edges}
               layout={layout}
               visibleTypes={visibleTypes}
+              showPeripheralPapers={showPeripheralPapers}
+              focusNodeIds={focusedOverviewGroup?.nodeIds ?? []}
+              focusEdgeIds={focusedOverviewGroup?.edgeIds ?? []}
               onNodeSelect={setSelectedNode}
               onNodeExpand={handleNodeExpand}
             />
-            <GraphLegend relationSummaries={selectedNodeConnections} />
-            <div className="paper-panel absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-xs text-muted-foreground backdrop-blur">
-              Click a node for details · Double-click to re-center
-            </div>
           </div>
         ) : (
           <EmptyState
@@ -804,52 +1279,94 @@ function GraphPageInner() {
         )}
 
         {loading && graphData && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 backdrop-blur-sm">
-            <div className="paper-panel flex flex-col items-center gap-3 rounded-[1.4rem] bg-background/90 px-6 py-5 backdrop-blur-md">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <span className="text-sm font-medium text-muted-foreground">Loading graph...</span>
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--paper)]/60 backdrop-blur-sm">
+            <div className="lp-card flex flex-col items-center gap-3 rounded-[var(--r-md)] bg-[var(--paper)] px-6 py-5 backdrop-blur-md">
+              <Loader2 className="h-6 w-6 animate-spin text-[var(--forest)]" />
+              <span className="text-sm font-medium text-[var(--ink-4)]">{t("graph.loading.graph")}</span>
             </div>
           </div>
         )}
 
         {graphData && graphData.nodes.length > 0 && (
-          <div className="absolute left-4 top-4 z-10 flex flex-col gap-3">
-            {graphContext?.returnTo ? (
-              <Button asChild variant="outline" size="sm" className="justify-start gap-1.5 bg-background/90 backdrop-blur-md">
-                <Link href={graphContext.returnTo}>
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  {getSourceLabel(graphContext.source)}
-                </Link>
-              </Button>
-            ) : null}
-
-            {graphSummary ? <GraphSummaryCard summary={graphSummary} /> : null}
-
-            <GraphControls
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              onSearchSubmit={handleSearchSubmit}
-              depth={depth}
-              onDepthChange={handleDepthChange}
-              disabledDepths={disabledDepths}
-              depthHint={depthHint}
-              visibleTypes={visibleTypes}
-              onToggleType={handleToggleType}
-              layout={layout}
-              onLayoutChange={setLayout}
-              onReset={handleReset}
-              nodeCount={filteredNodes.length}
-              edgeCount={filteredEdges.length}
-              nodes={graphData.nodes}
-            />
-          </div>
+          <GraphToolbar
+            title={graphContext?.mode === "paper-set" ? undefined : graphTitle}
+            returnTo={graphContext?.returnTo}
+            source={graphContext?.source}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onSearchSubmit={handleSearchSubmit}
+            depth={depth}
+            onDepthChange={handleDepthChange}
+            disabledDepths={disabledDepths}
+            depthHint={depthHint}
+            visibleTypes={visibleTypes}
+            onToggleType={handleToggleType}
+            showPeripheralPapers={showPeripheralPapers}
+            peripheralPaperCount={visiblePaperShape.isolatedPaperCount}
+            onTogglePeripheralPapers={() => setShowPeripheralPapers((value) => !value)}
+            layout={layout}
+            onLayoutChange={setLayout}
+            onReset={handleReset}
+            nodeCount={displayedNodeCount}
+            edgeCount={displayedEdges.length}
+          />
         )}
 
-        {selectedNode && (
-          <div className="absolute right-4 top-4 z-10">
+        {graphData && graphData.nodes.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              if (selectedNode) {
+                setSelectedNode(null);
+                setOverviewOpen(false);
+                return;
+              }
+              setOverviewOpen((open) => !open);
+            }}
+            className="lp-card absolute right-4 top-[8.75rem] z-20 hidden h-10 items-center gap-2 rounded-full bg-[var(--paper)] px-3 text-xs font-medium text-[var(--ink-4)] backdrop-blur-md transition hover:text-[var(--ink)] xl:inline-flex"
+            title={selectedNode || overviewOpen ? t("graph.context.hideOverview") : t("graph.context.showOverview")}
+          >
+            {selectedNode || overviewOpen ? (
+              <PanelRightClose className="h-4 w-4" />
+            ) : (
+              <PanelRightOpen className="h-4 w-4" />
+            )}
+            {selectedNode || overviewOpen ? t("graph.context.hideOverview") : t("graph.context.showOverview")}
+          </button>
+        )}
+
+        {graphData && graphData.nodes.length > 0 && (overviewOpen || selectedNode) && (
+          <div className="absolute right-4 top-[11.75rem] z-10 hidden w-80 max-h-[calc(100vh-16rem)] overflow-y-auto xl:block">
+            {selectedNode ? (
             <NodeDetail
               node={selectedNode}
               connections={selectedNodeConnections}
+              relatedNodes={selectedRelatedNodes}
+              onClose={() => setSelectedNode(null)}
+              onExpand={handleNodeExpand}
+            />
+            ) : (
+              <GraphContextPanel
+                summary={graphSummary}
+                groups={overviewGroups}
+                activeGroupId={activeOverviewGroupId}
+                onGroupClick={(groupId) =>
+                  setActiveOverviewGroupId((current) => (current === groupId ? null : groupId))
+                }
+                onGroupHover={setHoveredOverviewGroupId}
+                onGroupLeave={() => setHoveredOverviewGroupId(null)}
+              />
+            )}
+          </div>
+        )}
+
+        {graphData && graphData.nodes.length > 0 && selectedNode && (
+          <div className="absolute bottom-4 left-4 right-16 z-20 max-h-[42vh] overflow-y-auto xl:hidden">
+            <NodeDetail
+              node={selectedNode}
+              connections={selectedNodeConnections}
+              relatedNodes={selectedRelatedNodes}
+              wide
               onClose={() => setSelectedNode(null)}
               onExpand={handleNodeExpand}
             />
@@ -875,6 +1392,7 @@ function EmptyState({
   onSearchSubmit: (v: string) => void;
   errorMsg: string | null;
 }) {
+  const { t } = useI18n();
   const [suggestions, setSuggestions] = useState<SearchHit[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -926,37 +1444,37 @@ function EmptyState({
   );
 
   const entityTypeColors: Record<string, string> = {
-    paper: "#3b82f6",
-    mechanism: "#f97316",
-    method: "#22c55e",
-    dataset: "#a855f7",
-    puzzle: "#ef4444",
+    paper: "#2c4870",
+    mechanism: "#b88a3b",
+    method: "#15803d",
+    dataset: "#2c4870",
+    puzzle: "#b54820",
   };
 
   return (
     <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(126,87,65,0.07),transparent_28%),linear-gradient(180deg,rgba(248,244,236,0.7),rgba(248,244,236,0.28))]">
       <div className="mx-auto max-w-lg px-6">
-        <div className="paper-panel rounded-[2rem] p-8 text-center">
+        <div className="lp-card rounded-[2rem] p-8 text-center">
           {loading ? (
             <div className="flex flex-col items-center gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Loading network data...</p>
+              <Loader2 className="h-8 w-8 animate-spin text-[var(--forest)]" />
+              <p className="text-sm text-[var(--ink-4)]">{t("graph.loading.network")}</p>
             </div>
           ) : (
             <>
-              <div className="paper-panel mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[1.3rem]">
-                <GitBranch className="h-8 w-8 text-primary" />
+              <div className="lp-card mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[var(--r-md)]">
+                <GitBranch className="h-8 w-8 text-[var(--forest)]" />
               </div>
-              <p className="section-kicker">Graph workspace</p>
-              <h2 className="font-display mt-3 text-[clamp(2.1rem,4vw,3.2rem)] text-foreground">
-                Explore the Knowledge Graph
+              <p className="section-kicker">{t("graph.empty.kicker")}</p>
+              <h2 className="font-display mt-3 text-[clamp(2.1rem,4vw,3.2rem)] text-[var(--ink)]">
+                {t("graph.empty.title")}
               </h2>
-              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              <p className="mx-auto mt-2 max-w-md text-sm text-[var(--ink-4)]">
                 {errorMsg
                   ? errorMsg
                   : hasSearched
-                    ? "No results found. Try a different search term."
-                    : "Search by topic keywords to open a paper-set graph. Use a paper ID or atom slug when you want a single-entity neighborhood instead."}
+                    ? t("graph.empty.noResults")
+                    : t("graph.empty.start")}
               </p>
               <div className="mt-6">
                 <div className="relative flex gap-2">
@@ -978,18 +1496,18 @@ function EmptyState({
                         if (suggestions.length > 0) setShowSuggestions(true);
                       }}
                       onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                      placeholder='e.g., "medical device", w31161, or staggered_did'
-                      className="flex h-11 w-full rounded-[1rem] border border-input bg-background/80 px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      placeholder={t("graph.empty.searchPlaceholder")}
+                      className="flex h-11 w-full rounded-[var(--r-md)] border border-[var(--line)] bg-[var(--paper)] px-4 py-2 text-sm placeholder:text-[var(--ink-4)] focus:outline-none focus:ring-2 focus:ring-[var(--forest)] focus:ring-offset-2"
                     />
                     {showSuggestions && suggestions.length > 0 && (
-                      <div className="paper-panel absolute top-full z-50 mt-2 w-full rounded-[1rem] py-1.5 ring-1 ring-black/5">
-                        <div className="border-b border-border bg-[color:oklch(var(--accent)/0.45)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
-                          Search results, click to explore network
+                      <div className="lp-card absolute top-full z-50 mt-2 w-full rounded-[var(--r-md)] py-1.5 ring-1 ring-black/5">
+                        <div className="border-b border-[var(--line-soft)] bg-[var(--paper-2)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--forest)]">
+                          {t("graph.empty.suggestionsHeader")}
                         </div>
                         {suggestions.map((hit) => (
                           <button
                             key={`${hit.entityType}-${hit.entityId}`}
-                            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs transition-colors hover:bg-[color:oklch(var(--accent)/0.45)]"
+                            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs transition-colors hover:bg-[var(--paper-2)]"
                             onMouseDown={() => handleSuggestionClick(hit)}
                           >
                             <span
@@ -998,11 +1516,11 @@ function EmptyState({
                                 backgroundColor: entityTypeColors[hit.entityType] ?? "#999",
                               }}
                             />
-                            <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                            <span className="min-w-0 flex-1 truncate font-medium text-[var(--ink)]">
                               {hit.title}
                             </span>
-                            <span className="flex-shrink-0 rounded-full bg-background/85 px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
-                              {hit.entityType}
+                            <span className="flex-shrink-0 rounded-full bg-[var(--paper)] px-1.5 py-0.5 text-xs font-medium text-[var(--ink-4)]">
+                              {t(`graph.nodeTypes.${hit.entityType}`)}
                             </span>
                           </button>
                         ))}
@@ -1010,7 +1528,7 @@ function EmptyState({
                     )}
                     {suggestionsLoading && (
                       <div className="absolute right-3 top-3">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        <Loader2 className="h-4 w-4 animate-spin text-[var(--ink-4)]" />
                       </div>
                     )}
                   </div>
@@ -1024,16 +1542,14 @@ function EmptyState({
                     className="gap-2"
                   >
                     <Network className="h-4 w-4" />
-                    Explore
+                    {t("graph.empty.explore")}
                   </Button>
                 </div>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto mt-3">
-                  The knowledge graph connects papers (blue circles) to their methods (green rectangles),
-                  datasets (purple diamonds), mechanisms (orange hexagons), and puzzles (red triangles).
-                  Higher depth shows more connections.
+                <p className="text-sm text-[var(--ink-4)] max-w-md mx-auto mt-3">
+                  {t("graph.empty.legendHint")}
                 </p>
                 <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                  <span className="text-xs text-muted-foreground">Try:</span>
+                  <span className="text-xs text-[var(--ink-4)]">{t("graph.empty.try")}:</span>
                   {[
                     { label: "w31161", value: "w31161" },
                     { label: "w29691", value: "w29691" },

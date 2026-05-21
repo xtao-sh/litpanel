@@ -24,23 +24,23 @@ export function LandscapeChinaCard({ chinaApplicability }: LandscapeChinaCardPro
   if (total === 0) return null;
 
   return (
-    <Card className="rounded-xl shadow-sm">
+    <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <Globe className="h-4 w-4 text-red-500" />
+          <Globe className="h-4 w-4 text-[var(--rust)]" />
           China Applicability
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Summary bar */}
         <div className="flex items-center gap-3 text-xs">
-          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--forest-soft)] px-2 py-0.5 font-medium text-[var(--forest-2)]">
             {highCount} highly applicable
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 font-medium text-yellow-700">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#f4ead8] px-2 py-0.5 font-medium text-[#7a5a18]">
             {moderateCount} moderate
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-600">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--paper-2)] px-2 py-0.5 font-medium text-[var(--ink-3)]">
             {lowCount} limited
           </span>
         </div>
@@ -50,7 +50,7 @@ export function LandscapeChinaCard({ chinaApplicability }: LandscapeChinaCardPro
           <>
             <button
               type="button"
-              className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+              className="flex items-center gap-1 text-xs font-medium text-[var(--ink-4)] hover:text-[var(--ink)]"
               onClick={() => setExpanded(!expanded)}
             >
               <ChevronDown
@@ -67,17 +67,17 @@ export function LandscapeChinaCard({ chinaApplicability }: LandscapeChinaCardPro
                 {highlights.map((h) => (
                   <div
                     key={h.paperId}
-                    className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2"
+                    className="rounded-[var(--r)] border border-[var(--line-soft)]/50 bg-[var(--paper-2)] px-3 py-2"
                   >
                     <div className="flex items-start gap-2">
                       <span
                         className={cn(
                           "mt-0.5 shrink-0 rounded-full px-1.5 py-0 text-[10px] font-medium",
                           h.applicabilityLevel === "high"
-                            ? "bg-green-100 text-green-700"
+                            ? "bg-[var(--forest-soft)] text-[var(--forest-2)]"
                             : h.applicabilityLevel === "moderate"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-gray-100 text-gray-600"
+                              ? "bg-[#f4ead8] text-[#7a5a18]"
+                              : "bg-[var(--paper-2)] text-[var(--ink-3)]"
                         )}
                       >
                         {h.applicabilityLevel}
@@ -85,11 +85,11 @@ export function LandscapeChinaCard({ chinaApplicability }: LandscapeChinaCardPro
                       <div className="min-w-0 flex-1">
                         <Link
                           href={`/paper/${h.paperId}`}
-                          className="text-sm font-medium text-foreground hover:text-primary hover:underline"
+                          className="text-sm font-medium text-[var(--ink)] hover:text-[var(--forest)] hover:underline"
                         >
                           {h.paperTitle}
                         </Link>
-                        <p className="mt-0.5 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                        <p className="mt-0.5 line-clamp-3 text-xs leading-relaxed text-[var(--ink-4)]">
                           {h.summary}
                         </p>
                       </div>

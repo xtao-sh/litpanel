@@ -24,11 +24,11 @@ export function ExampleQuestions({ onSelect }: ExampleQuestionsProps) {
         {EXAMPLES.map(({ question, icon: Icon }) => (
           <Card
             key={question}
-            className="paper-panel cursor-pointer rounded-[1.1rem] border border-border/75 p-3 text-sm text-foreground transition-all duration-200 hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-primary"
+            className="lp-card cursor-pointer rounded-[var(--r-md)] border border-[var(--line-soft)] p-3 text-sm text-[var(--ink)] transition-all duration-200 hover:bg-[var(--paper-2)] hover:text-[var(--forest)]"
             onClick={() => onSelect(question)}
           >
             <div className="flex items-start gap-2.5">
-              <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary/55" />
+              <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[var(--forest)]/55" />
               <span>{question}</span>
             </div>
           </Card>

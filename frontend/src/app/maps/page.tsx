@@ -72,10 +72,10 @@ function MapGridSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {[1, 2, 3, 4, 5].map((i) => (
-        <Card key={i} className="paper-panel overflow-hidden p-0">
+        <Card key={i} className="lp-card overflow-hidden p-0">
           <CardHeader className="pb-3 pt-5">
             <div className="flex items-center gap-3">
-              <Skeleton className="h-10 w-10 rounded-2xl" />
+              <Skeleton className="h-10 w-10 rounded-[var(--r)]" />
               <Skeleton className="h-5 w-40" />
             </div>
           </CardHeader>
@@ -104,21 +104,21 @@ export default function FieldMapsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="lp-card grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="space-y-3">
           <p className="section-kicker">{t("maps.index.kicker")}</p>
           <div>
-            <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+            <h2 className="font-display text-4xl tracking-tight text-[var(--ink)] sm:text-5xl">
               {t("maps.index.title")}
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--ink-4)] sm:text-[15px]">
               {t("maps.index.body")}
             </p>
           </div>
         </div>
-        <div className="rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
+        <div className="rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)] p-4">
           <p className="section-kicker">{t("maps.index.infoKicker")}</p>
-          <p className="mt-2 text-sm leading-6 text-foreground/80">
+          <p className="mt-2 text-sm leading-6 text-[var(--ink-3)]">
             {t("maps.index.infoBody")}
           </p>
         </div>
@@ -126,9 +126,9 @@ export default function FieldMapsPage() {
 
       {/* Error state */}
       {error && (
-        <div className="paper-panel border-red-200/80 bg-red-50/80 p-4 shadow-none">
-          <p className="text-sm font-medium text-red-700">{t("maps.index.errorTitle")}</p>
-          <p className="mt-1 text-xs text-red-700">
+        <div className="lp-card border-[#da9a80]/80 bg-[#f4dfd5]/80 p-4 shadow-none">
+          <p className="text-sm font-medium text-[#8a3318]">{t("maps.index.errorTitle")}</p>
+          <p className="mt-1 text-xs text-[#8a3318]">
             {collectErrorMessages([error]) || t("maps.index.errorBody")}
           </p>
         </div>
@@ -150,23 +150,23 @@ export default function FieldMapsPage() {
 
             return (
               <Link key={map.slug} href={`/maps/${map.slug}`}>
-                <Card className="paper-panel group h-full cursor-pointer p-0 transition-all duration-200 hover:-translate-y-1">
-                  <CardHeader className="border-b border-border/70 pb-4 pt-5">
+                <Card className="lp-card group h-full cursor-pointer p-0 transition-all duration-200 hover:-translate-y-1">
+                  <CardHeader className="border-b border-[var(--line-soft)] pb-4 pt-5">
                     <p className="section-kicker mb-3">{t("maps.common.fieldBrief")}</p>
                     <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.1rem] border border-border/70 bg-background/80 text-primary transition-colors group-hover:bg-accent/55">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)] text-[var(--forest)] transition-colors group-hover:bg-[var(--paper-2)]">
                         <Icon className="h-5 w-5" />
                       </div>
-                      <h3 className="font-display text-2xl tracking-tight text-foreground">
+                      <h3 className="font-display text-2xl tracking-tight text-[var(--ink)]">
                         {title}
                       </h3>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4 py-5">
-                    <p className="text-sm leading-6 text-muted-foreground">
+                    <p className="text-sm leading-6 text-[var(--ink-4)]">
                       {description}
                     </p>
-                    <div className="flex items-center gap-1 text-xs font-medium uppercase tracking-[0.18em] text-primary opacity-0 transition-opacity group-hover:opacity-100">
+                    <div className="flex items-center gap-1 text-xs font-medium uppercase tracking-[0.18em] text-[var(--forest)] opacity-0 transition-opacity group-hover:opacity-100">
                       {t("maps.index.openMap")} <ArrowRight className="h-3 w-3" />
                     </div>
                   </CardContent>

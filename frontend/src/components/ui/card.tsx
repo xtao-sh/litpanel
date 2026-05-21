@@ -3,12 +3,12 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const cardVariants = cva(
-  "rounded-[1.35rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_8%,transparent)] bg-[color:oklch(var(--card)/0.88)] text-card-foreground shadow-[0_1px_0_rgba(52,44,31,0.04),inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-sm transition-all duration-200",
+  "lp-card text-[var(--ink)] shadow-[var(--shadow-1)] transition-all duration-200",
   {
     variants: {
       variant: {
         default: "",
-        "paper-panel": "paper-panel",
+        "lp-card": "lp-card",
       },
     },
     defaultVariants: {
@@ -65,7 +65,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn("text-sm text-[var(--ink-4)]", className)}
     {...props}
   />
 ))

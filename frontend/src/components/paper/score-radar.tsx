@@ -54,7 +54,7 @@ interface ScoreRadarProps {
 export function ScoreRadar({ scores }: ScoreRadarProps) {
   if (!scores || scores.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-gray-400">
+      <p className="py-8 text-center text-sm text-[var(--ink-5)]">
         No scores available
       </p>
     );
@@ -79,7 +79,7 @@ export function ScoreRadar({ scores }: ScoreRadarProps) {
 
   if (data.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-gray-400">
+      <p className="py-8 text-center text-sm text-[var(--ink-5)]">
         No scores available
       </p>
     );
@@ -105,21 +105,21 @@ export function ScoreRadar({ scores }: ScoreRadarProps) {
           dotColor={{ theme: "background" }}
           dotBorderWidth={1}
           dotBorderColor={{ from: "color" }}
-          colors={["#3b82f6"]}
+          colors={["#15803d"]}
           fillOpacity={0.15}
           borderWidth={2}
           borderColor={{ from: "color" }}
           animate={true}
           theme={{
-            text: { fontSize: 13, fontFamily: "Inter, system-ui, sans-serif", fill: "#475569" },
+            text: { fontSize: 13, fontFamily: "Inter, system-ui, sans-serif", fill: "#4a463c" },
             axis: {
-              ticks: { text: { fontSize: 13, fill: "#475569" } },
+              ticks: { text: { fontSize: 13, fill: "#4a463c" } },
             },
           }}
         />
       </div>
-      <p className="text-center text-sm font-medium text-muted-foreground">
-        Average: <span className="font-semibold text-foreground">{avg.toFixed(1)}</span>/5
+      <p className="text-center text-sm font-medium text-[var(--ink-4)]">
+        Average: <span className="font-semibold text-[var(--ink)]">{avg.toFixed(1)}</span>/5
       </p>
     </div>
   );

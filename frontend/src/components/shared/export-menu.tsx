@@ -71,8 +71,8 @@ export function ExportMenu({ paperIds, label = "Export", compact = false }: Expo
   if (!hasIds) return null;
 
   const btnClass = compact
-    ? "inline-flex items-center gap-1 rounded-full border border-border/75 bg-background/85 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.5)] hover:text-foreground"
-    : "paper-panel inline-flex items-center gap-1.5 rounded-full border border-border/75 bg-background/88 px-3.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground";
+    ? "inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-2.5 py-1 text-[10px] font-medium text-[var(--ink-4)] transition-colors hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
+    : "lp-card inline-flex items-center gap-1.5 rounded-full border border-[var(--line-soft)] bg-[var(--paper)]/88 px-3.5 py-2 text-xs font-medium text-[var(--ink-4)] transition-colors hover:bg-[var(--paper-2)] hover:text-[var(--ink)]";
 
   const iconSize = compact ? "h-2.5 w-2.5" : "h-3.5 w-3.5";
 
@@ -95,55 +95,55 @@ export function ExportMenu({ paperIds, label = "Export", compact = false }: Expo
         <div
           role="menu"
           aria-label="Export formats"
-          className="paper-panel absolute right-0 top-full z-50 mt-2 w-52 rounded-[1.2rem] border border-border/75 bg-background/95 p-1.5 shadow-[0_22px_50px_rgba(44,51,71,0.14)]"
+          className="lp-card absolute right-0 top-full z-50 mt-2 w-52 rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)]/95 p-1.5 shadow-[var(--shadow-2)]"
         >
           <button
             type="button"
             role="menuitem"
             onClick={() => handleExport("bibtex")}
-            className="flex w-full items-center gap-2 rounded-[0.95rem] px-3 py-2.5 text-left text-xs text-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] focus:bg-[color:oklch(var(--accent)/0.45)] focus:outline-none"
+            className="flex w-full items-center gap-2 rounded-[0.95rem] px-3 py-2.5 text-left text-xs text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)] focus:bg-[var(--paper-2)] focus:outline-none"
           >
-            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+            <FileText className="h-3.5 w-3.5 text-[var(--ink-4)]" />
             Download BibTeX
           </button>
           <button
             type="button"
             role="menuitem"
             onClick={() => handleExport("ris")}
-            className="flex w-full items-center gap-2 rounded-[0.95rem] px-3 py-2.5 text-left text-xs text-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] focus:bg-[color:oklch(var(--accent)/0.45)] focus:outline-none"
+            className="flex w-full items-center gap-2 rounded-[0.95rem] px-3 py-2.5 text-left text-xs text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)] focus:bg-[var(--paper-2)] focus:outline-none"
           >
-            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+            <FileText className="h-3.5 w-3.5 text-[var(--ink-4)]" />
             Download RIS
           </button>
           <button
             type="button"
             role="menuitem"
             onClick={() => handleExport("csv")}
-            className="flex w-full items-center gap-2 rounded-[0.95rem] px-3 py-2.5 text-left text-xs text-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] focus:bg-[color:oklch(var(--accent)/0.45)] focus:outline-none"
+            className="flex w-full items-center gap-2 rounded-[0.95rem] px-3 py-2.5 text-left text-xs text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)] focus:bg-[var(--paper-2)] focus:outline-none"
           >
-            <Table2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <Table2 className="h-3.5 w-3.5 text-[var(--ink-4)]" />
             Download CSV
           </button>
           <button
             type="button"
             role="menuitem"
             onClick={() => handleExport("markdown")}
-            className="flex w-full items-center gap-2 rounded-[0.95rem] px-3 py-2.5 text-left text-xs text-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] focus:bg-[color:oklch(var(--accent)/0.45)] focus:outline-none"
+            className="flex w-full items-center gap-2 rounded-[0.95rem] px-3 py-2.5 text-left text-xs text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)] focus:bg-[var(--paper-2)] focus:outline-none"
           >
-            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+            <FileText className="h-3.5 w-3.5 text-[var(--ink-4)]" />
             Download Markdown
           </button>
-          <div className="my-1.5 border-t border-border/75" role="separator" />
+          <div className="my-1.5 border-t border-[var(--line-soft)]" role="separator" />
           <button
             type="button"
             role="menuitem"
             onClick={handleCopyIds}
-            className="flex w-full items-center gap-2 rounded-[0.95rem] px-3 py-2.5 text-left text-xs text-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] focus:bg-[color:oklch(var(--accent)/0.45)] focus:outline-none"
+            className="flex w-full items-center gap-2 rounded-[0.95rem] px-3 py-2.5 text-left text-xs text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)] focus:bg-[var(--paper-2)] focus:outline-none"
           >
             {copied ? (
-              <Check className="h-3.5 w-3.5 text-emerald-600" />
+              <Check className="h-3.5 w-3.5 text-[var(--forest)]" />
             ) : (
-              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+              <Copy className="h-3.5 w-3.5 text-[var(--ink-4)]" />
             )}
             {copied ? "Copied!" : "Copy IDs"}
           </button>

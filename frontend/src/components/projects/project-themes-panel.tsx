@@ -116,9 +116,9 @@ export function ProjectThemesPanel({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-border bg-muted/20 px-4 py-4">
-        <p className="text-sm font-medium text-foreground">Project Themes</p>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+      <div className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper-2)]/20 px-4 py-4">
+        <p className="text-sm font-medium text-[var(--ink)]">Project Themes</p>
+        <p className="mt-1 text-sm leading-relaxed text-[var(--ink-4)]">
           Themes are grouped from recurring methods, datasets, mechanisms, and puzzles attached to
           the current project paper set. If the atom layer has not been themed yet, the fallback
           view below groups papers by their leading field tags.
@@ -132,7 +132,7 @@ export function ProjectThemesPanel({
               tab: "themes",
               label: `${projectTitle} · Theme graph`,
             })}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+            className="inline-flex items-center gap-1.5 rounded-[var(--r)] border border-[#bccbe0] bg-[#e9eef6] px-3 py-2 text-sm font-medium text-[#223a5e] transition-colors hover:bg-[#e9eef6]"
           >
             <GitBranchPlus className="h-3.5 w-3.5" />
             Open Theme Graph
@@ -140,10 +140,10 @@ export function ProjectThemesPanel({
           <button
             type="button"
             onClick={() => setViewMode("themes")}
-            className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            className={`rounded-[var(--r)] px-3 py-2 text-sm font-medium transition-colors ${
               viewMode === "themes"
-                ? "bg-foreground text-background"
-                : "border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+                ? "bg-[var(--ink)] text-[var(--paper)]"
+                : "border border-[var(--line-soft)] bg-[var(--paper)] text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
             }`}
           >
             Theme Groups
@@ -151,10 +151,10 @@ export function ProjectThemesPanel({
           <button
             type="button"
             onClick={() => setViewMode("clusters")}
-            className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            className={`rounded-[var(--r)] px-3 py-2 text-sm font-medium transition-colors ${
               viewMode === "clusters"
-                ? "bg-foreground text-background"
-                : "border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+                ? "bg-[var(--ink)] text-[var(--paper)]"
+                : "border border-[var(--line-soft)] bg-[var(--paper)] text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
             }`}
           >
             Paper Clusters
@@ -169,7 +169,7 @@ export function ProjectThemesPanel({
               <a
                 key={theme}
                 href={`#theme-${encodeURIComponent(theme)}`}
-                className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5 text-xs font-medium text-[var(--ink-4)] transition-colors hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
               >
                 {theme} ({group.atoms.length})
               </a>
@@ -181,14 +181,14 @@ export function ProjectThemesPanel({
               <Card
                 key={theme}
                 id={`theme-${encodeURIComponent(theme)}`}
-                className="rounded-xl shadow-sm"
+                className="rounded-[var(--r)] shadow-[var(--shadow-1)]"
               >
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                    <Tag className="h-4 w-4 text-blue-500" />
+                    <Tag className="h-4 w-4 text-[#2c4870]" />
                     {theme}
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-[var(--ink-4)]">
                     {group.atoms.length} atom{group.atoms.length !== 1 ? "s" : ""} and{" "}
                     {group.totalPaperRefs} linked paper reference
                     {group.totalPaperRefs !== 1 ? "s" : ""}.
@@ -200,13 +200,13 @@ export function ProjectThemesPanel({
                     .map((atom) => (
                       <div
                         key={atom.slug}
-                        className="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2 transition-colors hover:bg-accent/40"
+                        className="flex items-start justify-between gap-3 rounded-[var(--r)] border border-[var(--line-soft)] px-3 py-2 transition-colors hover:bg-[var(--paper-2)]"
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <Link
                               href={getAtomDetailHref(atom.slug)}
-                              className="truncate text-sm font-medium text-foreground hover:text-primary"
+                              className="truncate text-sm font-medium text-[var(--ink)] hover:text-[var(--forest)]"
                             >
                               {atom.title}
                             </Link>
@@ -218,20 +218,20 @@ export function ProjectThemesPanel({
                             </Badge>
                           </div>
                           {atom.description && (
-                            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--ink-4)]">
                               {atom.description}
                             </p>
                           )}
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             <Link
                               href={getAtomDetailHref(atom.slug)}
-                              className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+                              className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-2 py-1 text-[11px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                             >
                               Detail
                             </Link>
                             <Link
                               href={getExplorerHref(atom.slug)}
-                              className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                              className="inline-flex items-center gap-1 rounded-[var(--r)] border border-[#bccbe0] bg-[#e9eef6] px-2 py-1 text-[11px] font-medium text-[#223a5e] transition-colors hover:bg-[#e9eef6]"
                             >
                               <Search className="h-3 w-3" />
                               Explorer
@@ -239,7 +239,7 @@ export function ProjectThemesPanel({
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-[var(--ink-4)]">
                             {atom.paperCount} paper{atom.paperCount !== 1 ? "s" : ""}
                           </span>
                         </div>
@@ -253,13 +253,13 @@ export function ProjectThemesPanel({
       )}
 
       {viewMode === "clusters" && (
-        <Card className="overflow-hidden rounded-xl shadow-sm">
+        <Card className="overflow-hidden rounded-[var(--r)] shadow-[var(--shadow-1)]">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
-              <GitBranchPlus className="h-4 w-4 text-indigo-500" />
+              <GitBranchPlus className="h-4 w-4 text-[#2c4870]" />
               Project Theme Clusters
             </CardTitle>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-[var(--ink-4)]">
               Clustered from the current project paper set using shared atoms. This is the same
               clustering logic used in Research mode, but applied to a fixed project corpus.
             </p>
@@ -281,20 +281,20 @@ export function ProjectThemesPanel({
       )}
 
       {viewMode === "themes" && fieldGroups.length > 0 && (
-        <Card className="rounded-xl shadow-sm">
+        <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
-              <Layers3 className="h-4 w-4 text-sky-500" />
+              <Layers3 className="h-4 w-4 text-[#2c4870]" />
               Field-Based Theme Fallback
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {fieldGroups.map(([field, fieldPapers]) => (
-              <div key={field} className="space-y-2 rounded-lg border border-border p-3">
+              <div key={field} className="space-y-2 rounded-[var(--r)] border border-[var(--line-soft)] p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="text-sm font-medium text-foreground">{field}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm font-medium text-[var(--ink)]">{field}</p>
+                    <p className="text-xs text-[var(--ink-4)]">
                       {fieldPapers.length} paper{fieldPapers.length !== 1 ? "s" : ""} in this field-led cluster
                     </p>
                   </div>
@@ -303,36 +303,36 @@ export function ProjectThemesPanel({
                   {fieldPapers.slice(0, 5).map((paper) => (
                     <div
                       key={paper.paperId}
-                      className="flex items-start justify-between gap-3 rounded-md bg-muted/30 px-3 py-2 transition-colors hover:bg-accent/40"
+                      className="flex items-start justify-between gap-3 rounded-[var(--r)] bg-[var(--paper-2)] px-3 py-2 transition-colors hover:bg-[var(--paper-2)]"
                     >
                       <div className="min-w-0 flex-1">
                         <Link
                           href={getPaperDetailHref(paper.paperId)}
-                          className="block truncate text-sm font-medium text-foreground hover:text-primary"
+                          className="block truncate text-sm font-medium text-[var(--ink)] hover:text-[var(--forest)]"
                         >
                           {paper.title || paper.paperId}
                         </Link>
-                        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                        <div className="mt-1 flex items-center gap-2 text-xs text-[var(--ink-4)]">
                           <span>{paper.year ?? "n/a"}</span>
                           <span className="font-mono">{paper.paperId}</span>
                         </div>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           <Link
                             href={getPaperDetailHref(paper.paperId)}
-                            className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+                            className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-2 py-1 text-[11px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                           >
                             Detail
                           </Link>
                           <Link
                             href={getPaperExplorerHref(paper.paperId)}
-                            className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] font-medium text-sky-700 transition-colors hover:bg-sky-100"
+                            className="inline-flex items-center gap-1 rounded-[var(--r)] border border-[#bccbe0] bg-[#e9eef6] px-2 py-1 text-[11px] font-medium text-[#223a5e] transition-colors hover:bg-[#e9eef6]"
                           >
                             <Search className="h-3 w-3" />
                             Explorer
                           </Link>
                         </div>
                       </div>
-                      <span className="shrink-0 text-xs text-muted-foreground">
+                      <span className="shrink-0 text-xs text-[var(--ink-4)]">
                         {paper.fields[0] || "Unclassified"}
                       </span>
                     </div>

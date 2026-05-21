@@ -20,19 +20,19 @@ const COLUMN_LABELS: Record<string, string> = {
 };
 
 const ROW_COLORS: Record<string, string> = {
-  research_question: "bg-[color:oklch(97%_0.025_248/_0.55)]",
-  method: "bg-[color:oklch(97%_0.028_156/_0.55)]",
-  data: "bg-background/80",
-  key_finding: "bg-[color:oklch(97%_0.03_82/_0.55)]",
-  limitation: "bg-[color:oklch(97%_0.026_20/_0.45)]",
+  research_question: "bg-[#e9eef6]/55",
+  method: "bg-[var(--forest-soft)]/55",
+  data: "bg-[var(--paper)]",
+  key_finding: "bg-[#f4ead8]/55",
+  limitation: "bg-[#f4dfd5]/45",
 };
 
 const ROW_BORDER_COLORS: Record<string, string> = {
-  research_question: "border-l-sky-400",
-  method: "border-l-emerald-400",
+  research_question: "border-l-[#2c4870]",
+  method: "border-l-[var(--forest)]",
   data: "border-l-border",
-  key_finding: "border-l-amber-400",
-  limitation: "border-l-rose-300",
+  key_finding: "border-l-[#b88a3b]",
+  limitation: "border-l-[#da9a80]",
 };
 
 function buildComparisonMarkdown(result: ComparisonResult): string {
@@ -58,7 +58,7 @@ function ComparisonCell({ content }: { content: string }) {
 
   if (!content) {
     return (
-      <span className="text-xs italic text-muted-foreground">
+      <span className="text-xs italic text-[var(--ink-4)]">
         No deep-read card available
       </span>
     );
@@ -75,7 +75,7 @@ function ComparisonCell({ content }: { content: string }) {
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
-          className="mt-2 inline-flex items-center gap-1 rounded-full border border-border/75 bg-accent/45 px-2 py-1 text-[11px] font-medium text-primary hover:bg-accent/65"
+          className="mt-2 inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper-2)] px-2 py-1 text-[11px] font-medium text-[var(--forest)] hover:bg-[var(--paper-2)]"
         >
           {expanded ? (
             <>
@@ -101,9 +101,9 @@ export function ComparisonTableSkeleton() {
         <Skeleton className="h-6 w-40" />
         <Skeleton className="h-8 w-32" />
       </div>
-      <div className="paper-panel overflow-x-auto rounded-[1.55rem] border border-border/75">
+      <div className="lp-card overflow-x-auto rounded-[var(--r-md)] border border-[var(--line-soft)]">
         <div className="min-w-[800px]">
-          <div className="flex border-b border-border/75 bg-[color:oklch(var(--accent)/0.24)]">
+          <div className="flex border-b border-[var(--line-soft)] bg-[var(--paper-2)]">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex-1 p-4">
                 <Skeleton className="mb-2 h-5 w-full" />
@@ -112,7 +112,7 @@ export function ComparisonTableSkeleton() {
             ))}
           </div>
           {Array.from({ length: 5 }).map((_, rowIndex) => (
-            <div key={rowIndex} className="flex border-b border-border/60">
+            <div key={rowIndex} className="flex border-b border-[var(--line-soft)]">
               <div className="w-40 shrink-0 p-4">
                 <Skeleton className="h-4 w-24" />
               </div>
@@ -154,7 +154,7 @@ function getSimilarity(texts: string[]): "similar" | "mixed" | "diverse" {
 }
 
 function getSimilarityIndicator(similarity: "similar" | "mixed" | "diverse") {
-  const indicatorColor = similarity === "similar" ? "bg-green-500" : similarity === "mixed" ? "bg-yellow-500" : "bg-orange-500";
+  const indicatorColor = similarity === "similar" ? "bg-[var(--forest)]" : similarity === "mixed" ? "bg-[#b88a3b]" : "bg-[#b88a3b]";
   const indicatorLabel = similarity === "similar" ? "Similar approaches" : similarity === "mixed" ? "Some differences" : "Divergent";
   return { indicatorColor, indicatorLabel };
 }
@@ -182,13 +182,13 @@ export function ComparisonTableView({
 
   return (
     <div className="space-y-4">
-      <div className="paper-panel flex flex-col gap-4 rounded-[1.7rem] p-5 md:flex-row md:items-start md:justify-between">
+      <div className="lp-card flex flex-col gap-4 rounded-[var(--r-md)] p-5 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="section-kicker">Comparison dossier</p>
-          <h2 className="font-display mt-2 text-[2rem] tracking-tight text-foreground">{title}</h2>
-          <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
+          <h2 className="font-display mt-2 text-[2rem] tracking-tight text-[var(--ink)]">{title}</h2>
+          <p className="mt-2 text-sm text-[var(--ink-4)]">{subtitle}</p>
           {context && (
-            <p className="mt-3 text-xs text-muted-foreground">
+            <p className="mt-3 text-xs text-[var(--ink-4)]">
               Source context: {context}
             </p>
           )}
@@ -199,7 +199,7 @@ export function ComparisonTableView({
           <button
             type="button"
             onClick={() => setLitReviewOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--forest)] bg-[var(--forest-soft)] px-3.5 py-2 text-xs font-medium text-[var(--forest)] transition-colors hover:bg-[var(--forest-soft)]"
           >
             <FileText className="h-3.5 w-3.5" />
             Generate Lit Review
@@ -207,55 +207,55 @@ export function ComparisonTableView({
         </div>
       </div>
 
-      <div className="paper-panel rounded-[1.7rem] border border-border/75 bg-background/92 shadow-none">
-        <div className="flex items-center justify-between gap-3 border-b border-border/60 px-5 py-3">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+      <div className="lp-card rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)] shadow-none">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--line-soft)] px-5 py-3">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--ink-4)]">
             Comparison grid
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-[var(--ink-4)]">
             Scroll horizontally to inspect every paper column.
           </p>
         </div>
-        <div className="flex items-center gap-4 text-[10px] text-muted-foreground px-5 pt-3 mb-0">
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-400" /> High agreement</span>
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400" /> Partial agreement</span>
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-400" /> Low agreement</span>
+        <div className="flex items-center gap-4 text-[10px] text-[var(--ink-4)] px-5 pt-3 mb-0">
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[var(--forest)]" /> High agreement</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#b88a3b]" /> Partial agreement</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#b88a3b]" /> Low agreement</span>
         </div>
         <div className="relative overflow-x-auto">
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-6 bg-gradient-to-r from-[color:oklch(var(--card)/0.98)] to-transparent" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-8 bg-gradient-to-l from-[color:oklch(var(--card)/0.98)] to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-6 bg-gradient-to-r from-[var(--paper)] to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-8 bg-gradient-to-l from-[var(--paper)] to-transparent" />
           <table
             className="w-full border-collapse text-left"
             style={{ minWidth: 160 + paperCount * minCellWidth }}
           >
           <thead>
-            <tr className="border-b border-border/75 bg-[color:oklch(var(--accent)/0.24)]">
-              <th className="sticky left-0 z-10 w-40 min-w-[160px] border-r border-border/75 bg-[color:oklch(var(--accent)/0.24)] p-4 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            <tr className="border-b border-[var(--line-soft)] bg-[var(--paper-2)]">
+              <th className="sticky left-0 z-10 w-40 min-w-[160px] border-r border-[var(--line-soft)] bg-[var(--paper-2)] p-4 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-[var(--ink-4)]">
                 Dimension
               </th>
               {papers.map((paper) => (
                 <th
                   key={paper.paper_id}
-                  className="border-r border-border/60 p-4 align-top last:border-r-0"
+                  className="border-r border-[var(--line-soft)] p-4 align-top last:border-r-0"
                   style={{ minWidth: minCellWidth }}
                 >
                   <Link
                     href={`/paper/${paper.paper_id}`}
-                    className="font-display text-[1.1rem] text-foreground hover:text-primary"
+                    className="font-display text-[1.1rem] text-[var(--ink)] hover:text-[var(--forest)]"
                   >
                     {paper.title || paper.paper_id}
                   </Link>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="mt-1 flex items-center gap-2 text-xs text-[var(--ink-4)]">
                     <span className="font-mono">{paper.paper_id}</span>
                     {paper.year && (
                       <>
-                        <span className="text-muted-foreground/45">|</span>
+                        <span className="text-[var(--ink-5)]">|</span>
                         <span>{paper.year}</span>
                       </>
                     )}
                   </div>
                   {paper.authors.length > 0 && (
-                    <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                    <p className="mt-1 line-clamp-1 text-xs text-[var(--ink-4)]">
                       {paper.authors.join(", ")}
                     </p>
                   )}
@@ -271,10 +271,10 @@ export function ComparisonTableView({
               return (
               <tr
                 key={column}
-                className={`border-b border-border/60 last:border-b-0 ${idx % 2 === 0 ? ROW_COLORS[column] || "bg-background/80" : "bg-background/72"}`}
+                className={`border-b border-[var(--line-soft)] last:border-b-0 ${idx % 2 === 0 ? ROW_COLORS[column] || "bg-[var(--paper)]" : "bg-[var(--paper)]"}`}
               >
                 <td
-                  className={`sticky left-0 z-10 w-40 min-w-[160px] border-l-[3px] border-r border-border/75 bg-inherit p-4 align-top text-sm font-semibold text-foreground ${ROW_BORDER_COLORS[column] || "border-l-border"}`}
+                  className={`sticky left-0 z-10 w-40 min-w-[160px] border-l-[3px] border-r border-[var(--line-soft)] bg-inherit p-4 align-top text-sm font-semibold text-[var(--ink)] ${ROW_BORDER_COLORS[column] || "border-l-border"}`}
                 >
                   <div className="flex items-center gap-2">
                     <span className={`inline-block h-2 w-2 rounded-full ${indicatorColor}`} title={indicatorLabel} />
@@ -284,7 +284,7 @@ export function ComparisonTableView({
                 {papers.map((paper) => (
                   <td
                     key={`${paper.paper_id}-${column}`}
-                    className="border-r border-border/60 p-4 align-top last:border-r-0"
+                    className="border-r border-[var(--line-soft)] p-4 align-top last:border-r-0"
                   >
                     <ComparisonCell content={paper.cells[column] || ""} />
                   </td>

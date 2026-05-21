@@ -24,11 +24,11 @@ import {
 // ---------------------------------------------------------------------------
 
 function scoreBadgeColor(score: number | null): string {
-  if (score === null) return "bg-muted text-muted-foreground";
-  if (score >= 8) return "bg-emerald-100 text-emerald-800 font-semibold";
-  if (score >= 6) return "bg-blue-100 text-blue-800 font-semibold";
-  if (score >= 4) return "bg-amber-100 text-amber-800 font-medium";
-  return "bg-muted text-muted-foreground";
+  if (score === null) return "bg-[var(--paper-2)] text-[var(--ink-4)]";
+  if (score >= 8) return "bg-[var(--forest-soft)] text-[var(--forest-2)] font-semibold";
+  if (score >= 6) return "bg-[#e9eef6] text-[#1b2e4d] font-semibold";
+  if (score >= 4) return "bg-[#f4ead8] text-[#654814] font-medium";
+  return "bg-[var(--paper-2)] text-[var(--ink-4)]";
 }
 
 function truncateTitle(title: string | null, max: number = 70): string {
@@ -63,10 +63,10 @@ export default function AuthorPage({
         <Skeleton className="h-8 w-64" />
         <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 rounded-xl" />
+            <Skeleton key={i} className="h-20 rounded-[var(--r)]" />
           ))}
         </div>
-        <Skeleton className="h-64 rounded-xl" />
+        <Skeleton className="h-64 rounded-[var(--r)]" />
       </div>
     );
   }
@@ -77,12 +77,12 @@ export default function AuthorPage({
       <div className="animate-in space-y-4">
         <Link
           href="/explorer"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-[var(--ink-4)] hover:text-[var(--ink)] transition-colors"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Explorer
         </Link>
-        <h2 className="text-2xl font-semibold text-gray-900">Author Not Found</h2>
-        <p className="text-muted-foreground">
+        <h2 className="text-2xl font-semibold text-[var(--ink)]">Author Not Found</h2>
+        <p className="text-[var(--ink-4)]">
           No papers found for &ldquo;{authorName}&rdquo;.
         </p>
       </div>
@@ -93,17 +93,17 @@ export default function AuthorPage({
   return (
     <div className="animate-in space-y-6">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href="/explorer" className="hover:text-foreground transition-colors">
+      <div className="flex items-center gap-2 text-sm text-[var(--ink-4)]">
+        <Link href="/explorer" className="hover:text-[var(--ink)] transition-colors">
           Explorer
         </Link>
         <span>/</span>
-        <span className="text-foreground font-medium">{author.name}</span>
+        <span className="text-[var(--ink)] font-medium">{author.name}</span>
       </div>
 
       {/* Heading */}
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight text-gray-900">
+        <h2 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">
           {author.name}
         </h2>
       </div>
@@ -112,56 +112,56 @@ export default function AuthorPage({
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card>
           <CardContent className="flex items-center gap-3 py-4 px-5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
-              <BookOpen className="h-4 w-4 text-blue-600" style={{ strokeWidth: 1.75 }} />
+            <div className="flex h-9 w-9 items-center justify-center rounded-[var(--r)] bg-[#e9eef6]">
+              <BookOpen className="h-4 w-4 text-[#2c4870]" style={{ strokeWidth: 1.75 }} />
             </div>
             <div>
-              <p className="text-2xl font-semibold text-foreground leading-tight">
+              <p className="text-2xl font-semibold text-[var(--ink)] leading-tight">
                 {author.paperCount}
               </p>
-              <p className="text-xs text-muted-foreground">Papers</p>
+              <p className="text-xs text-[var(--ink-4)]">Papers</p>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="flex items-center gap-3 py-4 px-5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50">
-              <TrendingUp className="h-4 w-4 text-emerald-600" style={{ strokeWidth: 1.75 }} />
+            <div className="flex h-9 w-9 items-center justify-center rounded-[var(--r)] bg-[var(--forest-soft)]">
+              <TrendingUp className="h-4 w-4 text-[var(--forest)]" style={{ strokeWidth: 1.75 }} />
             </div>
             <div>
-              <p className="text-2xl font-semibold text-foreground leading-tight">
+              <p className="text-2xl font-semibold text-[var(--ink)] leading-tight">
                 {author.avgScore !== null ? author.avgScore.toFixed(1) : "--"}
               </p>
-              <p className="text-xs text-muted-foreground">Avg Score</p>
+              <p className="text-xs text-[var(--ink-4)]">Avg Score</p>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="flex items-center gap-3 py-4 px-5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50">
-              <Users className="h-4 w-4 text-purple-600" style={{ strokeWidth: 1.75 }} />
+            <div className="flex h-9 w-9 items-center justify-center rounded-[var(--r)] bg-[#e9eef6]">
+              <Users className="h-4 w-4 text-[#2c4870]" style={{ strokeWidth: 1.75 }} />
             </div>
             <div>
-              <p className="text-2xl font-semibold text-foreground leading-tight">
+              <p className="text-2xl font-semibold text-[var(--ink)] leading-tight">
                 {author.coauthors.length}
               </p>
-              <p className="text-xs text-muted-foreground">Co-authors</p>
+              <p className="text-xs text-[var(--ink-4)]">Co-authors</p>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="flex items-center gap-3 py-4 px-5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50">
-              <FlaskConical className="h-4 w-4 text-amber-600" style={{ strokeWidth: 1.75 }} />
+            <div className="flex h-9 w-9 items-center justify-center rounded-[var(--r)] bg-[#f4ead8]">
+              <FlaskConical className="h-4 w-4 text-[#7a5a18]" style={{ strokeWidth: 1.75 }} />
             </div>
             <div>
-              <p className="text-2xl font-semibold text-foreground leading-tight">
+              <p className="text-2xl font-semibold text-[var(--ink)] leading-tight">
                 {author.fields.length}
               </p>
-              <p className="text-xs text-muted-foreground">Fields</p>
+              <p className="text-xs text-[var(--ink-4)]">Fields</p>
             </div>
           </CardContent>
         </Card>
@@ -172,12 +172,12 @@ export default function AuthorPage({
         <div className="flex flex-wrap gap-4">
           {author.fields.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground">Fields</h3>
+              <h3 className="text-sm font-medium text-[var(--ink-4)]">Fields</h3>
               <div className="flex flex-wrap gap-1.5">
                 {author.fields.map((f) => (
                   <Badge key={f.field} variant="secondary" className="text-xs">
                     {f.field}
-                    <span className="ml-1 text-muted-foreground">({f.count})</span>
+                    <span className="ml-1 text-[var(--ink-4)]">({f.count})</span>
                   </Badge>
                 ))}
               </div>
@@ -185,12 +185,12 @@ export default function AuthorPage({
           )}
           {author.methods.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground">Methods</h3>
+              <h3 className="text-sm font-medium text-[var(--ink-4)]">Methods</h3>
               <div className="flex flex-wrap gap-1.5">
                 {author.methods.map((m) => (
                   <Badge key={m.field} variant="outline" className="text-xs">
                     {m.field}
-                    <span className="ml-1 text-muted-foreground">({m.count})</span>
+                    <span className="ml-1 text-[var(--ink-4)]">({m.count})</span>
                   </Badge>
                 ))}
               </div>
@@ -216,12 +216,12 @@ export default function AuthorPage({
                 <Link
                   key={ca.name}
                   href={`/author/${encodeURIComponent(ca.name)}`}
-                  className="flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-accent/60 transition-colors group"
+                  className="flex items-center justify-between gap-2 rounded-[var(--r)] px-3 py-2 hover:bg-[var(--paper-2)]/60 transition-colors group"
                 >
-                  <span className="text-sm text-foreground group-hover:text-primary transition-colors truncate">
+                  <span className="text-sm text-[var(--ink)] group-hover:text-[var(--forest)] transition-colors truncate">
                     {ca.name}
                   </span>
-                  <span className="text-xs text-muted-foreground shrink-0">
+                  <span className="text-xs text-[var(--ink-4)] shrink-0">
                     {ca.sharedPapers} shared
                   </span>
                 </Link>
@@ -306,7 +306,7 @@ function PapersTable({
           <div className="flex items-center gap-2">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--ink-4)]" />
               <input
                 type="text"
                 value={searchFilter}
@@ -315,7 +315,7 @@ function PapersTable({
                   setPage(0);
                 }}
                 placeholder="Filter papers..."
-                className="h-8 w-48 rounded-md border border-gray-200 bg-white pl-8 pr-3 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                className="h-8 w-48 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] pl-8 pr-3 text-xs placeholder:text-[var(--ink-4)] focus:outline-none focus:ring-2 focus:ring-[var(--forest)] focus:ring-offset-1"
               />
             </div>
             {/* Sort toggles */}
@@ -352,9 +352,9 @@ function PapersTable({
                 <Link
                   key={paper.paperId}
                   href={`/paper/${paper.paperId}`}
-                  className="flex items-center gap-3 py-2 px-2 -mx-2 rounded-md hover:bg-accent/60 transition-colors group"
+                  className="flex items-center gap-3 py-2 px-2 -mx-2 rounded-[var(--r)] hover:bg-[var(--paper-2)]/60 transition-colors group"
                 >
-                  <span className="text-sm text-foreground flex-1 min-w-0 truncate group-hover:text-primary transition-colors">
+                  <span className="text-sm text-[var(--ink)] flex-1 min-w-0 truncate group-hover:text-[var(--forest)] transition-colors">
                     {displayTitle}
                   </span>
                   <div className="flex items-center gap-2 shrink-0">
@@ -368,7 +368,7 @@ function PapersTable({
                       </Badge>
                     ))}
                     {paper.year && (
-                      <span className="text-xs text-muted-foreground w-10 text-right">
+                      <span className="text-xs text-[var(--ink-4)] w-10 text-right">
                         {paper.year}
                       </span>
                     )}
@@ -396,7 +396,7 @@ function PapersTable({
               return rowContent;
             })}
             {paginated.length === 0 && (
-              <p className="py-4 text-center text-sm text-muted-foreground">
+              <p className="py-4 text-center text-sm text-[var(--ink-4)]">
                 No papers match your filter.
               </p>
             )}
@@ -405,8 +405,8 @@ function PapersTable({
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
-            <p className="text-xs text-muted-foreground">
+          <div className="mt-4 flex items-center justify-between border-t border-[var(--line-soft)] pt-3">
+            <p className="text-xs text-[var(--ink-4)]">
               Showing {page * PAPERS_PER_PAGE + 1}
               &ndash;
               {Math.min((page + 1) * PAPERS_PER_PAGE, sorted.length)} of{" "}
@@ -422,7 +422,7 @@ function PapersTable({
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="px-2 text-xs text-muted-foreground">
+              <span className="px-2 text-xs text-[var(--ink-4)]">
                 {page + 1} / {totalPages}
               </span>
               <Button

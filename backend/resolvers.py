@@ -178,6 +178,10 @@ def _raise_resolver_runtime_error(context: str, exc: Exception) -> None:
 MAX_GRAPH_SEED_PAPERS = 60
 MAX_GRAPH_CONTEXT_PAPERS = 20
 MAX_GRAPH_CANDIDATE_PAPERS = 120
+MAX_PAPER_SET_ATOMS = 96
+MAX_PAPER_SET_ATOMS_PER_TYPE = 28
+MAX_PAPER_SET_ATOMS_PER_SEED = 6
+MAX_COMPLETE_ATOM_PAPERS = 6
 PAPER_SET_NETWORK_CACHE_TTL = 180
 PAPER_SET_NETWORK_CACHE_MAX = 64
 _paper_set_network_cache: dict[
@@ -263,6 +267,7 @@ def _atom_row_to_graph_node(
     row: aiosqlite.Row | dict[str, Any],
     *,
     paper_count: int | None = None,
+    visible_paper_count: int | None = None,
     is_seed: bool = False,
 ) -> dict[str, Any]:
     row_paper_count = row.get("paper_count") if isinstance(row, dict) else (
@@ -281,6 +286,9 @@ def _atom_row_to_graph_node(
         "fields": [],
         "theme": row_theme,
         "paper_count": int(resolved_paper_count) if resolved_paper_count is not None else None,
+        "visible_paper_count": (
+            int(visible_paper_count) if visible_paper_count is not None else None
+        ),
         "is_seed": is_seed,
     }
 
@@ -316,6 +324,21 @@ def _finalize_network_graph(
     error_message: str | None = None,
     warning_message: str | None = None,
 ) -> dict[str, Any]:
+    visible_paper_counts: dict[str, set[str]] = {}
+    for edge in edges.values():
+        source_node = nodes.get(edge["source"])
+        target_node = nodes.get(edge["target"])
+        if source_node and target_node:
+            if source_node["type"] == "paper" and target_node["type"] != "paper":
+                visible_paper_counts.setdefault(edge["target"], set()).add(edge["source"])
+            elif target_node["type"] == "paper" and source_node["type"] != "paper":
+                visible_paper_counts.setdefault(edge["source"], set()).add(edge["target"])
+
+    for node_id, paper_ids in visible_paper_counts.items():
+        node = nodes.get(node_id)
+        if node is not None and node["type"] != "paper":
+            node["visible_paper_count"] = len(paper_ids)
+
     total_paper_nodes = sum(1 for node in nodes.values() if node["type"] == "paper")
     return {
         "nodes": list(nodes.values()),
@@ -1244,6 +1267,79 @@ async def get_atoms(
     except Exception:
         logger.exception("get_atoms failed")
         return empty
+
+
+async def get_top_atoms(limit: int = 20) -> list[dict[str, Any]]:
+    """Return atoms ordered by linked paper count descending."""
+    if not _db_exists():
+        return []
+    try:
+        db = await _get_db()
+        where_parts: list[str] = []
+        where_binds: list[Any] = []
+        _with_atom_scope(where_parts, where_binds, "a")
+
+        join_binds: list[Any] = []
+        library_id = _active_library_id()
+        if library_id is not None:
+            count_join = (
+                "LEFT JOIN library_papers lp_count "
+                "ON lp_count.paper_id = apr.paper_id AND lp_count.library_id = ?"
+            )
+            count_expr = "COUNT(DISTINCT lp_count.paper_id)"
+            join_binds.append(library_id)
+        else:
+            count_join = ""
+            count_expr = "COUNT(DISTINCT apr.paper_id)"
+
+        where_sql = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
+        cursor = await db.execute(
+            f"""
+            SELECT a.*, {count_expr} AS linked_paper_count
+            FROM atoms a
+            LEFT JOIN atom_paper_refs apr ON apr.atom_slug = a.slug
+            {count_join}
+            {where_sql}
+            GROUP BY a.slug
+            ORDER BY linked_paper_count DESC, a.title ASC
+            LIMIT ?
+            """,
+            join_binds + where_binds + [max(1, min(limit, 100))],
+        )
+        return [_row_to_atom(r) for r in await cursor.fetchall()]
+    except Exception:
+        logger.exception("get_top_atoms failed")
+        return []
+
+
+async def get_atom_year_distribution(slug: str) -> list[dict[str, int]]:
+    """Return linked paper counts by year for one atom."""
+    if not _db_exists():
+        return []
+    try:
+        db = await _get_db()
+        where_parts = ["apr.atom_slug = ?", "p.year IS NOT NULL"]
+        binds: list[Any] = [slug]
+        _with_paper_scope(where_parts, binds, "p")
+        cursor = await db.execute(
+            f"""
+            SELECT p.year AS year, COUNT(DISTINCT p.paper_id) AS count
+            FROM atom_paper_refs apr
+            JOIN papers p ON p.paper_id = apr.paper_id
+            WHERE {' AND '.join(where_parts)}
+            GROUP BY p.year
+            ORDER BY p.year ASC
+            """,
+            binds,
+        )
+        return [
+            {"year": int(row["year"]), "count": int(row["count"])}
+            for row in await cursor.fetchall()
+            if row["year"] is not None
+        ]
+    except Exception:
+        logger.exception("get_atom_year_distribution failed for %s", slug)
+        return []
 
 
 async def get_atom_papers(slug: str) -> list[dict[str, Any]]:
@@ -2453,9 +2549,85 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
         }
 
         if depth <= 1:
-            visible_atom_slugs = [
+            type_order = {
+                "method": 0,
+                "dataset": 1,
+                "mechanism": 2,
+                "puzzle": 3,
+            }
+            seed_order = {paper_id: index for index, paper_id in enumerate(seed_ids)}
+            selected_atom_slugs: list[str] = []
+            selected_set: set[str] = set()
+            selected_by_type: dict[str, int] = {}
+            selected_by_seed: dict[str, int] = {paper_id: 0 for paper_id in seed_ids}
+
+            def add_visible_atom(slug: str, *, enforce_seed_budget: bool) -> bool:
+                if slug in selected_set or len(selected_atom_slugs) >= MAX_PAPER_SET_ATOMS:
+                    return False
+
+                info = atom_info.get(slug)
+                if info is None:
+                    return False
+
+                atom_type = str(info.get("type") or "")
+                if selected_by_type.get(atom_type, 0) >= MAX_PAPER_SET_ATOMS_PER_TYPE:
+                    return False
+
+                linked_seeds = atom_seed_papers.get(slug, set())
+                if enforce_seed_budget and linked_seeds:
+                    if all(
+                        selected_by_seed.get(paper_id, 0) >= MAX_PAPER_SET_ATOMS_PER_SEED
+                        for paper_id in linked_seeds
+                    ):
+                        return False
+
+                selected_set.add(slug)
+                selected_atom_slugs.append(slug)
+                selected_by_type[atom_type] = selected_by_type.get(atom_type, 0) + 1
+                for paper_id in linked_seeds:
+                    selected_by_seed[paper_id] = selected_by_seed.get(paper_id, 0) + 1
+                return True
+
+            shared_atom_slugs = [
                 slug for slug, linked_papers in atom_seed_papers.items() if len(linked_papers) >= 2
             ]
+            shared_atom_slugs.sort(
+                key=lambda slug: (
+                    -len(atom_seed_papers.get(slug, set())),
+                    type_order.get(str(atom_info.get(slug, {}).get("type") or ""), 99),
+                    -(atom_counts.get(slug) or 0),
+                    str(atom_info.get(slug, {}).get("title") or slug).lower(),
+                )
+            )
+            for slug in shared_atom_slugs:
+                add_visible_atom(slug, enforce_seed_budget=False)
+
+            seed_atom_candidates: list[tuple[int, int, int, str, str]] = []
+            for slug, linked_papers in atom_seed_papers.items():
+                if slug in selected_set:
+                    continue
+                info = atom_info.get(slug)
+                if info is None:
+                    continue
+                atom_type = str(info.get("type") or "")
+                best_seed_rank = min(
+                    (seed_order.get(paper_id, len(seed_order)) for paper_id in linked_papers),
+                    default=len(seed_order),
+                )
+                seed_atom_candidates.append(
+                    (
+                        best_seed_rank,
+                        type_order.get(atom_type, 99),
+                        -(atom_counts.get(slug) or 0),
+                        str(info.get("title") or slug).lower(),
+                        slug,
+                    )
+                )
+
+            for *_, slug in sorted(seed_atom_candidates):
+                add_visible_atom(slug, enforce_seed_budget=True)
+
+            visible_atom_slugs = selected_atom_slugs
         else:
             visible_atom_slugs = atom_slugs
 
@@ -2474,6 +2646,48 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
                         source=pid,
                         target=atom_id,
                         relation=relation,
+                    )
+
+        if visible_atom_slugs:
+            complete_atom_slugs = [
+                slug
+                for slug in visible_atom_slugs
+                if 0 < (atom_counts.get(slug) or 0) <= MAX_COMPLETE_ATOM_PAPERS
+            ]
+            missing_context_budget = MAX_GRAPH_CONTEXT_PAPERS
+            if complete_atom_slugs and missing_context_budget > 0:
+                complete_placeholders = ", ".join("?" for _ in complete_atom_slugs)
+                complete_where_parts = [
+                    f"apr.atom_slug IN ({complete_placeholders})",
+                    f"p.paper_id NOT IN ({placeholders})",
+                ]
+                complete_binds: list[Any] = [*complete_atom_slugs, *seed_ids]
+                _with_paper_scope(complete_where_parts, complete_binds, "p")
+                complete_cursor = await db.execute(
+                    f"""
+                    SELECT p.*, apr.atom_slug
+                    FROM atom_paper_refs apr
+                    JOIN papers p ON p.paper_id = apr.paper_id
+                    WHERE {' AND '.join(complete_where_parts)}
+                    ORDER BY p.average_score DESC, p.year DESC, p.paper_id DESC
+                    LIMIT {missing_context_budget}
+                    """,
+                    complete_binds,
+                )
+                complete_rows = await complete_cursor.fetchall()
+                for row in complete_rows:
+                    paper_id = row["paper_id"]
+                    atom_slug = row["atom_slug"]
+                    info = atom_info.get(atom_slug)
+                    if info is None:
+                        continue
+                    if paper_id not in nodes:
+                        nodes[paper_id] = _paper_row_to_graph_node(row)
+                    _add_graph_edge(
+                        edges,
+                        source=paper_id,
+                        target=f"atom:{atom_slug}",
+                        relation=_graph_edge_relation(info["type"]),
                     )
 
         if depth >= 3 and visible_atom_slugs:

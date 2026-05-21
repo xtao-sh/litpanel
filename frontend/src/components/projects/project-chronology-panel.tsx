@@ -1,11 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CalendarRange, Clock3, Star, TrendingUp } from "lucide-react";
+import { ArrowRight, CalendarRange, Clock3, Info, Star, TrendingUp } from "lucide-react";
 
 import { buildPaperDetailHref, buildProjectGraphHref } from "@/lib/navigation";
 import type { Paper, Project } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ProjectChronologyPanelProps {
   project: Project;
@@ -57,11 +63,11 @@ function pickDistinctPapers(source: Paper[], limit: number, used: Set<string>) {
 }
 
 function scoreBadgeClass(score: number | null | undefined): string {
-  if (score == null) return "bg-muted text-muted-foreground";
-  if (score >= 8) return "bg-emerald-100 text-emerald-800";
-  if (score >= 6) return "bg-blue-100 text-blue-800";
-  if (score >= 4) return "bg-amber-100 text-amber-800";
-  return "bg-muted text-muted-foreground";
+  if (score == null) return "bg-[var(--paper-2)] text-[var(--ink-4)]";
+  if (score >= 8) return "bg-[var(--forest-soft)] text-[var(--forest-2)]";
+  if (score >= 6) return "bg-[#e9eef6] text-[#1b2e4d]";
+  if (score >= 4) return "bg-[#f4ead8] text-[#654814]";
+  return "bg-[var(--paper-2)] text-[var(--ink-4)]";
 }
 
 function formatScore(score: number | null | undefined) {
@@ -84,46 +90,46 @@ function PaperList({
   const Icon = icon === "foundations" ? Clock3 : icon === "recent" ? TrendingUp : Star;
 
   return (
-    <Card className="paper-panel rounded-[1.55rem] shadow-none">
+    <Card className="lp-card rounded-[var(--r-md)] shadow-none">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <Icon className="h-4 w-4 text-primary" />
+          <Icon className="h-4 w-4 text-[var(--forest)]" />
           {title}
         </CardTitle>
-        <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
+        <p className="text-sm leading-relaxed text-[var(--ink-4)]">{description}</p>
       </CardHeader>
       <CardContent className="space-y-3">
         {papers.length > 0 ? (
           papers.map((paper) => (
             <div
               key={paper.paperId}
-              className="rounded-[1.1rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.3)] px-4 py-4"
+              className="rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper-2)] px-4 py-4"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <Link
                     href={buildPaperDetailHref({ paperId: paper.paperId, returnTo })}
-                    className="font-display text-[1.1rem] text-foreground transition-colors hover:text-primary"
+                    className="font-display text-[1.1rem] text-[var(--ink)] transition-colors hover:text-[var(--forest)]"
                   >
                     {paper.title || paper.paperId}
                   </Link>
                   {paper.tldr && (
-                    <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                    <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-[var(--ink-4)]">
                       {paper.tldr}
                     </p>
                   )}
                 </div>
                 <Link
                   href={buildPaperDetailHref({ paperId: paper.paperId, returnTo })}
-                  className="shrink-0 rounded-full border border-foreground/10 bg-background/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-background"
+                  className="shrink-0 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper)]"
                 >
                   Detail
                 </Link>
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+              <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-[var(--ink-4)]">
                 {paper.year != null && (
-                  <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground">
+                  <span className="rounded-full bg-[var(--paper-2)] px-2 py-0.5 font-medium text-[var(--ink)]">
                     {paper.year}
                   </span>
                 )}
@@ -133,12 +139,12 @@ function PaperList({
                   {formatScore(paper.averageScore)}
                 </span>
                 {paper.fields.slice(0, 2).map((field) => (
-                  <span key={field} className="rounded-full bg-background/80 px-2 py-0.5 text-foreground">
+                  <span key={field} className="rounded-full bg-[var(--paper)] px-2 py-0.5 text-[var(--ink)]">
                     {field}
                   </span>
                 ))}
                 {paper.fields.length > 2 && (
-                  <span className="rounded-full bg-muted px-2 py-0.5">
+                  <span className="rounded-full bg-[var(--paper-2)] px-2 py-0.5">
                     +{paper.fields.length - 2} fields
                   </span>
                 )}
@@ -146,7 +152,7 @@ function PaperList({
             </div>
           ))
         ) : (
-          <p className="text-sm text-muted-foreground">No papers matched this chronology slice yet.</p>
+          <p className="text-sm text-[var(--ink-4)]">No papers matched this chronology slice yet.</p>
         )}
       </CardContent>
     </Card>
@@ -206,43 +212,43 @@ export function ProjectChronologyPanel({
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="paper-panel rounded-[1.4rem] shadow-none">
+        <Card className="lp-card rounded-[var(--r-md)] shadow-none">
           <CardHeader className="pb-2">
             <p className="section-kicker">Opening year</p>
           </CardHeader>
           <CardContent>
-            <p className="font-display text-[2.25rem] text-foreground">
+            <p className="font-display text-[2.25rem] text-[var(--ink)]">
               {earliestYear != null ? earliestYear : "Unknown"}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-[var(--ink-4)]">
               The earliest publication year currently present in this project set.
             </p>
           </CardContent>
         </Card>
 
-        <Card className="paper-panel rounded-[1.4rem] shadow-none">
+        <Card className="lp-card rounded-[var(--r-md)] shadow-none">
           <CardHeader className="pb-2">
             <p className="section-kicker">Latest year</p>
           </CardHeader>
           <CardContent>
-            <p className="font-display text-[2.25rem] text-foreground">
+            <p className="font-display text-[2.25rem] text-[var(--ink)]">
               {latestYear != null ? latestYear : "Unknown"}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-[var(--ink-4)]">
               The newest wave in the project corpus based on publication year.
             </p>
           </CardContent>
         </Card>
 
-        <Card className="paper-panel rounded-[1.4rem] shadow-none">
+        <Card className="lp-card rounded-[var(--r-md)] shadow-none">
           <CardHeader className="pb-2">
             <p className="section-kicker">Peak year</p>
           </CardHeader>
           <CardContent>
-            <p className="font-display text-[2.25rem] text-foreground">
+            <p className="font-display text-[2.25rem] text-[var(--ink)]">
               {peakYearEntry ? `${peakYearEntry.year}` : "Unknown"}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-[var(--ink-4)]">
               {peakYearEntry
                 ? `${peakYearEntry.count} paper${peakYearEntry.count !== 1 ? "s" : ""} in the busiest year.`
                 : "No year distribution is available yet."}
@@ -250,15 +256,15 @@ export function ProjectChronologyPanel({
           </CardContent>
         </Card>
 
-        <Card className="paper-panel rounded-[1.4rem] shadow-none">
+        <Card className="lp-card rounded-[var(--r-md)] shadow-none">
           <CardHeader className="pb-2">
             <p className="section-kicker">Recent wave</p>
           </CardHeader>
           <CardContent>
-            <p className="font-display text-[2.25rem] text-foreground">
+            <p className="font-display text-[2.25rem] text-[var(--ink)]">
               {recentThreshold != null ? `${recentShare}%` : "Unknown"}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-[var(--ink-4)]">
               {recentThreshold != null
                 ? `${recentCount} paper${recentCount !== 1 ? "s" : ""} published since ${recentThreshold}.`
                 : "Not enough year metadata to estimate recency concentration."}
@@ -268,22 +274,22 @@ export function ProjectChronologyPanel({
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <Card className="paper-panel rounded-[1.65rem] shadow-none">
+        <Card className="lp-card rounded-[var(--r-md)] shadow-none">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                  <CalendarRange className="h-4 w-4 text-primary" />
+                  <CalendarRange className="h-4 w-4 text-[var(--forest)]" />
                   Publication Arc
                 </CardTitle>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                <p className="mt-1 text-sm leading-relaxed text-[var(--ink-4)]">
                   Use this to see whether the project is anchored by older foundational work or driven by a recent wave.
                 </p>
               </div>
               {compact && (
                 <Link
                   href={`/projects/${project.slug}/chronology`}
-                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/90"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-[var(--forest)] hover:text-[var(--forest)]/90"
                 >
                   Full chronology
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -296,57 +302,72 @@ export function ProjectChronologyPanel({
               timeline.map((entry) => (
                 <div key={entry.year} className="space-y-1">
                   <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className="font-medium text-foreground">{entry.year}</span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="font-medium text-[var(--ink)]">{entry.year}</span>
+                    <span className="text-xs text-[var(--ink-4)]">
                       {entry.count} paper{entry.count !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  <div className="h-2 rounded-full bg-[color:oklch(var(--accent)/0.55)]">
+                  <div className="h-2 rounded-full bg-[var(--paper-3)]">
                     <div
-                      className="h-2 rounded-full bg-primary/80"
+                      className="h-2 rounded-full bg-[var(--ink)]/80"
                       style={{ width: `${Math.max((entry.count / maxYearCount) * 100, 8)}%` }}
                     />
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-sm text-muted-foreground">This project does not have enough year metadata yet.</p>
+              <p className="text-sm text-[var(--ink-4)]">This project does not have enough year metadata yet.</p>
             )}
           </CardContent>
         </Card>
 
-        <Card className="paper-panel rounded-[1.65rem] shadow-none">
+        <Card className="lp-card rounded-[var(--r-md)] shadow-none">
           <CardHeader className="pb-4">
             <p className="section-kicker">Reading guide</p>
-            <CardTitle className="font-display text-[1.7rem] text-foreground">Reading Guide</CardTitle>
+            <CardTitle className="flex items-center gap-2 font-display text-[1.7rem] text-[var(--ink)]">
+              Reading Guide
+              <TooltipProvider delayDuration={180}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
+                      aria-label="Reading guide help"
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs rounded-[var(--r)] border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-xs leading-relaxed text-[var(--ink)] shadow-[var(--shadow-2)]">
+                    Read the foundations first, then the recent wave, then compare representative
+                    papers in Matrix to see how the topic evolved.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <CardContent className="space-y-3 text-sm text-[var(--ink-4)]">
             <p>
-              <span className="font-medium text-foreground">Foundation:</span>{" "}
+              <span className="font-medium text-[var(--ink)]">Foundation:</span>{" "}
               {earliestYear != null
                 ? `This project starts as early as ${earliestYear}.`
                 : "The earliest foundation year is not yet available."}
             </p>
             <p>
-              <span className="font-medium text-foreground">Momentum:</span>{" "}
+              <span className="font-medium text-[var(--ink)]">Momentum:</span>{" "}
               {peakYearEntry
                 ? `The densest year in the current corpus is ${peakYearEntry.year}.`
                 : "There is no peak year estimate yet."}
             </p>
             <p>
-              <span className="font-medium text-foreground">Recency:</span>{" "}
+              <span className="font-medium text-[var(--ink)]">Recency:</span>{" "}
               {recentThreshold != null
                 ? `${recentShare}% of this paper set sits in the last three visible publication years.`
                 : "Recency concentration cannot be estimated yet."}
             </p>
-            <p>
-              <span className="font-medium text-foreground">How to use it:</span>{" "}
-              Read the foundations first, then the recent wave, then compare the representative papers in Matrix to see how the topic evolved.
-            </p>
             <div className="flex flex-wrap gap-2 pt-2">
               <Link
                 href={`/projects/${project.slug}/matrix`}
-                className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-background"
+                className="inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-xs font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper)]"
               >
                 Open Matrix
               </Link>
@@ -358,7 +379,7 @@ export function ProjectChronologyPanel({
                   tab: compact ? "overview" : "chronology",
                   label: `${project.title} chronology`,
                 })}
-                className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+                className="inline-flex items-center gap-1 rounded-full border border-[var(--forest)] bg-[var(--forest-soft)] px-3 py-2 text-xs font-medium text-[var(--forest)] transition-colors hover:bg-[var(--forest-soft)]"
               >
                 Open Graph
                 <ArrowRight className="h-3 w-3" />

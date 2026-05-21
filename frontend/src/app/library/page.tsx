@@ -126,10 +126,10 @@ const DEFAULT_VISIBLE_COLUMNS: Record<PaperManagerColumnKey, boolean> = {
 
 const STATUS_TABS = [
   { value: "all", label: "All" },
-  { value: "to_read", label: "To Read", color: "bg-amber-400" },
-  { value: "reading", label: "Reading", color: "bg-blue-400" },
-  { value: "skimmed", label: "Skimmed", color: "bg-violet-400" },
-  { value: "read_in_detail", label: "Read in Detail", color: "bg-green-500" },
+  { value: "to_read", label: "To Read", color: "bg-[#b88a3b]" },
+  { value: "reading", label: "Reading", color: "bg-[#6f86a6]" },
+  { value: "skimmed", label: "Skimmed", color: "bg-[#6f86a6]" },
+  { value: "read_in_detail", label: "Read in Detail", color: "bg-[var(--forest)]" },
 ];
 
 function statusLabel(status: string | null | undefined): string {
@@ -139,9 +139,9 @@ function statusLabel(status: string | null | undefined): string {
 }
 
 function statusColor(status: string | null | undefined): string {
-  if (!status) return "bg-gray-300";
+  if (!status) return "bg-[var(--line)]";
   const tab = STATUS_TABS.find((t) => t.value === status);
-  return tab?.color ?? "bg-gray-300";
+  return tab?.color ?? "bg-[var(--line)]";
 }
 
 // ---------------------------------------------------------------------------
@@ -167,10 +167,10 @@ function EmptyState({ icon: Icon, message }: { icon: React.ElementType; message:
   const { t } = useI18n();
 
   return (
-    <div className="paper-panel flex flex-col items-center justify-center py-16 text-center">
-      <Icon className="mb-3 h-10 w-10 text-muted-foreground" />
-      <p className="font-display text-2xl tracking-tight text-foreground">{t("common.emptyTitle")}</p>
-      <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">{message}</p>
+    <div className="lp-card flex flex-col items-center justify-center py-16 text-center">
+      <Icon className="mb-3 h-10 w-10 text-[var(--ink-4)]" />
+      <p className="font-display text-2xl tracking-tight text-[var(--ink)]">{t("common.emptyTitle")}</p>
+      <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--ink-4)]">{message}</p>
     </div>
   );
 }
@@ -225,18 +225,18 @@ interface PaperManagerFeedbackItem {
 function processingTone(status: string): string {
   switch (status) {
     case "completed":
-      return "bg-green-50 text-green-700 border-green-200";
+      return "bg-[var(--forest-soft)] text-[var(--forest-2)] border-[var(--forest)]";
     case "triaged":
     case "indexed":
-      return "bg-blue-50 text-blue-700 border-blue-200";
+      return "bg-[#e9eef6] text-[#223a5e] border-[#bccbe0]";
     case "pending":
-      return "bg-amber-50 text-amber-700 border-amber-200";
+      return "bg-[#f4ead8] text-[#7a5a18] border-[#d6b678]";
     case "error":
     case "pdf_error":
     case "timeout":
-      return "bg-red-50 text-red-700 border-red-200";
+      return "bg-[#f4dfd5] text-[#8a3318] border-[#da9a80]";
     default:
-      return "bg-muted text-muted-foreground border-border";
+      return "bg-[var(--paper-2)] text-[var(--ink-4)] border-[var(--line-soft)]";
   }
 }
 
@@ -255,9 +255,9 @@ function formatFeedbackLabel(value: string | null | undefined, fallback: string)
 }
 
 function feedbackTone(attentionCount: number, feedbackCount: number): string {
-  if (attentionCount > 0) return "bg-red-50 text-red-700 border-red-200";
-  if (feedbackCount > 0) return "bg-slate-50 text-slate-700 border-slate-200";
-  return "bg-muted text-muted-foreground border-border";
+  if (attentionCount > 0) return "bg-[#f4dfd5] text-[#8a3318] border-[#da9a80]";
+  if (feedbackCount > 0) return "bg-[var(--paper-2)] text-[var(--ink-3)] border-[var(--line-soft)]";
+  return "bg-[var(--paper-2)] text-[var(--ink-4)] border-[var(--line-soft)]";
 }
 
 function ExtractionDots({ extractionStatus }: { extractionStatus: Record<string, boolean> }) {
@@ -291,14 +291,14 @@ function ExtractionDots({ extractionStatus }: { extractionStatus: Record<string,
               title={`${label}: ${active ? t("library.coverage.extracted") : t("library.coverage.missing")}`}
               className={`h-2.5 w-2.5 shrink-0 rounded-full border ${
                 active
-                  ? "border-blue-500 bg-blue-500"
-                  : "border-border bg-background"
+                  ? "border-[#2c4870] bg-[#2c4870]"
+                  : "border-[var(--line-soft)] bg-[var(--paper)]"
               }`}
             />
           );
         })}
       </div>
-      <span className="text-[11px] text-muted-foreground">
+      <span className="text-[11px] text-[var(--ink-4)]">
         {t("library.coverage.count", {
           count: activeCount,
           total: EXTRACTION_DIMENSIONS.length,
@@ -715,16 +715,16 @@ function PaperManagerTab() {
 
   return (
     <div className="space-y-4">
-      <div className="space-y-4 border-b border-border px-4 py-4">
+      <div className="space-y-4 border-b border-[var(--line-soft)] px-4 py-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-background px-4">
-            <Search className="h-4 w-4 text-muted-foreground" />
+          <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-4">
+            <Search className="h-4 w-4 text-[var(--ink-4)]" />
             <input
               type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder={t("library.searchPlaceholder")}
-              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              className="w-full bg-transparent text-sm text-[var(--ink)] outline-none placeholder:text-[var(--ink-4)]"
             />
           </div>
           <Button
@@ -753,7 +753,7 @@ function PaperManagerTab() {
           <select
             value={fieldFilter}
             onChange={(event) => setFieldFilter(event.target.value)}
-            className="h-10 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+            className="h-10 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-xs text-[var(--ink)]"
           >
             <option value="all">{t("library.filters.allFields")}</option>
             {fieldOptions.map((option) => (
@@ -766,7 +766,7 @@ function PaperManagerTab() {
           <select
             value={processingStatus}
             onChange={(event) => setProcessingStatus(event.target.value)}
-            className="h-10 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+            className="h-10 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-xs text-[var(--ink)]"
           >
             <option value="all">{t("library.filters.allStatuses")}</option>
             <option value="pending">{t("library.filters.pending")}</option>
@@ -781,7 +781,7 @@ function PaperManagerTab() {
           <select
             value={readingProfile}
             onChange={(event) => setReadingProfile(event.target.value)}
-            className="h-10 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+            className="h-10 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-xs text-[var(--ink)]"
           >
             <option value="all">{t("library.filters.allProfiles")}</option>
             <option value="auto">{t("library.filters.auto")}</option>
@@ -794,7 +794,7 @@ function PaperManagerTab() {
           <select
             value={hasCardFilter}
             onChange={(event) => setHasCardFilter(event.target.value)}
-            className="h-10 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+            className="h-10 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-xs text-[var(--ink)]"
           >
             <option value="all">{t("library.filters.allExtractionStates")}</option>
             <option value="yes">{t("library.filters.hasCard")}</option>
@@ -804,7 +804,7 @@ function PaperManagerTab() {
           <select
             value={coverageFilter}
             onChange={(event) => setCoverageFilter(event.target.value)}
-            className="h-10 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+            className="h-10 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-xs text-[var(--ink)]"
           >
             <option value="all">{t("library.filters.allCoverageLevels")}</option>
             <option value="core_ready">{t("library.filters.coreReady")}</option>
@@ -816,7 +816,7 @@ function PaperManagerTab() {
           <select
             value={feedbackFilter}
             onChange={(event) => setFeedbackFilter(event.target.value)}
-            className="h-10 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+            className="h-10 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-xs text-[var(--ink)]"
           >
             <option value="all">{t("library.filters.allFeedbackStates")}</option>
             <option value="has_feedback">{t("library.filters.hasFeedback")}</option>
@@ -831,7 +831,7 @@ function PaperManagerTab() {
           <select
             value={sort}
             onChange={(event) => setSort(event.target.value)}
-            className="h-10 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+            className="h-10 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-xs text-[var(--ink)]"
           >
             <option value="updated_desc">{t("library.filters.recentlyUpdated")}</option>
             <option value="imported_desc">{t("library.filters.recentlyImported")}</option>
@@ -847,20 +847,20 @@ function PaperManagerTab() {
               value={yearMin}
               onChange={(event) => setYearMin(event.target.value)}
               placeholder={t("library.filters.yearFrom")}
-              className="h-10 min-w-0 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+              className="h-10 min-w-0 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-xs text-[var(--ink)]"
             />
             <input
               type="number"
               value={yearMax}
               onChange={(event) => setYearMax(event.target.value)}
               placeholder={t("library.filters.yearTo")}
-              className="h-10 min-w-0 rounded-full border border-border bg-background px-3 text-xs text-foreground"
+              className="h-10 min-w-0 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-xs text-[var(--ink)]"
             />
           </div>
         </div>
 
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-          <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-background px-3">
+          <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3">
             <input
               type="text"
               value={doiInput}
@@ -872,13 +872,13 @@ function PaperManagerTab() {
                 }
               }}
               placeholder={t("library.actions.doiPlaceholder")}
-              className="w-full bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+              className="w-full bg-transparent text-xs text-[var(--ink)] outline-none placeholder:text-[var(--ink-4)]"
             />
             <button
               type="button"
               onClick={() => void handleImportDoi()}
               disabled={doiLoading || !doiInput.trim()}
-              className="shrink-0 text-xs font-medium text-primary disabled:text-muted-foreground"
+              className="shrink-0 text-xs font-medium text-[var(--forest)] disabled:text-[var(--ink-4)]"
             >
               {doiLoading ? t("library.actions.importing") : t("library.actions.addDoi")}
             </button>
@@ -912,22 +912,22 @@ function PaperManagerTab() {
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-b border-border/70 px-4 py-3 text-xs text-muted-foreground">
-        <span className="rounded-full border border-border bg-background px-3 py-1.5">
+      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line-soft)] px-4 py-3 text-xs text-[var(--ink-4)]">
+        <span className="rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5">
           {t("library.status.discipline")}:{" "}
-          <span className="text-foreground">{selectedLibrary?.discipline || t("library.uncategorized")}</span>
+          <span className="text-[var(--ink)]">{selectedLibrary?.discipline || t("library.uncategorized")}</span>
         </span>
-        <span className="rounded-full border border-border bg-background px-3 py-1.5">
+        <span className="rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5">
           {t("library.visiblePapers", { count: total })}
         </span>
-        <span className="rounded-full border border-border bg-background px-3 py-1.5">
+        <span className="rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5">
           {t("library.totalInLibrary", { count: selectedLibrary?.paper_count ?? 0 })}
         </span>
       </div>
 
       {doiMessage ? (
         <div className="px-4">
-          <p className="text-xs text-muted-foreground">{doiMessage}</p>
+          <p className="text-xs text-[var(--ink-4)]">{doiMessage}</p>
         </div>
       ) : null}
 
@@ -961,21 +961,21 @@ function PaperManagerTab() {
         />
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-y border-border bg-muted/20 px-4 py-3">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-y border-[var(--line-soft)] bg-[var(--paper-2)]/20 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--ink-4)]">
               <label
-                className="flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5"
+                className="flex items-center gap-2 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5"
                 title={t("library.actions.selectVisibleHelp")}
               >
                 <input
                   type="checkbox"
                   checked={allVisibleSelected}
                   onChange={(event) => toggleAllVisible(event.target.checked)}
-                  className="rounded border-border"
+                  className="rounded border-[var(--line-soft)]"
                 />
                 {t("library.actions.selectVisible")}
               </label>
-              <span className="rounded-full border border-border bg-background px-3 py-1.5">
+              <span className="rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5">
                 {t("library.actions.selectedCount", { count: selectedPaperIds.size })}
               </span>
             </div>
@@ -987,24 +987,24 @@ function PaperManagerTab() {
               />
               <details className="relative">
                 <summary
-                  className="flex h-10 cursor-pointer list-none items-center justify-center rounded-xl border border-border bg-background px-3 text-sm text-foreground whitespace-nowrap"
+                  className="flex h-10 cursor-pointer list-none items-center justify-center rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-sm text-[var(--ink)] whitespace-nowrap"
                   title={t("library.columns.showColumnsHelp")}
                 >
                   {t("library.columns.showColumns", { count: visibleColumnCount })}
                 </summary>
-                <div className="absolute right-0 z-20 mt-2 min-w-[220px] rounded-2xl border border-border bg-card p-3 shadow-xl">
+                <div className="absolute right-0 z-20 mt-2 min-w-[220px] rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] p-3 shadow-[var(--shadow-2)]">
                   <div className="space-y-2">
                     {PAPER_MANAGER_COLUMNS.map((column) => (
                       <label
                         key={column.key}
-                        className="flex items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-sm text-foreground hover:bg-muted/60"
+                        className="flex items-center justify-between gap-3 rounded-[var(--r)] px-2 py-1.5 text-sm text-[var(--ink)] hover:bg-[var(--paper-2)]/60"
                       >
                         <span>{t(column.labelKey)}</span>
                         <input
                           type="checkbox"
                           checked={visibleColumns[column.key]}
                           onChange={(event) => toggleColumn(column.key, event.target.checked)}
-                          className="rounded border-border"
+                          className="rounded border-[var(--line-soft)]"
                         />
                       </label>
                     ))}
@@ -1025,7 +1025,7 @@ function PaperManagerTab() {
               <select
                 value={batchReadingProfile}
                 onChange={(event) => setBatchReadingProfile(event.target.value)}
-                className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+                className="h-10 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-sm text-[var(--ink)]"
                 disabled={batchLoading}
               >
                 <option value="auto">{t("library.filters.auto")}</option>
@@ -1048,20 +1048,20 @@ function PaperManagerTab() {
 
           {batchMessage ? (
             <div className="px-4 pt-3">
-              <p className="text-xs text-muted-foreground">{batchMessage}</p>
+              <p className="text-xs text-[var(--ink-4)]">{batchMessage}</p>
             </div>
           ) : null}
 
           {relationsMessage ? (
             <div className="px-4">
-              <p className="text-xs text-muted-foreground">{relationsMessage}</p>
+              <p className="text-xs text-[var(--ink-4)]">{relationsMessage}</p>
             </div>
           ) : null}
 
           <div className="overflow-x-auto">
             <div className="min-w-[1500px]">
               <div
-                className="grid gap-3 border-b border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+                className="grid gap-3 border-b border-[var(--line-soft)] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]"
                 style={{ gridTemplateColumns: tableGridTemplate }}
               >
                 <span />
@@ -1079,11 +1079,11 @@ function PaperManagerTab() {
                 {visibleColumns.imported ? <span>{t("library.columns.imported")}</span> : null}
                 {visibleColumns.updated ? <span>{t("library.columns.updated")}</span> : null}
               </div>
-              <div className="divide-y divide-border">
+              <div className="divide-y divide-[var(--line-soft)]">
                 {papers.map((paper) => (
                   <div
                     key={paper.paper_id}
-                    className="grid gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+                    className="grid gap-3 px-4 py-3 transition-colors hover:bg-[var(--paper-2)]/40"
                     style={{ gridTemplateColumns: tableGridTemplate }}
                   >
                     <div className="flex items-center">
@@ -1091,33 +1091,33 @@ function PaperManagerTab() {
                         type="checkbox"
                         checked={selectedPaperIds.has(paper.paper_id)}
                         onChange={(event) => togglePaperSelection(paper.paper_id, event.target.checked)}
-                        className="rounded border-border"
+                        className="rounded border-[var(--line-soft)]"
                       />
                     </div>
 
                     <div className="flex min-w-0 items-center">
                       <Link
                         href={`/paper/${paper.paper_id}`}
-                        className="block truncate text-sm font-medium text-foreground hover:text-blue-600"
+                        className="block truncate text-sm font-medium text-[var(--ink)] hover:text-[#2c4870]"
                       >
                         {paper.title || paper.paper_id}
                       </Link>
                     </div>
 
                     {visibleColumns.id ? (
-                      <div className="flex items-center font-mono text-[11px] text-muted-foreground">
+                      <div className="flex items-center font-mono text-[11px] text-[var(--ink-4)]">
                         {paper.paper_id}
                       </div>
                     ) : null}
 
                     {visibleColumns.year ? (
-                      <div className="flex items-center text-xs text-muted-foreground">
+                      <div className="flex items-center text-xs text-[var(--ink-4)]">
                         {paper.year ?? "—"}
                       </div>
                     ) : null}
 
                     {visibleColumns.score ? (
-                      <div className="flex items-center text-xs text-muted-foreground">
+                      <div className="flex items-center text-xs text-[var(--ink-4)]">
                         {paper.average_score != null ? (
                           <span title={t("library.paperMeta.scoreHelp")}>
                             {paper.average_score.toFixed(1)}
@@ -1130,7 +1130,7 @@ function PaperManagerTab() {
 
                     {visibleColumns.authors ? (
                       <div className="flex min-w-0 items-center">
-                        <span className="truncate text-xs text-muted-foreground" title={paper.authors.join(", ")}>
+                        <span className="truncate text-xs text-[var(--ink-4)]" title={paper.authors.join(", ")}>
                           {paper.authors.length > 0
                             ? `${paper.authors.slice(0, 3).join(", ")}${paper.authors.length > 3 ? " et al." : ""}`
                             : "—"}
@@ -1140,7 +1140,7 @@ function PaperManagerTab() {
 
                     {visibleColumns.venue ? (
                       <div className="flex min-w-0 items-center">
-                        <span className="truncate text-xs text-muted-foreground" title={paper.venue ?? undefined}>
+                        <span className="truncate text-xs text-[var(--ink-4)]" title={paper.venue ?? undefined}>
                           {paper.venue || "—"}
                         </span>
                       </div>
@@ -1171,7 +1171,7 @@ function PaperManagerTab() {
                             <button
                               type="button"
                               onClick={() => void handleOpenFeedback(paper)}
-                              className="block text-[11px] text-blue-600 hover:text-blue-700"
+                              className="block text-[11px] text-[#2c4870] hover:text-[#223a5e]"
                             >
                               {t("library.feedback.viewCount", { count: paper.feedback_count })}
                             </button>
@@ -1190,7 +1190,7 @@ function PaperManagerTab() {
 
                     {visibleColumns.profile ? (
                       <div className="flex items-center">
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-[var(--ink-4)]">
                           {formatReadingProfile(paper.reading_profile, t("library.profile.notSet"))}
                         </span>
                       </div>
@@ -1205,7 +1205,7 @@ function PaperManagerTab() {
                             </Badge>
                           ))}
                           {paper.fields.length > 2 ? (
-                            <span className="text-[11px] text-muted-foreground">
+                            <span className="text-[11px] text-[var(--ink-4)]">
                               +{paper.fields.length - 2}
                             </span>
                           ) : null}
@@ -1214,13 +1214,13 @@ function PaperManagerTab() {
                     ) : null}
 
                     {visibleColumns.imported ? (
-                      <div className="flex items-center text-xs text-muted-foreground">
+                      <div className="flex items-center text-xs text-[var(--ink-4)]">
                         {paper.imported_at ? new Date(paper.imported_at).toLocaleDateString() : "—"}
                       </div>
                     ) : null}
 
                     {visibleColumns.updated ? (
-                      <div className="flex items-center text-xs text-muted-foreground">
+                      <div className="flex items-center text-xs text-[var(--ink-4)]">
                         {paper.updated_at ? new Date(paper.updated_at).toLocaleString() : "—"}
                       </div>
                     ) : null}
@@ -1249,7 +1249,7 @@ function PaperManagerTab() {
               </DialogHeader>
 
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-[var(--ink-4)]">
                   {feedbackDialogPaper?.title || "Review extraction feedback and decide the next action."}
                 </div>
                 <Button
@@ -1267,7 +1267,7 @@ function PaperManagerTab() {
               </div>
 
               {feedbackDialogMessage ? (
-                <p className="text-xs text-muted-foreground">{feedbackDialogMessage}</p>
+                <p className="text-xs text-[var(--ink-4)]">{feedbackDialogMessage}</p>
               ) : null}
 
               {feedbackDialogLoading ? (
@@ -1276,13 +1276,13 @@ function PaperManagerTab() {
                   <Skeleton className="h-16 w-full" />
                 </div>
               ) : feedbackDialogError ? (
-                <p className="text-sm text-red-600">{feedbackDialogError}</p>
+                <p className="text-sm text-[#8a3318]">{feedbackDialogError}</p>
               ) : feedbackDialogItems.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No feedback found for this paper.</p>
+                <p className="text-sm text-[var(--ink-4)]">No feedback found for this paper.</p>
               ) : (
                 <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
                   {feedbackDialogItems.map((item) => (
-                    <div key={item.id} className="rounded-xl border border-border p-3">
+                    <div key={item.id} className="rounded-[var(--r)] border border-[var(--line-soft)] p-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="outline" className="text-[10px]">
                           {item.dimension_key ? formatFeedbackLabel(item.dimension_key, "General") : "General"}
@@ -1294,16 +1294,16 @@ function PaperManagerTab() {
                           {formatFeedbackLabel(item.action_status, "Open")}
                         </Badge>
                         {item.rating ? (
-                          <span className="text-[11px] text-muted-foreground">{item.rating}/5</span>
+                          <span className="text-[11px] text-[var(--ink-4)]">{item.rating}/5</span>
                         ) : null}
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-[11px] text-[var(--ink-4)]">
                           {new Date(item.created_at).toLocaleString()}
                         </span>
                       </div>
                       {item.comment ? (
-                        <p className="mt-2 text-sm leading-6 text-foreground">{item.comment}</p>
+                        <p className="mt-2 text-sm leading-6 text-[var(--ink)]">{item.comment}</p>
                       ) : (
-                        <p className="mt-2 text-sm text-muted-foreground">No comment provided.</p>
+                        <p className="mt-2 text-sm text-[var(--ink-4)]">No comment provided.</p>
                       )}
                       {item.action_status !== "resolved" ? (
                         <div className="mt-3 flex justify-end">
@@ -1346,18 +1346,18 @@ function PaperRow({ paper }: { paper: Paper }) {
   return (
     <Link
       href={`/paper/${paper.paperId}`}
-      className="flex items-center gap-4 px-4 py-3 border-b border-border hover:bg-muted/50 transition-colors"
+      className="flex items-center gap-4 px-4 py-3 border-b border-[var(--line-soft)] hover:bg-[var(--paper-2)]/50 transition-colors"
     >
-      <span className="font-mono text-xs text-muted-foreground w-20 shrink-0">
+      <span className="font-mono text-xs text-[var(--ink-4)] w-20 shrink-0">
         {paper.paperId}
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">
+        <p className="text-sm font-medium text-[var(--ink)] truncate">
           {paper.title ?? "Untitled"}
         </p>
         <div className="flex items-center gap-2 mt-0.5">
           {paper.year && (
-            <span className="text-xs text-muted-foreground">{paper.year}</span>
+            <span className="text-xs text-[var(--ink-4)]">{paper.year}</span>
           )}
           {(paper.fields ?? []).slice(0, 2).map((f) => (
             <Badge key={f} variant="paper" className="text-[10px] px-1.5 py-0">
@@ -1369,11 +1369,11 @@ function PaperRow({ paper }: { paper: Paper }) {
       {paper.readingStatus && (
         <span className="flex items-center gap-1.5 shrink-0">
           <span className={`h-2 w-2 rounded-full ${statusColor(paper.readingStatus)}`} />
-          <span className="text-xs text-muted-foreground">{statusLabel(paper.readingStatus)}</span>
+          <span className="text-xs text-[var(--ink-4)]">{statusLabel(paper.readingStatus)}</span>
         </span>
       )}
       {paper.averageScore !== null && paper.averageScore !== undefined && (
-        <span className="text-xs font-semibold text-muted-foreground tabular-nums w-8 text-right shrink-0">
+        <span className="text-xs font-semibold text-[var(--ink-4)] tabular-nums w-8 text-right shrink-0">
           {paper.averageScore.toFixed(1)}
         </span>
       )}
@@ -1403,8 +1403,8 @@ function Pagination({
   const rangeEnd = Math.min(page * pageSize, total);
 
   return (
-    <div className="flex items-center justify-between border-t border-border px-4 py-3">
-      <span className="text-xs text-muted-foreground">
+    <div className="flex items-center justify-between border-t border-[var(--line-soft)] px-4 py-3">
+      <span className="text-xs text-[var(--ink-4)]">
         Showing {rangeStart}&ndash;{rangeEnd} of {total} item{total !== 1 ? "s" : ""}
       </span>
       <div className="flex items-center gap-1">
@@ -1417,7 +1417,7 @@ function Pagination({
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <span className="text-xs text-muted-foreground px-2">
+        <span className="text-xs text-[var(--ink-4)] px-2">
           {page} / {totalPages}
         </span>
         <Button
@@ -1473,17 +1473,17 @@ function BookmarksTab() {
 
   return (
     <div>
-      <div className="px-4 py-2 border-b border-border">
+      <div className="px-4 py-2 border-b border-[var(--line-soft)]">
         <input
           type="text"
           placeholder="Search bookmarks by title or ID..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          className="w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5 text-sm text-[var(--ink)] placeholder:text-[var(--ink-4)] focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
         />
       </div>
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border">
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--line-soft)]">
+        <label className="flex items-center gap-2 text-sm text-[var(--ink-4)]">
           <input
             type="checkbox"
             checked={selectedPapers.size === filteredPapers.length && filteredPapers.length > 0}
@@ -1494,14 +1494,14 @@ function BookmarksTab() {
                 setSelectedPapers(new Set());
               }
             }}
-            className="rounded border-border"
+            className="rounded border-[var(--line-soft)]"
           />
           Select all
         </label>
         <ExportMenu paperIds={filteredPapers.map((p) => p.paperId)} label="Export" compact />
       </div>
       {selectedPapers.size > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-muted p-2 mb-3 mx-4 mt-2">
+        <div className="flex items-center gap-3 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper-2)] p-2 mb-3 mx-4 mt-2">
           <span className="text-sm font-medium">{selectedPapers.size} selected</span>
           <ExportMenu paperIds={Array.from(selectedPapers)} label="Export" compact />
           <button
@@ -1517,19 +1517,19 @@ function BookmarksTab() {
               setSelectedPapers(new Set());
               refetch();
             }}
-            className="text-xs text-red-600 hover:underline"
+            className="text-xs text-[#8a3318] hover:underline"
           >
             Remove all
           </button>
           <button
             onClick={() => setSelectedPapers(new Set())}
-            className="ml-auto text-xs text-muted-foreground hover:underline"
+            className="ml-auto text-xs text-[var(--ink-4)] hover:underline"
           >
             Clear selection
           </button>
         </div>
       )}
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-[var(--line-soft)]">
         {filteredPapers.map((p) => (
           <div key={p.paperId} className="flex items-center gap-2 px-4">
             <input
@@ -1541,7 +1541,7 @@ function BookmarksTab() {
                 else next.delete(p.paperId);
                 setSelectedPapers(next);
               }}
-              className="rounded border-border shrink-0"
+              className="rounded border-[var(--line-soft)] shrink-0"
             />
             <div className="flex-1 min-w-0">
               <PaperRow paper={p} />
@@ -1587,7 +1587,7 @@ function ReadingListTab() {
   return (
     <div>
       {/* Status sub-tabs */}
-      <div className="flex items-center gap-1 px-4 py-2 border-b border-border overflow-x-auto">
+      <div className="flex items-center gap-1 px-4 py-2 border-b border-[var(--line-soft)] overflow-x-auto">
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}
@@ -1597,8 +1597,8 @@ function ReadingListTab() {
             }}
             className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
               statusFilter === tab.value
-                ? "bg-foreground text-background"
-                : "text-muted-foreground hover:bg-muted"
+                ? "bg-[var(--ink)] text-[var(--paper)]"
+                : "text-[var(--ink-4)] hover:bg-[var(--paper-2)]"
             }`}
           >
             {tab.color && (
@@ -1624,7 +1624,7 @@ function ReadingListTab() {
         />
       ) : (
         <>
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-[var(--line-soft)]">
             {papers.map((p) => (
               <div key={p.paperId} className="flex items-center">
                 <div className="flex-1 min-w-0">
@@ -1639,7 +1639,7 @@ function ReadingListTab() {
                     refetch();
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="text-xs rounded border border-border bg-background px-1.5 py-0.5 text-muted-foreground mr-4 shrink-0"
+                  className="text-xs rounded border border-[var(--line-soft)] bg-[var(--paper)] px-1.5 py-0.5 text-[var(--ink-4)] mr-4 shrink-0"
                 >
                   <option value="to_read">To Read</option>
                   <option value="reading">Reading</option>
@@ -1697,16 +1697,16 @@ function NotesTab() {
 
   return (
     <div>
-      <div className="px-4 py-2 border-b border-border">
+      <div className="px-4 py-2 border-b border-[var(--line-soft)]">
         <input
           type="text"
           placeholder="Search notes by content or ID..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          className="w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5 text-sm text-[var(--ink)] placeholder:text-[var(--ink-4)] focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
         />
       </div>
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-[var(--line-soft)]">
         {filteredNotes.map((note) => {
           const href =
             note.entityType === "paper"
@@ -1717,34 +1717,34 @@ function NotesTab() {
           return (
             <div
               key={`${note.entityType}-${note.entityId}`}
-              className="block px-4 py-3 hover:bg-muted/50 transition-colors"
+              className="block px-4 py-3 hover:bg-[var(--paper-2)]/50 transition-colors"
             >
               <div className="flex items-center gap-2 mb-1">
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                   {note.entityType}
                 </Badge>
-                <span className="font-mono text-xs text-muted-foreground" title={note.entityId}>
+                <span className="font-mono text-xs text-[var(--ink-4)]" title={note.entityId}>
                   {note.entityId}
                 </span>
                 {(() => {
                   const refs = extractNoteReferences(note.note);
                   const totalRefs = refs.papers.length + refs.atoms.length;
                   return totalRefs > 0 ? (
-                    <span className="text-[10px] text-blue-500">
+                    <span className="text-[10px] text-[#2c4870]">
                       {totalRefs} link{totalRefs !== 1 ? "s" : ""}
                     </span>
                   ) : null;
                 })()}
                 {note.updatedAt && (
-                  <span className="text-[10px] text-muted-foreground ml-auto">
+                  <span className="text-[10px] text-[var(--ink-4)] ml-auto">
                     {new Date(note.updatedAt).toLocaleDateString()}
                   </span>
                 )}
-                <Link href={href} className="text-[10px] text-blue-600 hover:text-blue-700">
+                <Link href={href} className="text-[10px] text-[#2c4870] hover:text-[#223a5e]">
                   Open
                 </Link>
               </div>
-              <div className="text-sm text-muted-foreground line-clamp-2">
+              <div className="text-sm text-[var(--ink-4)] line-clamp-2">
                 <NoteRenderer content={note.note} />
               </div>
             </div>
@@ -1878,7 +1878,7 @@ function CollectionsTab() {
   if (viewingCollection) {
     return (
       <div>
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--line-soft)]">
           <Button
             variant="ghost"
             size="sm"
@@ -1888,11 +1888,11 @@ function CollectionsTab() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-foreground truncate">
+            <h3 className="text-sm font-semibold text-[var(--ink)] truncate">
               {viewingCollection.name}
             </h3>
             {viewingCollection.description && (
-              <p className="text-xs text-muted-foreground truncate">{viewingCollection.description}</p>
+              <p className="text-xs text-[var(--ink-4)] truncate">{viewingCollection.description}</p>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -1921,7 +1921,7 @@ function CollectionsTab() {
           />
         ) : (
           <>
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-[var(--line-soft)]">
               {papers.map((p) => (
                 <div key={p.paperId} className="flex items-center">
                   <div className="flex-1">
@@ -1932,7 +1932,7 @@ function CollectionsTab() {
                       e.preventDefault();
                       handleRemovePaper(p.paperId);
                     }}
-                    className="px-3 text-muted-foreground hover:text-red-500 transition-colors shrink-0"
+                    className="px-3 text-[var(--ink-4)] hover:text-[var(--rust)] transition-colors shrink-0"
                     title="Remove from collection"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -1963,8 +1963,8 @@ function CollectionsTab() {
   // Collection list
   return (
     <div>
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <span className="text-xs text-muted-foreground">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--line-soft)]">
+        <span className="text-xs text-[var(--ink-4)]">
           {collections.length} collection{collections.length !== 1 ? "s" : ""}
         </span>
         <Button
@@ -1984,26 +1984,26 @@ function CollectionsTab() {
           message="No collections yet. Create one to organize your papers."
         />
       ) : (
-        <div className="divide-y divide-border">
+        <div className="divide-y divide-[var(--line-soft)]">
           {collections.map((col) => (
             <div
               key={col.id}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--paper-2)]/50 transition-colors cursor-pointer"
               onClick={() => { setViewingCollection(col); setPage(1); }}
             >
-              <FolderOpen className="h-5 w-5 text-blue-500 shrink-0" />
+              <FolderOpen className="h-5 w-5 text-[#2c4870] shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">
+                <p className="text-sm font-medium text-[var(--ink)] truncate">
                   {col.name}
                 </p>
                 {col.description && (
-                  <p className="text-xs text-muted-foreground truncate">{col.description}</p>
+                  <p className="text-xs text-[var(--ink-4)] truncate">{col.description}</p>
                 )}
               </div>
               <Badge variant="secondary" className="text-[10px] shrink-0">
                 {col.paperCount} paper{col.paperCount !== 1 ? "s" : ""}
               </Badge>
-              <span className="text-[10px] text-muted-foreground shrink-0">
+              <span className="text-[10px] text-[var(--ink-4)] shrink-0">
                 {new Date(col.createdAt).toLocaleDateString()}
               </span>
               <div className="flex items-center gap-1 shrink-0">
@@ -2014,7 +2014,7 @@ function CollectionsTab() {
                     setNewName(col.name);
                     setRenameOpen(true);
                   }}
-                  className="p-1 text-muted-foreground hover:text-muted-foreground transition-colors"
+                  className="p-1 text-[var(--ink-4)] hover:text-[var(--ink-4)] transition-colors"
                   title="Rename"
                 >
                   <Pencil className="h-3.5 w-3.5" />
@@ -2025,7 +2025,7 @@ function CollectionsTab() {
                     setSelectedCollection(col);
                     setDeleteOpen(true);
                   }}
-                  className="p-1 text-muted-foreground hover:text-red-500 transition-colors"
+                  className="p-1 text-[var(--ink-4)] hover:text-[var(--rust)] transition-colors"
                   title="Delete"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -2051,7 +2051,7 @@ function CollectionsTab() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Collection name"
-              className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--ink-4)] focus:outline-none focus:ring-2 focus:ring-[var(--forest)]"
               autoFocus
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
             />
@@ -2059,7 +2059,7 @@ function CollectionsTab() {
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
               placeholder="Description (optional)"
-              className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--ink-4)] focus:outline-none focus:ring-2 focus:ring-[var(--forest)] resize-none"
               rows={2}
             />
           </div>
@@ -2084,7 +2084,7 @@ function CollectionsTab() {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="New name"
-            className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--ink-4)] focus:outline-none focus:ring-2 focus:ring-[var(--forest)]"
             autoFocus
             onKeyDown={(e) => e.key === "Enter" && handleRename()}
           />
@@ -2150,7 +2150,7 @@ function LibraryContent() {
         </TabsList>
       </Tabs>
 
-      <Card className="paper-panel overflow-hidden p-0">
+      <Card className="lp-card overflow-hidden p-0">
         <CardContent className="p-0">
           {activeTab === "papers" && <PaperManagerTab />}
           {activeTab === "bookmarks" && <BookmarksTab />}
@@ -2174,16 +2174,16 @@ export default function LibraryPage() {
     <Suspense
       fallback={
         <div className="space-y-5">
-          <div className="paper-panel space-y-3 px-6 py-6">
+          <div className="lp-card space-y-3 px-6 py-6">
             <p className="section-kicker">{t("library.operationsKicker")}</p>
-            <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+            <h2 className="font-display text-4xl tracking-tight text-[var(--ink)] sm:text-5xl">
               {t("library.heroTitle")}
             </h2>
-            <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+            <p className="max-w-2xl text-sm leading-6 text-[var(--ink-4)] sm:text-[15px]">
               {t("library.fallbackBody")}
             </p>
           </div>
-          <div className="paper-panel h-96 animate-pulse bg-muted/40" />
+          <div className="lp-card h-96 animate-pulse bg-[var(--paper-2)]/40" />
         </div>
       }
     >

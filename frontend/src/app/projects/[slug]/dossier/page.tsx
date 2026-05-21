@@ -22,12 +22,12 @@ export default function ProjectDossierPage({ params }: ProjectDossierPageProps) 
     <ProjectPageShell slug={slug} activeTab="dossier">
       {(project) => (
         <div className="space-y-6">
-          <Card className="paper-panel rounded-[1.8rem] shadow-none">
+          <Card className="lp-card rounded-[var(--r-md)] shadow-none">
             <CardHeader className="pb-4">
               <p className="section-kicker">Reading guide</p>
-              <CardTitle className="font-display text-[1.95rem] text-foreground">How To Read This Dossier</CardTitle>
+              <CardTitle className="font-display text-[1.95rem] text-[var(--ink)]">How To Read This Dossier</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <CardContent className="space-y-3 text-sm text-[var(--ink-4)]">
               <p>
                 This page is the topic-level reading path for the current project corpus. Start with
                 the topic anchor and saturation signal, then move through chronology, methods,
@@ -39,7 +39,7 @@ export default function ProjectDossierPage({ params }: ProjectDossierPageProps) 
                     query: project.originQuery ?? project.title,
                     returnTo: `/projects/${project.slug}/dossier`,
                   })}
-                  className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
+                  className="inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3.5 py-2 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper)]"
                 >
                   <Compass className="h-3.5 w-3.5" />
                   Corpus In Explorer
@@ -52,21 +52,21 @@ export default function ProjectDossierPage({ params }: ProjectDossierPageProps) 
                     tab: "dossier",
                     label: `${project.title} dossier`,
                   })}
-                  className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
+                  className="inline-flex items-center gap-1 rounded-full border border-[var(--forest)] bg-[var(--forest-soft)] px-3.5 py-2 text-sm font-medium text-[var(--forest)] transition-colors hover:bg-[var(--forest-soft)]"
                 >
                   <GitBranch className="h-3.5 w-3.5" />
                   Dossier Graph
                 </Link>
                 <Link
                   href={`/projects/${project.slug}/matrix`}
-                  className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
+                  className="inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3.5 py-2 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper)]"
                 >
                   <GitBranchPlus className="h-3.5 w-3.5" />
                   Compare In Matrix
                 </Link>
                 <Link
                   href={`/projects/${project.slug}/gaps`}
-                  className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-background"
+                  className="inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3.5 py-2 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper)]"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   Review Gaps

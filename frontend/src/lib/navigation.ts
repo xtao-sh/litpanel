@@ -41,6 +41,10 @@ interface BuildAtomDetailHrefOptions {
   returnTo?: string;
 }
 
+interface BuildFieldDetailHrefOptions {
+  field: string;
+}
+
 interface BuildResearchGraphHrefOptions {
   query: string;
   filters?: ResearchFilter;
@@ -51,6 +55,13 @@ interface BuildResearchGraphHrefOptions {
 
 interface BuildEntityGraphHrefOptions {
   query: string;
+  source?: GraphSource;
+  returnTo?: string;
+  label?: string;
+}
+
+interface BuildPaperGraphHrefOptions {
+  paperId: string;
   source?: GraphSource;
   returnTo?: string;
   label?: string;
@@ -213,6 +224,12 @@ export function buildAtomDetailHref({
   return appendReturnTo(`/atom/${atomSlug}`, returnTo);
 }
 
+export function buildFieldDetailHref({ field }: BuildFieldDetailHrefOptions): string {
+  const searchParams = new URLSearchParams();
+  searchParams.set("field", field);
+  return `/fields?${searchParams.toString()}`;
+}
+
 export function buildResearchGraphHref({
   query,
   filters = {},
@@ -249,6 +266,30 @@ export function buildEntityGraphHref({
   const trimmedQuery = query.trim();
   if (trimmedQuery) {
     searchParams.set("q", trimmedQuery);
+  }
+  if (source) {
+    searchParams.set("source", source);
+  }
+  if (returnTo) {
+    searchParams.set("returnTo", returnTo);
+  }
+  if (label) {
+    searchParams.set("label", label);
+  }
+  return `/graph?${searchParams.toString()}`;
+}
+
+export function buildPaperGraphHref({
+  paperId,
+  source,
+  returnTo,
+  label,
+}: BuildPaperGraphHrefOptions): string {
+  const searchParams = new URLSearchParams();
+  const trimmedPaperId = paperId.trim();
+  searchParams.set("mode", "paper");
+  if (trimmedPaperId) {
+    searchParams.set("paperId", trimmedPaperId);
   }
   if (source) {
     searchParams.set("source", source);

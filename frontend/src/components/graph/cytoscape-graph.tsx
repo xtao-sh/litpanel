@@ -3,9 +3,11 @@
 import React, { useRef, useEffect, useCallback, useState } from "react";
 import type { LayoutOptions, NodeSingular, Core } from "cytoscape";
 import type { GraphNode, GraphEdge } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/locale-context";
 import { HoverPopup } from "./hover-popup";
 
 export type LayoutName =
+  | "map"
   | "cose"
   | "circle"
   | "grid"
@@ -17,6 +19,9 @@ interface CytoscapeGraphProps {
   edges: GraphEdge[];
   layout: LayoutName;
   visibleTypes: Set<string>;
+  showPeripheralPapers: boolean;
+  focusNodeIds?: string[];
+  focusEdgeIds?: string[];
   onNodeSelect: (node: GraphNode | null) => void;
   onNodeExpand: (nodeId: string, nodeType: string) => void;
 }
@@ -25,23 +30,37 @@ interface CytoscapeGraphProps {
 // Colors & sizing
 // ---------------------------------------------------------------------------
 
-const NODE_COLORS: Record<string, string> = {
-  paper: "#3b82f6",
-  mechanism: "#f97316",
-  method: "#16a34a",
-  dataset: "#9333ea",
-  puzzle: "#dc2626",
-};
-
 const NODE_BORDER: Record<string, string> = {
-  paper: "#2563eb",
-  mechanism: "#ea580c",
+  paper: "#2c4870",
+  mechanism: "#8a6d3b",
   method: "#15803d",
-  dataset: "#7e22ce",
-  puzzle: "#b91c1c",
+  dataset: "#2c4870",
+  puzzle: "#8a3318",
 };
 
-function computeDisplaySize(node: GraphNode): number {
+const RELATION_LABEL_KEYS: Record<string, string> = {
+  uses_dataset: "graph.relations.usesDataset",
+  uses_method: "graph.relations.usesMethod",
+  addresses_puzzle: "graph.relations.addressesPuzzle",
+  engages_mechanism: "graph.relations.engagesMechanism",
+  co_occurs: "graph.relations.coOccurs",
+  cites: "graph.relations.cites",
+  cited_by: "graph.relations.citedBy",
+};
+
+function formatRelationLabel(relation: string, t: (key: string) => string): string {
+  const key = RELATION_LABEL_KEYS[relation];
+  if (key) return t(key);
+  return relation
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function computeDisplaySize(node: GraphNode, isIsolated = false): number {
+  if (isIsolated) {
+    return node.type === "paper" ? 24 : 22;
+  }
   if (node.type === "paper") {
     // Papers: 40-60px
     const raw = node.size ?? 3;
@@ -61,6 +80,70 @@ function truncateLabel(label: string, max: number = 35): string {
   return label.substring(0, max - 1) + "…";
 }
 
+function buildMapPositions(nodes: GraphNode[], edges: GraphEdge[]): Map<string, { x: number; y: number }> {
+  const degree = new Map<string, number>();
+  nodes.forEach((node) => degree.set(node.id, 0));
+  edges.forEach((edge) => {
+    degree.set(edge.source, (degree.get(edge.source) ?? 0) + 1);
+    degree.set(edge.target, (degree.get(edge.target) ?? 0) + 1);
+  });
+
+  const connected = nodes
+    .filter((node) => (degree.get(node.id) ?? 0) > 0)
+    .sort((a, b) => {
+      const degreeDelta = (degree.get(b.id) ?? 0) - (degree.get(a.id) ?? 0);
+      if (degreeDelta !== 0) return degreeDelta;
+      if (a.type === b.type) return a.label.localeCompare(b.label);
+      return a.type === "paper" ? 1 : -1;
+    });
+  const isolated = nodes
+    .filter((node) => (degree.get(node.id) ?? 0) === 0)
+    .sort((a, b) => {
+      if (Boolean(a.isSeed) !== Boolean(b.isSeed)) return a.isSeed ? -1 : 1;
+      return a.label.localeCompare(b.label);
+    });
+
+  const positions = new Map<string, { x: number; y: number }>();
+  const atoms = connected.filter((node) => node.type !== "paper");
+  const papers = connected.filter((node) => node.type === "paper");
+  const atomRadius = atoms.length > 10 ? 185 : 135;
+  const paperRadius = papers.length > 18 ? 390 : 300;
+
+  atoms.forEach((node, index) => {
+    const angle = atoms.length <= 1 ? 0 : (index / atoms.length) * Math.PI * 2 - Math.PI / 2;
+    const radius = atomRadius + Math.floor(index / 14) * 72;
+    positions.set(node.id, {
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius - 20,
+    });
+  });
+
+  papers.forEach((node, index) => {
+    const angle = papers.length <= 1 ? -Math.PI / 2 : (index / papers.length) * Math.PI * 2 - Math.PI / 2;
+    const radius = paperRadius + Math.floor(index / 24) * 80;
+    positions.set(node.id, {
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius + 10,
+    });
+  });
+
+  const columns = Math.min(10, Math.max(4, Math.ceil(Math.sqrt(Math.max(isolated.length, 1)) * 1.35)));
+  const cellWidth = 118;
+  const cellHeight = 78;
+  const startX = -((columns - 1) * cellWidth) / 2;
+  const startY = 520;
+  isolated.forEach((node, index) => {
+    const col = index % columns;
+    const row = Math.floor(index / columns);
+    positions.set(node.id, {
+      x: startX + col * cellWidth,
+      y: startY + row * cellHeight,
+    });
+  });
+
+  return positions;
+}
+
 // ---------------------------------------------------------------------------
 // Stylesheet — the key to a good-looking graph
 // ---------------------------------------------------------------------------
@@ -71,26 +154,21 @@ const graphStylesheet: any[] = [
   {
     selector: "node",
     style: {
-      label: "data(shortLabel)",
+      label: "data(displayLabel)",
       // Label positioning: offset below the node with padding
       "text-valign": "bottom",
       "text-halign": "center",
       "text-margin-y": 10,
-      // Font — large and readable
-      "font-size": "18px",
+      "font-size": "13px",
       "font-family": "\"Source Sans 3\", system-ui, sans-serif",
-      "font-weight": "700",
-      color: "#0f172a",
-      // Constrain label width — single line with ellipsis, NOT wrapping
-      "text-max-width": "220px",
+      color: "#ece8df",
+      "text-max-width": "180px",
       "text-wrap": "ellipsis",
-      // Text background (halo) — makes labels readable over edges
-      "text-background-color": "#ffffff",
-      "text-background-opacity": 0.95,
-      "text-background-padding": "6px",
+      "text-background-color": "#111820",
+      "text-background-opacity": 0.9,
+      "text-background-padding": "4px",
       "text-background-shape": "roundrectangle",
-      // Hide labels when zoomed out far
-      "min-zoomed-font-size": 4,
+      "min-zoomed-font-size": 6,
       // Node sizing
       width: "data(displaySize)",
       height: "data(displaySize)",
@@ -98,12 +176,6 @@ const graphStylesheet: any[] = [
       "border-width": 2.5,
       "border-color": "data(borderColor)",
       "border-opacity": 1,
-      // Subtle shadow on all nodes
-      "shadow-blur": 4,
-      "shadow-color": "#00000020",
-      "shadow-offset-x": 0,
-      "shadow-offset-y": 2,
-      "shadow-opacity": 0.3,
       // Overlay
       "overlay-padding": "6px",
     },
@@ -112,25 +184,37 @@ const graphStylesheet: any[] = [
   {
     selector: 'node[type="paper"]',
     style: {
-      "background-color": "#3b82f6",
+      "background-color": "#2c4870",
       "background-opacity": 0.9,
-      "border-color": "#2563eb",
+      "border-color": "#2c4870",
       "border-width": 3,
       shape: "ellipse",
-      "font-size": "20px",
-      "font-weight": "700",
+      "font-size": "14px",
       "font-family": "\"Fraunces\", Georgia, serif",
-      "text-background-color": "#eff6ff",
-      "text-background-opacity": 0.95,
+      "text-background-color": "#111820",
+      "text-background-opacity": 0.92,
+    },
+  },
+  {
+    selector: "node[isIsolated = 1]",
+    style: {
+      width: "data(displaySize)",
+      height: "data(displaySize)",
+      opacity: 0.72,
+      "text-opacity": 0.42,
+      "font-size": "10px",
+      "text-max-width": "96px",
+      "text-background-opacity": 0.58,
+      "border-width": 1.5,
     },
   },
   // --- Mechanism nodes ---
   {
     selector: 'node[type="mechanism"]',
     style: {
-      "background-color": "#f97316",
+      "background-color": "#b88a3b",
       "background-opacity": 0.85,
-      "border-color": "#ea580c",
+      "border-color": "#8a6d3b",
       shape: "diamond",
     },
   },
@@ -138,7 +222,7 @@ const graphStylesheet: any[] = [
   {
     selector: 'node[type="method"]',
     style: {
-      "background-color": "#16a34a",
+      "background-color": "#15803d",
       "background-opacity": 0.85,
       "border-color": "#15803d",
       shape: "round-rectangle",
@@ -148,9 +232,9 @@ const graphStylesheet: any[] = [
   {
     selector: 'node[type="dataset"]',
     style: {
-      "background-color": "#9333ea",
+      "background-color": "#2c4870",
       "background-opacity": 0.85,
-      "border-color": "#7e22ce",
+      "border-color": "#2c4870",
       shape: "hexagon",
     },
   },
@@ -158,9 +242,9 @@ const graphStylesheet: any[] = [
   {
     selector: 'node[type="puzzle"]',
     style: {
-      "background-color": "#dc2626",
+      "background-color": "#b54820",
       "background-opacity": 0.85,
-      "border-color": "#b91c1c",
+      "border-color": "#8a3318",
       shape: "triangle",
     },
   },
@@ -169,7 +253,7 @@ const graphStylesheet: any[] = [
     selector: "edge",
     style: {
       width: "mapData(weight, 1, 5, 2, 5)",
-      "line-color": "#94a3b8",
+      "line-color": "#d8d3c4",
       "curve-style": "bezier",
       opacity: 0.5,
       "target-arrow-shape": "none",
@@ -180,9 +264,6 @@ const graphStylesheet: any[] = [
     style: {
       "border-width": 4,
       "border-style": "double",
-      "shadow-blur": 10,
-      "shadow-color": "#2563eb",
-      "shadow-opacity": 0.25,
     },
   },
   // --- Selected node ---
@@ -190,26 +271,39 @@ const graphStylesheet: any[] = [
     selector: "node:selected",
     style: {
       "border-width": 4,
-      "border-color": "#1d4ed8",
-      "shadow-blur": 15,
-      "shadow-color": "#3b82f6",
-      "shadow-opacity": 0.6,
-      "shadow-offset-x": 0,
-      "shadow-offset-y": 0,
-      "overlay-color": "#3b82f6",
+      "border-color": "#0a0a0a",
+      "overlay-color": "#2c4870",
       "overlay-opacity": 0.12,
-      "font-size": "22px",
-      "font-weight": "800",
+      "font-size": "16px",
       "text-background-opacity": 1,
+      "text-opacity": 1,
     },
   },
   // --- Highlighted edges (connected to selected) ---
   {
     selector: "edge.highlighted",
     style: {
-      "line-color": "#3b82f6",
-      width: 2.5,
+      "line-color": "#2c4870",
+      label: "data(relationLabel)",
+      width: 3.5,
       opacity: 0.9,
+      "font-size": "11px",
+      "font-family": "\"Source Sans 3\", system-ui, sans-serif",
+      color: "#f3f1ea",
+      "text-background-color": "#101720",
+      "text-background-opacity": 0.96,
+      "text-background-padding": "3px",
+      "text-background-shape": "roundrectangle",
+      "text-rotation": "autorotate",
+    },
+  },
+  {
+    selector: "node.focused",
+    style: {
+      opacity: 1,
+      "text-opacity": 1,
+      "text-background-opacity": 1,
+      "border-width": 4,
     },
   },
   // --- Dimmed elements ---
@@ -226,14 +320,46 @@ const graphStylesheet: any[] = [
       opacity: 0.06,
     },
   },
+  {
+    selector: "node.categoryDimmed",
+    style: {
+      opacity: 0.18,
+      "text-opacity": 0.08,
+      "text-background-opacity": 0.28,
+    },
+  },
+  {
+    selector: "edge.categoryDimmed",
+    style: {
+      opacity: 0.04,
+    },
+  },
+  {
+    selector: "node.categoryFocused",
+    style: {
+      opacity: 1,
+      "text-opacity": 1,
+      "text-background-opacity": 0.96,
+      "border-width": 4,
+      "overlay-color": "#fafaf7",
+      "overlay-opacity": 0.08,
+    },
+  },
+  {
+    selector: "edge.categoryHighlighted",
+    style: {
+      "line-color": "#fafaf7",
+      width: 4,
+      opacity: 0.92,
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
-// Layout configs — MUCH more spacing than before
+// Layout configs
 // ---------------------------------------------------------------------------
 
 function getLayoutConfig(name: LayoutName, nodeCount: number): LayoutOptions {
-  // Scale spacing dramatically based on node count
   const isLarge = nodeCount > 60;
   const isMedium = nodeCount > 25;
 
@@ -243,17 +369,25 @@ function getLayoutConfig(name: LayoutName, nodeCount: number): LayoutOptions {
         name: "cose",
         animate: true,
         animationDuration: 600,
-        // MUCH higher repulsion for proper spacing
-        nodeRepulsion: () => (isLarge ? 250000 : isMedium ? 200000 : 150000),
-        idealEdgeLength: () => (isLarge ? 500 : isMedium ? 420 : 350),
-        edgeElasticity: () => 60,
-        gravity: isLarge ? 0.02 : isMedium ? 0.04 : 0.06,
+        nodeRepulsion: () => (isLarge ? 70000 : isMedium ? 56000 : 42000),
+        idealEdgeLength: () => (isLarge ? 165 : isMedium ? 145 : 120),
+        edgeElasticity: () => 180,
+        gravity: isLarge ? 0.13 : isMedium ? 0.1 : 0.08,
         nestingFactor: 1.2,
-        numIter: 1500,
-        padding: 120,
+        numIter: 1800,
+        padding: 100,
         randomize: false,
         fit: true,
-        nodeDimensionsIncludeLabels: true, // KEY: account for label size in layout
+        componentSpacing: isLarge ? 95 : 80,
+        nodeDimensionsIncludeLabels: true,
+      } as LayoutOptions;
+    case "map":
+      return {
+        name: "preset",
+        animate: true,
+        animationDuration: 450,
+        fit: false,
+        padding: 90,
       } as LayoutOptions;
     case "circle":
       return {
@@ -296,6 +430,25 @@ function getLayoutConfig(name: LayoutName, nodeCount: number): LayoutOptions {
   }
 }
 
+function focusGraph(cy: Core, layout: LayoutName) {
+  if (layout === "map") {
+    const coreNodes = cy.nodes("[isIsolated = 0]");
+    if (coreNodes.length > 0) {
+      cy.fit(coreNodes, 130);
+      cy.panBy({ x: 0, y: 46 });
+      if (cy.zoom() > 1.15) {
+        cy.zoom({
+          level: 1.15,
+          renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 },
+        });
+      }
+      return;
+    }
+  }
+
+  cy.fit(undefined, 70);
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -308,6 +461,7 @@ interface HoverNodeState {
   year?: number | null;
   theme?: string | null;
   paperCount?: number | null;
+  visiblePaperCount?: number | null;
   isSeed?: boolean;
   position: { x: number; y: number };
 }
@@ -317,9 +471,13 @@ export function CytoscapeGraph({
   edges,
   layout,
   visibleTypes,
+  showPeripheralPapers,
+  focusNodeIds = [],
+  focusEdgeIds = [],
   onNodeSelect,
   onNodeExpand,
 }: CytoscapeGraphProps) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
   const prevKeyRef = useRef<string>("");
@@ -327,40 +485,67 @@ export function CytoscapeGraph({
 
   // Build elements from props
   const buildElements = useCallback(() => {
-    const filteredNodes = nodes.filter((n) => visibleTypes.has(n.type));
+    const typeVisibleNodes = nodes.filter((n) => visibleTypes.has(n.type));
+    const typeVisibleNodeIds = new Set(typeVisibleNodes.map((n) => n.id));
+    const typeVisibleEdges = edges.filter(
+      (e) => typeVisibleNodeIds.has(e.source) && typeVisibleNodeIds.has(e.target)
+    );
+    const degree = new Map<string, number>();
+    typeVisibleNodes.forEach((node) => degree.set(node.id, 0));
+    typeVisibleEdges.forEach((edge) => {
+      degree.set(edge.source, (degree.get(edge.source) ?? 0) + 1);
+      degree.set(edge.target, (degree.get(edge.target) ?? 0) + 1);
+    });
+    const filteredNodes = showPeripheralPapers
+      ? typeVisibleNodes
+      : typeVisibleNodes.filter((node) => node.type !== "paper" || (degree.get(node.id) ?? 0) > 0);
     const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
-    const filteredEdges = edges.filter(
+    const filteredEdges = typeVisibleEdges.filter(
       (e) => filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target)
     );
+    const positions = layout === "map" ? buildMapPositions(filteredNodes, filteredEdges) : null;
 
     return [
-      ...filteredNodes.map((node) => ({
-        data: {
-          id: node.id,
-          label: node.label,
-          shortLabel: truncateLabel(node.label),
-          type: node.type,
-          size: node.size ?? (node.type === "paper" ? 3 : 1),
-          displaySize: computeDisplaySize(node),
-          borderColor: NODE_BORDER[node.type] ?? "#6b7280",
-          year: node.year ?? null,
-          fields: node.fields ?? [],
-          theme: node.theme ?? null,
-          paperCount: node.paperCount ?? null,
-          isSeed: node.isSeed ? 1 : 0,
-        },
-      })),
+      ...filteredNodes.map((node) => {
+        const isIsolated = (degree.get(node.id) ?? 0) === 0;
+        const displayLabel = isIsolated
+          ? ""
+          : node.type === "paper"
+            ? truncateLabel(node.label, 42)
+            : truncateLabel(node.label, 32);
+
+        return {
+          data: {
+            id: node.id,
+            label: node.label,
+            displayLabel,
+            type: node.type,
+            size: node.size ?? (node.type === "paper" ? 3 : 1),
+            displaySize: computeDisplaySize(node, isIsolated),
+            borderColor: NODE_BORDER[node.type] ?? "#807968",
+            year: node.year ?? null,
+            fields: node.fields ?? [],
+            theme: node.theme ?? null,
+            paperCount: node.paperCount ?? null,
+            visiblePaperCount: node.visiblePaperCount ?? null,
+            isSeed: node.isSeed ? 1 : 0,
+            isIsolated: isIsolated ? 1 : 0,
+          },
+          ...(positions?.has(node.id) ? { position: positions.get(node.id) } : {}),
+        };
+      }),
       ...filteredEdges.map((edge) => ({
         data: {
           id: `${edge.source}-${edge.target}-${edge.relation}`,
           source: edge.source,
           target: edge.target,
           relation: edge.relation,
+          relationLabel: formatRelationLabel(edge.relation, t),
           weight: edge.weight ?? 1,
         },
       })),
     ];
-  }, [nodes, edges, visibleTypes]);
+  }, [nodes, edges, layout, showPeripheralPapers, t, visibleTypes]);
 
   // Attach all event listeners to a cy instance
   const attachEvents = useCallback(
@@ -377,14 +562,15 @@ export function CytoscapeGraph({
           fields: node.data("fields"),
           theme: node.data("theme"),
           paperCount: node.data("paperCount"),
+          visiblePaperCount: node.data("visiblePaperCount"),
           isSeed: Boolean(node.data("isSeed")),
         };
-        cy.elements().removeClass("highlighted dimmed");
+        cy.elements().removeClass("highlighted dimmed focused categoryDimmed categoryFocused categoryHighlighted");
         const connEdges = node.connectedEdges();
         const connNodes = connEdges.connectedNodes();
         cy.elements().addClass("dimmed");
-        node.removeClass("dimmed");
-        connNodes.removeClass("dimmed");
+        node.removeClass("dimmed").addClass("focused");
+        connNodes.removeClass("dimmed").addClass("focused");
         connEdges.removeClass("dimmed").addClass("highlighted");
         onNodeSelect(nodeData);
       });
@@ -392,7 +578,7 @@ export function CytoscapeGraph({
       // Click background: deselect
       cy.on("tap", (evt) => {
         if (evt.target === cy) {
-          cy.elements().removeClass("highlighted dimmed");
+          cy.elements().removeClass("highlighted dimmed focused categoryDimmed categoryFocused categoryHighlighted");
           onNodeSelect(null);
         }
       });
@@ -417,6 +603,7 @@ export function CytoscapeGraph({
           year: node.data("year"),
           theme: node.data("theme"),
           paperCount: node.data("paperCount"),
+          visiblePaperCount: node.data("visiblePaperCount"),
           isSeed: Boolean(node.data("isSeed")),
           position: { x: rect.left + rendered.x, y: rect.top + rendered.y },
         });
@@ -440,6 +627,7 @@ export function CytoscapeGraph({
           year: node.year ?? null,
           theme: node.theme ?? null,
           paperCount: node.paperCount ?? null,
+          visiblePaperCount: node.visiblePaperCount ?? null,
           isSeed: Boolean(node.isSeed),
         }))
         .sort((a, b) => a.id.localeCompare(b.id)),
@@ -457,6 +645,7 @@ export function CytoscapeGraph({
         }),
       ly: layout,
       vt: Array.from(visibleTypes).sort().join(","),
+      peripheral: showPeripheralPapers,
     });
 
     if (key === prevKeyRef.current) return;
@@ -481,20 +670,46 @@ export function CytoscapeGraph({
         maxZoom: 5,
         boxSelectionEnabled: true,
         selectionType: "single",
-        wheelSensitivity: 0.3,
       });
 
       const nodeCount = elements.filter((e) => !("source" in e.data)).length;
       const layoutConfig = getLayoutConfig(layout, nodeCount);
       const layoutInstance = cy.layout(layoutConfig);
       layoutInstance.run();
-      layoutInstance.on("layoutstop", () => cy.fit(undefined, 60));
+      layoutInstance.on("layoutstop", () => focusGraph(cy, layout));
 
       attachEvents(cy);
       cyRef.current = cy;
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges, layout, visibleTypes]);
+  }, [nodes, edges, layout, visibleTypes, showPeripheralPapers, t]);
+
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+
+    cy.elements().removeClass("categoryDimmed categoryFocused categoryHighlighted");
+    if (focusNodeIds.length === 0 && focusEdgeIds.length === 0) return;
+
+    const nodeIdSet = new Set(focusNodeIds);
+    const edgeIdSet = new Set(focusEdgeIds);
+    cy.elements().addClass("categoryDimmed");
+
+    nodeIdSet.forEach((id) => {
+      const node = cy.getElementById(id);
+      if (node.nonempty()) {
+        node.removeClass("categoryDimmed").addClass("categoryFocused");
+      }
+    });
+
+    edgeIdSet.forEach((id) => {
+      const edge = cy.getElementById(id);
+      if (edge.nonempty()) {
+        edge.removeClass("categoryDimmed").addClass("categoryHighlighted");
+        edge.connectedNodes().removeClass("categoryDimmed").addClass("categoryFocused");
+      }
+    });
+  }, [focusEdgeIds, focusNodeIds]);
 
   // Cleanup
   useEffect(() => {
@@ -511,14 +726,16 @@ export function CytoscapeGraph({
     const onResize = () => {
       if (cyRef.current) {
         cyRef.current.resize();
-        cyRef.current.fit(undefined, 60);
+        focusGraph(cyRef.current, layout);
       }
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, []);
+  }, [layout]);
 
-  const handleFit = useCallback(() => cyRef.current?.fit(undefined, 60), []);
+  const handleFit = useCallback(() => {
+    if (cyRef.current) focusGraph(cyRef.current, layout);
+  }, [layout]);
   const handleZoomIn = useCallback(() => {
     const cy = cyRef.current;
     if (cy) cy.zoom({ level: cy.zoom() * 1.3, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
@@ -544,8 +761,8 @@ export function CytoscapeGraph({
       <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-1.5">
         <button
           onClick={handleFit}
-          className="paper-panel flex h-10 w-10 items-center justify-center rounded-[1rem] bg-background/90 text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background hover:text-foreground"
-          title="Fit to view"
+          className="lp-card flex h-10 w-10 items-center justify-center rounded-[var(--r-md)] bg-[var(--paper)] text-[var(--ink-4)] backdrop-blur-sm transition-colors hover:bg-[var(--paper)] hover:text-[var(--ink)]"
+          title={t("graph.zoom.fit")}
         >
           <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4" />
@@ -553,29 +770,20 @@ export function CytoscapeGraph({
         </button>
         <button
           onClick={handleZoomIn}
-          className="paper-panel flex h-10 w-10 items-center justify-center rounded-[1rem] bg-background/90 text-lg font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background hover:text-foreground"
-          title="Zoom in"
+          className="lp-card flex h-10 w-10 items-center justify-center rounded-[var(--r-md)] bg-[var(--paper)] text-lg font-medium text-[var(--ink-4)] backdrop-blur-sm transition-colors hover:bg-[var(--paper)] hover:text-[var(--ink)]"
+          title={t("graph.zoom.in")}
         >
           +
         </button>
         <button
           onClick={handleZoomOut}
-          className="paper-panel flex h-10 w-10 items-center justify-center rounded-[1rem] bg-background/90 text-lg font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background hover:text-foreground"
-          title="Zoom out"
+          className="lp-card flex h-10 w-10 items-center justify-center rounded-[var(--r-md)] bg-[var(--paper)] text-lg font-medium text-[var(--ink-4)] backdrop-blur-sm transition-colors hover:bg-[var(--paper)] hover:text-[var(--ink)]"
+          title={t("graph.zoom.out")}
         >
           −
         </button>
       </div>
 
-      {/* Legend — bottom-left */}
-      <div className="paper-panel absolute bottom-4 left-4 z-10 flex flex-wrap items-center gap-3 rounded-[1.1rem] border border-border/75 bg-background/92 px-3.5 py-2.5 text-sm font-medium text-muted-foreground shadow-none backdrop-blur-sm">
-        {Object.entries(NODE_COLORS).map(([type, color]) => (
-          <span key={type} className="flex items-center gap-1.5 capitalize">
-            <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: color }} />
-            {type}
-          </span>
-        ))}
-      </div>
     </div>
   );
 }

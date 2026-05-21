@@ -71,19 +71,19 @@ export function ProjectMatrixPanel({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-border bg-muted/20 px-4 py-4">
-        <p className="text-sm font-medium text-foreground">Project Comparison Matrix</p>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+      <div className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper-2)]/20 px-4 py-4">
+        <p className="text-sm font-medium text-[var(--ink)]">Project Comparison Matrix</p>
+        <p className="mt-1 text-sm leading-relaxed text-[var(--ink-4)]">
           Select 2-8 papers from this project to generate a real compare-style matrix over research
           question, method, data, findings, and limitations.
         </p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(320px,380px),1fr]">
-        <Card className="rounded-xl shadow-sm">
+        <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
-              <GitCompareArrows className="h-4 w-4 text-blue-600" />
+              <GitCompareArrows className="h-4 w-4 text-[#2c4870]" />
               Compare Set
             </CardTitle>
           </CardHeader>
@@ -92,7 +92,7 @@ export function ProjectMatrixPanel({
               <button
                 type="button"
                 onClick={() => resetSelection(Math.min(4, sortedPapers.length))}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="inline-flex items-center gap-1.5 rounded-[var(--r)] border border-[var(--line-soft)] px-3 py-1.5 text-xs font-medium text-[var(--ink-4)] transition-colors hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 Newest 4
@@ -100,7 +100,7 @@ export function ProjectMatrixPanel({
               <button
                 type="button"
                 onClick={() => resetSelection(Math.min(8, sortedPapers.length))}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="inline-flex items-center gap-1.5 rounded-[var(--r)] border border-[var(--line-soft)] px-3 py-1.5 text-xs font-medium text-[var(--ink-4)] transition-colors hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
               >
                 <CheckSquare className="h-3.5 w-3.5" />
                 Newest 8
@@ -108,7 +108,7 @@ export function ProjectMatrixPanel({
               <button
                 type="button"
                 onClick={() => setSelectedIds([])}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="inline-flex items-center gap-1.5 rounded-[var(--r)] border border-[var(--line-soft)] px-3 py-1.5 text-xs font-medium text-[var(--ink-4)] transition-colors hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
               >
                 <MinusSquare className="h-3.5 w-3.5" />
                 Clear
@@ -125,7 +125,7 @@ export function ProjectMatrixPanel({
                         ? projectTitle
                         : `${projectTitle} · ${selectedCount} selected papers`,
                   })}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                  className="inline-flex items-center gap-1.5 rounded-[var(--r)] border border-[#bccbe0] bg-[#e9eef6] px-3 py-1.5 text-xs font-medium text-[#223a5e] transition-colors hover:bg-[#e9eef6]"
                 >
                   <GitBranch className="h-3.5 w-3.5" />
                   Graph Selected Set
@@ -133,7 +133,7 @@ export function ProjectMatrixPanel({
               )}
             </div>
 
-            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            <div className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper-2)] px-3 py-2 text-xs text-[var(--ink-4)]">
               {selectedCount} selected out of {sortedPapers.length} project papers. The compare view
               is optimized for small, readable sets, so it is capped at 8 papers.
             </div>
@@ -148,10 +148,10 @@ export function ProjectMatrixPanel({
                     type="button"
                     onClick={() => togglePaper(paper.paperId)}
                     disabled={isDisabled}
-                    className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
+                    className={`w-full rounded-[var(--r)] border px-3 py-3 text-left transition-colors ${
                       isSelected
-                        ? "border-blue-300 bg-blue-50/70"
-                        : "border-border bg-background hover:bg-accent/40"
+                        ? "border-[#bccbe0] bg-[#e9eef6]/70"
+                        : "border-[var(--line-soft)] bg-[var(--paper)] hover:bg-[var(--paper-2)]"
                     } ${isDisabled ? "cursor-not-allowed opacity-50" : ""}`}
                   >
                     <div className="flex items-start gap-3">
@@ -159,17 +159,17 @@ export function ProjectMatrixPanel({
                         type="checkbox"
                         checked={isSelected}
                         readOnly
-                        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600"
+                        className="mt-0.5 h-4 w-4 rounded border-[var(--line)] text-[#2c4870]"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 text-sm font-medium text-foreground">
+                        <p className="line-clamp-2 text-sm font-medium text-[var(--ink)]">
                           {paper.title || paper.paperId}
                         </p>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--ink-4)]">
                           <span className="font-mono">{paper.paperId}</span>
                           {paper.year && <span>{paper.year}</span>}
                           {paper.fields.slice(0, 2).map((field) => (
-                            <span key={field} className="rounded bg-muted px-1.5 py-0.5">
+                            <span key={field} className="rounded bg-[var(--paper-2)] px-1.5 py-0.5">
                               {field}
                             </span>
                           ))}
@@ -185,11 +185,11 @@ export function ProjectMatrixPanel({
 
         <div className="space-y-4">
           {!hasEnoughForCompare ? (
-            <Card className="rounded-xl border-dashed shadow-sm">
+            <Card className="rounded-[var(--r)] border-dashed shadow-[var(--shadow-1)]">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Select at least 2 papers</CardTitle>
               </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
+              <CardContent className="text-sm text-[var(--ink-4)]">
                 Choose a small subset from the project paper set to generate a detailed compare
                 matrix.
               </CardContent>
@@ -197,11 +197,11 @@ export function ProjectMatrixPanel({
           ) : loading ? (
             <ComparisonTableSkeleton />
           ) : error ? (
-            <Card className="rounded-xl border border-red-200 bg-red-50 shadow-sm">
+            <Card className="rounded-[var(--r)] border border-[#da9a80] bg-[#f4dfd5] shadow-[var(--shadow-1)]">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base text-red-700">Comparison failed</CardTitle>
+                <CardTitle className="text-base text-[#8a3318]">Comparison failed</CardTitle>
               </CardHeader>
-              <CardContent className="text-sm text-red-700">{error}</CardContent>
+              <CardContent className="text-sm text-[#8a3318]">{error}</CardContent>
             </Card>
           ) : result ? (
             <ComparisonTableView

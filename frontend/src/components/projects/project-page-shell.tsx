@@ -84,12 +84,12 @@ export function ProjectPageShell({
       <div className="space-y-6">
         <Link
           href="/projects"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-sm text-[var(--ink-4)] hover:text-[var(--ink)]"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           All Projects
         </Link>
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-[var(--r)] border border-[#da9a80] bg-[#f4dfd5] p-4 text-sm text-[#8a3318]">
           Project not found.
         </div>
       </div>
@@ -100,7 +100,7 @@ export function ProjectPageShell({
     <div className="space-y-6">
       <Link
         href="/projects"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        className="inline-flex items-center gap-1.5 text-sm text-[var(--ink-4)] hover:text-[var(--ink)]"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         All Projects
@@ -110,41 +110,41 @@ export function ProjectPageShell({
         <div className="space-y-3">
           <p className="section-kicker">Project dossier</p>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+            <span className="rounded-full bg-[var(--forest-soft)] px-2 py-1 text-xs font-medium text-[var(--forest)]">
               {project.paperCount} papers
             </span>
-            <span className="rounded-full bg-[color:oklch(var(--accent)/0.45)] px-2 py-1 text-xs font-medium text-muted-foreground">
+            <span className="rounded-full bg-[var(--paper-2)] px-2 py-1 text-xs font-medium text-[var(--ink-4)]">
               {getProjectStatusLabel(project.status)}
             </span>
-            <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+            <span className="rounded-full bg-[var(--forest-soft)] px-2 py-1 text-xs font-medium text-[var(--forest)]">
               {getProjectTypeLabel(project)}
             </span>
-            <span className="rounded-full bg-[color:oklch(var(--accent)/0.45)] px-2 py-1 text-xs font-medium text-muted-foreground">
+            <span className="rounded-full bg-[var(--paper-2)] px-2 py-1 text-xs font-medium text-[var(--ink-4)]">
               {getProjectScopeLabel(project.scopeType)}
             </span>
           </div>
-          <h1 className="font-display text-[clamp(2.6rem,4.3vw,4rem)] text-foreground">
+          <h1 className="font-display text-[clamp(2.6rem,4.3vw,4rem)] text-[var(--ink)]">
             {project.title}
           </h1>
-          <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          <p className="max-w-3xl text-sm leading-relaxed text-[var(--ink-4)]">
             {project.description || "No description provided."}
           </p>
         </div>
 
-        <Card className="paper-panel rounded-[1.75rem] shadow-none">
+        <Card className="lp-card rounded-[var(--r-md)] shadow-none">
           <CardHeader className="pb-4">
             <p className="section-kicker">Context rail</p>
-            <CardTitle className="font-display text-[1.65rem] text-foreground">Project Context</CardTitle>
+            <CardTitle className="font-display text-[1.65rem] text-[var(--ink)]">Project Context</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <CardContent className="space-y-3 text-sm text-[var(--ink-4)]">
             <div className="space-y-1">
               <p>
-                <span className="font-medium text-foreground">Updated:</span>{" "}
+                <span className="font-medium text-[var(--ink)]">Updated:</span>{" "}
                 {formatUpdatedAt(project.updatedAt)}
               </p>
               {project.sourcePaperCount != null && (
                 <p>
-                  <span className="font-medium text-foreground">Captured set:</span>{" "}
+                  <span className="font-medium text-[var(--ink)]">Captured set:</span>{" "}
                   {project.sourcePaperCount} paper{project.sourcePaperCount !== 1 ? "s" : ""}
                 </p>
               )}
@@ -152,14 +152,14 @@ export function ProjectPageShell({
 
             {project.originQuery && (
               <div className="space-y-1">
-                <p className="font-medium text-foreground">Source Query</p>
+                <p className="font-medium text-[var(--ink)]">Source Query</p>
                 <p>&ldquo;{project.originQuery}&rdquo;</p>
               </div>
             )}
 
             {project.originFiltersSummary && (
               <div className="space-y-1">
-                <p className="font-medium text-foreground">Source Filters</p>
+                <p className="font-medium text-[var(--ink)]">Source Filters</p>
                 <p>{project.originFiltersSummary}</p>
               </div>
             )}
@@ -167,7 +167,7 @@ export function ProjectPageShell({
             {project.originQuery && (
               <Link
                 href={`/research?q=${encodeURIComponent(project.originQuery)}`}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/90"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--forest)] hover:text-[var(--forest)]/90"
               >
                 Reopen source research
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -182,7 +182,7 @@ export function ProjectPageShell({
                   projectTitle: project.title,
                   tab: activeTab,
                 })}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/90"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--forest)] hover:text-[var(--forest)]/90"
               >
                 Open project graph
                 <GitBranch className="h-3.5 w-3.5" />
@@ -192,7 +192,7 @@ export function ProjectPageShell({
         </Card>
       </div>
 
-      <div className="paper-panel flex flex-wrap gap-2 rounded-[1.4rem] p-2.5">
+      <div className="lp-card flex flex-wrap gap-2 rounded-[var(--r-md)] p-2.5">
         {PROJECT_TABS.map((tab) => {
           const href = `/projects/${project.slug}${tab.suffix}`;
           const isActive = tab.key === activeTab;
@@ -202,8 +202,8 @@ export function ProjectPageShell({
               href={href}
               className={`rounded-full px-3.5 py-2 text-sm font-medium transition-colors ${
                 isActive
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
+                  ? "bg-[var(--ink)] text-[var(--paper)]"
+                  : "text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
               }`}
             >
               {tab.label}

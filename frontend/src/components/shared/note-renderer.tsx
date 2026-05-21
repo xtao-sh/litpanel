@@ -39,7 +39,7 @@ export function NoteRenderer({ content }: NoteRendererProps) {
       <Link
         key={`link-${match.index}`}
         href={href}
-        className="inline-flex items-center gap-0.5 rounded bg-blue-50 px-1 py-0.5 text-blue-600 hover:bg-blue-100 hover:text-blue-700 font-medium transition-colors"
+        className="inline-flex items-center gap-0.5 rounded bg-[#e9eef6] px-1 py-0.5 text-[#2c4870] hover:bg-[#e9eef6] hover:text-[#223a5e] font-medium transition-colors"
         onClick={(e) => e.stopPropagation()}
       >
         {ref}

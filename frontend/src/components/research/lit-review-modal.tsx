@@ -53,25 +53,25 @@ function renderMarkdown(text: string): React.ReactNode[] {
     // Headers
     if (line.startsWith("## ")) {
       elements.push(
-        <h2 key={i} className="text-lg font-semibold text-foreground mt-6 mb-2">
+        <h2 key={i} className="text-lg font-semibold text-[var(--ink)] mt-6 mb-2">
           {renderInline(line.slice(3))}
         </h2>
       );
     } else if (line.startsWith("### ")) {
       elements.push(
-        <h3 key={i} className="text-base font-semibold text-foreground mt-4 mb-1.5">
+        <h3 key={i} className="text-base font-semibold text-[var(--ink)] mt-4 mb-1.5">
           {renderInline(line.slice(4))}
         </h3>
       );
     } else if (line.startsWith("# ")) {
       elements.push(
-        <h1 key={i} className="text-xl font-bold text-foreground mt-6 mb-3">
+        <h1 key={i} className="text-xl font-bold text-[var(--ink)] mt-6 mb-3">
           {renderInline(line.slice(2))}
         </h1>
       );
     } else if (line.startsWith("- ") || line.startsWith("* ")) {
       elements.push(
-        <li key={i} className="text-sm text-muted-foreground leading-relaxed ml-4 list-disc">
+        <li key={i} className="text-sm text-[var(--ink-4)] leading-relaxed ml-4 list-disc">
           {renderInline(line.slice(2))}
         </li>
       );
@@ -79,7 +79,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
       elements.push(<div key={i} className="h-2" />);
     } else {
       elements.push(
-        <p key={i} className="text-sm text-muted-foreground leading-relaxed">
+        <p key={i} className="text-sm text-[var(--ink-4)] leading-relaxed">
           {renderInline(line)}
         </p>
       );
@@ -131,7 +131,7 @@ function renderPaperLinks(text: string): React.ReactNode {
       <a
         key={`p-${match.index}`}
         href={`/paper/${pid}`}
-        className="text-blue-600 hover:text-blue-700 hover:underline font-medium"
+        className="text-[#2c4870] hover:text-[#223a5e] hover:underline font-medium"
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -271,7 +271,7 @@ export function LitReviewModal({
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-blue-600" />
+            <FileText className="h-5 w-5 text-[#2c4870]" />
             Generate Literature Review
           </DialogTitle>
           <DialogDescription>
@@ -283,13 +283,13 @@ export function LitReviewModal({
         <button
           type="button"
           onClick={() => setPapersExpanded(!papersExpanded)}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1.5 text-xs text-[var(--ink-4)] hover:text-[var(--ink)] transition-colors"
         >
           {papersExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           {paperIds.length} paper{paperIds.length !== 1 ? "s" : ""} included
         </button>
         {papersExpanded && (
-          <div className="max-h-32 overflow-y-auto rounded-md border border-border bg-muted p-2">
+          <div className="max-h-32 overflow-y-auto rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper-2)] p-2">
             <div className="flex flex-wrap gap-1">
               {paperIds.map((id) => (
                 <a
@@ -297,7 +297,7 @@ export function LitReviewModal({
                   href={`/paper/${id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-block rounded bg-card border border-border px-2 py-0.5 text-xs font-mono text-blue-600 hover:bg-blue-50 transition-colors"
+                  className="inline-block rounded bg-[var(--paper)] border border-[var(--line-soft)] px-2 py-0.5 text-xs font-mono text-[#2c4870] hover:bg-[#e9eef6] transition-colors"
                 >
                   {id}
                 </a>
@@ -311,7 +311,7 @@ export function LitReviewModal({
           <div className="space-y-3">
             {/* Style selector */}
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+              <label className="text-xs font-medium text-[var(--ink-4)] mb-1.5 block">
                 Organization Style
               </label>
               <div className="flex gap-2">
@@ -320,16 +320,16 @@ export function LitReviewModal({
                     key={opt.value}
                     type="button"
                     onClick={() => setStyle(opt.value)}
-                    className={`flex-1 rounded-lg border px-3 py-2 text-left transition-colors ${
+                    className={`flex-1 rounded-[var(--r)] border px-3 py-2 text-left transition-colors ${
                       style === opt.value
-                        ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500"
-                        : "border-border hover:bg-muted/50"
+                        ? "border-[#2c4870] bg-[#e9eef6] ring-1 ring-[#2c4870]"
+                        : "border-[var(--line-soft)] hover:bg-[var(--paper-2)]/50"
                     }`}
                   >
-                    <p className={`text-xs font-medium ${style === opt.value ? "text-blue-700" : "text-muted-foreground"}`}>
+                    <p className={`text-xs font-medium ${style === opt.value ? "text-[#223a5e]" : "text-[var(--ink-4)]"}`}>
                       {opt.label}
                     </p>
-                    <p className="text-[10px] text-muted-foreground">{opt.desc}</p>
+                    <p className="text-[10px] text-[var(--ink-4)]">{opt.desc}</p>
                   </button>
                 ))}
               </div>
@@ -337,7 +337,7 @@ export function LitReviewModal({
 
             {/* Focus input */}
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+              <label className="text-xs font-medium text-[var(--ink-4)] mb-1.5 block">
                 Topic Focus (optional)
               </label>
               <input
@@ -345,7 +345,7 @@ export function LitReviewModal({
                 value={focus}
                 onChange={(e) => setFocus(e.target.value)}
                 placeholder="e.g., causal identification strategies, effects on labor markets..."
-                className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--ink-4)] focus:outline-none focus:ring-2 focus:ring-[var(--forest)]"
               />
             </div>
 
@@ -364,22 +364,22 @@ export function LitReviewModal({
           <>
             <div
               ref={contentRef}
-              className="flex-1 overflow-y-auto rounded-md border border-border bg-card p-4 min-h-[300px] max-h-[50vh]"
+              className="flex-1 overflow-y-auto rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] p-4 min-h-[300px] max-h-[50vh]"
             >
               {content ? (
                 <div className="prose prose-sm max-w-none">
                   {renderMarkdown(content)}
                 </div>
               ) : isGenerating ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm text-[var(--ink-4)]">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Generating literature review...
                 </div>
               ) : null}
 
               {error && (
-                <div className="rounded-md bg-red-50 border border-red-200 p-3 mt-4">
-                  <p className="text-sm text-red-700">{error}</p>
+                <div className="rounded-[var(--r)] bg-[#f4dfd5] border border-[#da9a80] p-3 mt-4">
+                  <p className="text-sm text-[#8a3318]">{error}</p>
                 </div>
               )}
             </div>

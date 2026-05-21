@@ -22,15 +22,15 @@ const typeBadgeVariant: Record<string, "mechanism" | "method" | "dataset" | "puz
 };
 
 const evidenceColors: Record<string, string> = {
-  strong: "bg-green-100 text-green-800 border-green-200",
-  moderate: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  weak: "bg-red-100 text-red-800 border-red-200",
+  strong: "bg-[var(--forest-soft)] text-[var(--forest-2)] border-[var(--forest)]",
+  moderate: "bg-[#f4ead8] text-[#654814] border-[#d6b678]",
+  weak: "bg-[#f4dfd5] text-[#742b14] border-[#da9a80]",
 };
 
 const accessColors: Record<string, string> = {
-  public: "bg-green-100 text-green-800 border-green-200",
-  restricted: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  proprietary: "bg-red-100 text-red-800 border-red-200",
+  public: "bg-[var(--forest-soft)] text-[var(--forest-2)] border-[var(--forest)]",
+  restricted: "bg-[#f4ead8] text-[#654814] border-[#d6b678]",
+  proprietary: "bg-[#f4dfd5] text-[#742b14] border-[#da9a80]",
 };
 
 function renderDescription(text: string): React.ReactNode {
@@ -43,7 +43,7 @@ function renderDescription(text: string): React.ReactNode {
 
     if (isBulletList) {
       return (
-        <ul key={pIdx} className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+        <ul key={pIdx} className="list-disc list-inside space-y-1 text-sm text-[var(--ink-4)]">
           {lines
             .filter((line) => line.trim().startsWith("- "))
             .map((line, lIdx) => (
@@ -54,7 +54,7 @@ function renderDescription(text: string): React.ReactNode {
     }
 
     return (
-      <p key={pIdx} className="text-sm leading-relaxed text-muted-foreground">
+      <p key={pIdx} className="text-sm leading-relaxed text-[var(--ink-4)]">
         {lines.map((line, lIdx) => (
           <React.Fragment key={lIdx}>
             {lIdx > 0 && <br />}
@@ -71,7 +71,7 @@ function renderInlineFormatting(text: string): React.ReactNode {
   return parts.map((part, idx) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return (
-        <strong key={idx} className="font-semibold text-foreground">
+        <strong key={idx} className="font-semibold text-[var(--ink)]">
           {part.slice(2, -2)}
         </strong>
       );
@@ -174,11 +174,11 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <h2 className="text-xl font-semibold text-foreground">Error loading atom</h2>
-        <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+        <h2 className="text-xl font-semibold text-[var(--ink)]">Error loading atom</h2>
+        <p className="mt-2 text-sm text-[var(--ink-4)]">{error.message}</p>
         <Link
           href={backHref}
-          className="mt-4 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+          className="mt-4 text-sm font-medium text-[#2c4870] hover:text-[#1b2e4d] hover:underline"
         >
           {backLabel}
         </Link>
@@ -191,13 +191,13 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
   if (!atom) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <h2 className="text-xl font-semibold text-foreground">Atom not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <h2 className="text-xl font-semibold text-[var(--ink)]">Atom not found</h2>
+        <p className="mt-2 text-sm text-[var(--ink-4)]">
           The atom &ldquo;{slug}&rdquo; could not be found.
         </p>
         <Link
           href={backHref}
-          className="mt-4 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+          className="mt-4 text-sm font-medium text-[#2c4870] hover:text-[#1b2e4d] hover:underline"
         >
           {backLabel}
         </Link>
@@ -206,22 +206,22 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
   }
 
   const evidenceClass = atom.evidenceStrength
-    ? evidenceColors[atom.evidenceStrength.toLowerCase()] || "bg-muted text-foreground border-border"
+    ? evidenceColors[atom.evidenceStrength.toLowerCase()] || "bg-[var(--paper-2)] text-[var(--ink)] border-[var(--line-soft)]"
     : null;
 
   const accessClass = atom.access
-    ? accessColors[atom.access.toLowerCase()] || "bg-muted text-foreground border-border"
+    ? accessColors[atom.access.toLowerCase()] || "bg-[var(--paper-2)] text-[var(--ink)] border-[var(--line-soft)]"
     : null;
 
   return (
     <div className="space-y-8">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Link href={backHref} className="hover:text-foreground transition-colors">{breadcrumbRootLabel}</Link>
+      <nav className="flex items-center gap-1.5 text-xs text-[var(--ink-4)]">
+        <Link href={backHref} className="hover:text-[var(--ink)] transition-colors">{breadcrumbRootLabel}</Link>
         <span>/</span>
-        <Link href={explorerHref} className="hover:text-foreground transition-colors">Atoms</Link>
+        <Link href={explorerHref} className="hover:text-[var(--ink)] transition-colors">Atoms</Link>
         <span>/</span>
-        <span className="text-foreground">{atom.title}</span>
+        <span className="text-[var(--ink)]">{atom.title}</span>
       </nav>
 
       <AtomHeader atom={atom} />
@@ -230,14 +230,14 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
       <div className="flex items-center gap-3">
         <Link
           href={backHref}
-          className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          className="inline-flex items-center gap-2 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-4 py-2 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
         >
           <ArrowLeft className="h-4 w-4" />
           {backLabel}
         </Link>
         <Link
           href={explorerHref}
-          className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100 hover:border-indigo-300"
+          className="inline-flex items-center gap-2 rounded-[var(--r)] border border-[#bccbe0] bg-[#e9eef6] px-4 py-2 text-sm font-medium text-[#223a5e] transition-colors hover:bg-[#e9eef6] hover:border-[#bccbe0]"
         >
           <Filter className="h-4 w-4" />
           View all {atom.paperCount} paper{atom.paperCount !== 1 ? "s" : ""} in Explorer
@@ -263,9 +263,9 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
 
           {/* When to Use — methods only */}
           {atom.type === "method" && atom.whenToUse && (
-            <Card className="border-emerald-200 bg-emerald-50/50">
+            <Card className="border-[var(--forest)] bg-[var(--forest-soft)]/50">
               <CardHeader>
-                <CardTitle className="text-base text-emerald-900">When to Use</CardTitle>
+                <CardTitle className="text-base text-[var(--forest-2)]">When to Use</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -277,14 +277,14 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
 
           {/* Dataset access and URL */}
           {atom.type === "dataset" && (atom.access || atom.url) && (
-            <Card className="border-purple-200 bg-purple-50/50">
+            <Card className="border-[#bccbe0] bg-[#e9eef6]/50">
               <CardHeader>
-                <CardTitle className="text-base text-purple-900">Data Access</CardTitle>
+                <CardTitle className="text-base text-[#172741]">Data Access</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {atom.access && accessClass && (
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-muted-foreground">Access Level:</span>
+                    <span className="text-sm font-medium text-[var(--ink-4)]">Access Level:</span>
                     <Badge className={`text-xs border capitalize ${accessClass}`}>
                       {atom.access}
                     </Badge>
@@ -292,12 +292,12 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                 )}
                 {atom.url && (
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-muted-foreground">URL:</span>
+                    <span className="text-sm font-medium text-[var(--ink-4)]">URL:</span>
                     <a
                       href={atom.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                      className="inline-flex items-center gap-1 text-sm text-[#2c4870] hover:text-[#1b2e4d] hover:underline"
                     >
                       {atom.url}
                       <ExternalLink className="h-3 w-3" />
@@ -315,7 +315,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                 <CardTitle className="text-base">
                   Connected Papers
                   {atom.papers && atom.papers.length > 0 && (
-                    <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    <span className="ml-2 text-sm font-normal text-[var(--ink-4)]">
                       ({atom.papers.length})
                     </span>
                   )}
@@ -323,7 +323,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                 {atom.papers && atom.papers.length > 0 && (
                   <Link
                     href={explorerHref}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                    className="inline-flex items-center gap-1.5 rounded-[var(--r)] bg-[#e9eef6] px-3 py-1.5 text-xs font-medium text-[#223a5e] transition-colors hover:bg-[#e9eef6]"
                   >
                     <Filter className="h-3 w-3" />
                     View {atom.papers.length} in Explorer
@@ -338,11 +338,11 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
 
           {/* Backlinks */}
           {atom.backlinkNotes && atom.backlinkNotes.length > 0 && (
-            <Card className="border-blue-200 bg-blue-50/30">
+            <Card className="border-[#bccbe0] bg-[#e9eef6]/30">
               <CardHeader>
-                <CardTitle className="text-base text-blue-700">
+                <CardTitle className="text-base text-[#223a5e]">
                   Backlinks
-                  <span className="ml-1.5 text-sm font-normal text-blue-400">
+                  <span className="ml-1.5 text-sm font-normal text-[#4e688d]">
                     Referenced by {atom.backlinkNotes.length} note{atom.backlinkNotes.length !== 1 ? "s" : ""}
                   </span>
                 </CardTitle>
@@ -360,16 +360,16 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                       <Link
                         key={`${bl.entityType}-${bl.entityId}`}
                         href={blHref}
-                        className="flex items-start gap-2 rounded-md border border-blue-100 bg-card p-2.5 hover:bg-blue-50 transition-colors"
+                        className="flex items-start gap-2 rounded-[var(--r)] border border-[#dfe7f2] bg-[var(--paper)] p-2.5 hover:bg-[#e9eef6] transition-colors"
                       >
-                        <Badge className="text-[10px] px-1.5 py-0 shrink-0 mt-0.5 bg-blue-100 text-blue-700 border-blue-200">
+                        <Badge className="text-[10px] px-1.5 py-0 shrink-0 mt-0.5 bg-[#e9eef6] text-[#223a5e] border-[#bccbe0]">
                           {bl.entityType}
                         </Badge>
                         <div className="min-w-0 flex-1">
-                          <span className="font-mono text-xs text-blue-600">
+                          <span className="font-mono text-xs text-[#2c4870]">
                             {bl.entityId}
                           </span>
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                          <p className="text-xs text-[var(--ink-4)] mt-0.5 line-clamp-2">
                             {bl.notePreview}
                           </p>
                         </div>
@@ -385,14 +385,14 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
         {/* Sidebar */}
         <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
           {/* Quick Stats */}
-          <Card className="bg-muted/50">
+          <Card className="bg-[var(--paper-2)]/50">
             <CardHeader>
               <CardTitle className="text-base">Quick Stats</CardTitle>
             </CardHeader>
             <CardContent>
               <dl className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <dt className="text-sm text-muted-foreground">Type</dt>
+                  <dt className="text-sm text-[var(--ink-4)]">Type</dt>
                   <dd>
                     <Badge
                       variant={typeBadgeVariant[atom.type] || "secondary"}
@@ -405,7 +405,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
 
                 {atom.evidenceStrength && evidenceClass && (
                   <div className="flex items-center justify-between">
-                    <dt className="text-sm text-muted-foreground">Evidence</dt>
+                    <dt className="text-sm text-[var(--ink-4)]">Evidence</dt>
                     <dd>
                       <Badge className={`text-xs border capitalize ${evidenceClass}`}>
                         {atom.evidenceStrength}
@@ -415,15 +415,15 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                 )}
 
                 <div className="flex items-center justify-between">
-                  <dt className="text-sm text-muted-foreground">Paper Count</dt>
-                  <dd className="text-sm font-semibold text-foreground">
+                  <dt className="text-sm text-[var(--ink-4)]">Paper Count</dt>
+                  <dd className="text-sm font-semibold text-[var(--ink)]">
                     {atom.paperCount}
                   </dd>
                 </div>
 
                 {atom.type === "dataset" && atom.access && accessClass && (
                   <div className="flex items-center justify-between">
-                    <dt className="text-sm text-muted-foreground">Access</dt>
+                    <dt className="text-sm text-[var(--ink-4)]">Access</dt>
                     <dd>
                       <Badge className={`text-xs border capitalize ${accessClass}`}>
                         {atom.access}
@@ -432,9 +432,9 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                   </div>
                 )}
 
-                <div className="border-t border-border pt-3">
-                  <dt className="text-xs text-muted-foreground">Slug</dt>
-                  <dd className="mt-0.5 font-mono text-xs text-muted-foreground">
+                <div className="border-t border-[var(--line-soft)] pt-3">
+                  <dt className="text-xs text-[var(--ink-4)]">Slug</dt>
+                  <dd className="mt-0.5 font-mono text-xs text-[var(--ink-4)]">
                     {atom.slug}
                   </dd>
                 </div>
@@ -444,12 +444,12 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
 
           {/* Similar Atoms (via embeddings) */}
           {atom.similarAtoms && atom.similarAtoms.length > 0 ? (
-            <Card className="border-purple-200">
+            <Card className="border-[#bccbe0]">
               <CardHeader>
-                <CardTitle className="text-base text-purple-700">
+                <CardTitle className="text-base text-[#223a5e]">
                   Similar Atoms
                 </CardTitle>
-                <p className="text-[11px] text-purple-400 mt-0.5">
+                <p className="text-[11px] text-[#4e688d] mt-0.5">
                   Based on content similarity
                 </p>
               </CardHeader>
@@ -461,7 +461,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                       <Link
                         key={sa.slug}
                         href={getAtomHref(sa.slug)}
-                        className="block rounded-md border border-purple-100 p-2.5 transition-colors hover:bg-purple-50/50"
+                        className="block rounded-[var(--r)] border border-[#dfe7f2] p-2.5 transition-colors hover:bg-[#e9eef6]/50"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
@@ -471,22 +471,22 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                             >
                               {sa.type}
                             </Badge>
-                            <span className="text-sm font-medium text-foreground truncate">
+                            <span className="text-sm font-medium text-[var(--ink)] truncate">
                               {sa.title}
                             </span>
                           </div>
-                          <span className="shrink-0 text-[10px] font-semibold text-purple-600">
+                          <span className="shrink-0 text-[10px] font-semibold text-[#2c4870]">
                             {pct}%
                           </span>
                         </div>
-                        <div className="mt-1.5 h-1 rounded-full bg-purple-100 overflow-hidden">
+                        <div className="mt-1.5 h-1 rounded-full bg-[#e9eef6] overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-purple-500 transition-all"
+                            className="h-full rounded-full bg-[#2c4870] transition-all"
                             style={{ width: `${pct}%` }}
                           />
                         </div>
                         {sa.description && (
-                          <p className="mt-1.5 text-xs text-muted-foreground line-clamp-2">
+                          <p className="mt-1.5 text-xs text-[var(--ink-4)] line-clamp-2">
                             {sa.description}
                           </p>
                         )}
@@ -502,7 +502,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                 <CardTitle className="text-base">Similar Atoms</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-[var(--ink-4)]">
                   Semantic similarity unavailable.
                 </p>
               </CardContent>
@@ -511,12 +511,12 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
 
           {/* Co-occurring Atoms */}
           {atom.cooccurringAtoms && atom.cooccurringAtoms.length > 0 && (
-            <Card className="border-amber-200">
+            <Card className="border-[#d6b678]">
               <CardHeader>
-                <CardTitle className="text-base text-amber-700">
+                <CardTitle className="text-base text-[#7a5a18]">
                   Often Used Together
                 </CardTitle>
-                <p className="text-[11px] text-amber-400 mt-0.5">
+                <p className="text-[11px] text-[#8a6d3b] mt-0.5">
                   Atoms co-occurring in the same papers
                 </p>
               </CardHeader>
@@ -526,7 +526,7 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                     <Link
                       key={ca.slug}
                       href={getAtomHref(ca.slug)}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-amber-100 bg-amber-50/50 px-2.5 py-1 transition-colors hover:bg-amber-100/70"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#f4ead8] bg-[#f4ead8]/50 px-2.5 py-1 transition-colors hover:bg-[#f4ead8]/70"
                     >
                       <Badge
                         variant={typeBadgeVariant[ca.type] || "secondary"}
@@ -534,10 +534,10 @@ export default function AtomDetailPage({ params }: AtomDetailPageProps) {
                       >
                         {ca.type}
                       </Badge>
-                      <span className="text-xs font-medium text-muted-foreground truncate max-w-[140px]">
+                      <span className="text-xs font-medium text-[var(--ink-4)] truncate max-w-[140px]">
                         {ca.title}
                       </span>
-                      <span className="text-[10px] text-amber-500 font-medium shrink-0">
+                      <span className="text-[10px] text-[#8a6d3b] font-medium shrink-0">
                         {ca.coCount}
                       </span>
                     </Link>

@@ -25,11 +25,11 @@ interface TopPapersProps {
 }
 
 function scoreBadgeColor(score: number | null): string {
-  if (score === null) return "bg-muted text-muted-foreground";
-  if (score >= 8) return "bg-emerald-100 text-emerald-800 font-semibold";
-  if (score >= 6) return "bg-blue-100 text-blue-800 font-semibold";
-  if (score >= 4) return "bg-amber-100 text-amber-800 font-medium";
-  return "bg-muted text-muted-foreground";
+  if (score === null) return "bg-[var(--paper-2)] text-[var(--ink-4)]";
+  if (score >= 8) return "bg-[var(--forest-soft)] text-[var(--forest-2)] font-semibold";
+  if (score >= 6) return "bg-[#e9eef6] text-[#1b2e4d] font-semibold";
+  if (score >= 4) return "bg-[#f4ead8] text-[#654814] font-medium";
+  return "bg-[var(--paper-2)] text-[var(--ink-4)]";
 }
 
 function truncateTitle(title: string | null, fallback: string, max: number = 65): string {
@@ -71,16 +71,16 @@ export function TopPapers({ papers, loading }: TopPapersProps) {
                   <Link
                     key={paper.paperId}
                     href={`/paper/${paper.paperId}`}
-                    className="flex items-center gap-3 py-2 px-2 -mx-2 rounded-md hover:bg-accent/60 transition-colors group"
+                    className="flex items-center gap-3 py-2 px-2 -mx-2 rounded-[var(--r)] hover:bg-[var(--paper-2)]/60 transition-colors group"
                   >
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--paper-2)] text-xs font-medium text-[var(--ink-4)]">
                       {idx + 1}
                     </span>
-                    <span className="text-sm text-foreground flex-1 min-w-0 truncate group-hover:text-primary transition-colors">
+                    <span className="text-sm text-[var(--ink)] flex-1 min-w-0 truncate group-hover:text-[var(--forest)] transition-colors">
                       {displayTitle}
                     </span>
                     {paper.year && (
-                      <span className="text-xs text-muted-foreground shrink-0">
+                      <span className="text-xs text-[var(--ink-4)] shrink-0">
                         {paper.year}
                       </span>
                     )}

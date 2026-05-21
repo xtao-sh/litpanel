@@ -33,13 +33,13 @@ function SummaryCard({
   detail: string;
 }) {
   return (
-    <Card className="rounded-xl shadow-sm">
+    <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <CardTitle className="text-sm font-medium text-[var(--ink-4)]">{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-lg font-semibold text-foreground">{value}</p>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{detail}</p>
+        <p className="text-lg font-semibold text-[var(--ink)]">{value}</p>
+        <p className="mt-1 text-xs leading-relaxed text-[var(--ink-4)]">{detail}</p>
       </CardContent>
     </Card>
   );
@@ -100,11 +100,11 @@ export function ProjectSynthesisPanel({
   return (
     <div className="space-y-6">
       {showIntro && (
-        <div className="rounded-xl border border-border bg-muted/20 px-4 py-4">
+        <div className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper-2)]/20 px-4 py-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm font-medium text-foreground">Project Synthesis Snapshot</p>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              <p className="text-sm font-medium text-[var(--ink)]">Project Synthesis Snapshot</p>
+              <p className="mt-1 text-sm leading-relaxed text-[var(--ink-4)]">
                 This summary is computed from the {paperCount.toLocaleString()} paper
                 {paperCount !== 1 ? "s" : ""} currently attached to this project. Counts are based on
                 linked atoms, card sections, and the paper metadata already in the knowledge base.
@@ -166,10 +166,10 @@ export function ProjectSynthesisPanel({
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="rounded-xl shadow-sm">
+        <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
-              <Layers3 className="h-4 w-4 text-sky-500" />
+              <Layers3 className="h-4 w-4 text-[#2c4870]" />
               Field Coverage
             </CardTitle>
           </CardHeader>
@@ -179,14 +179,14 @@ export function ProjectSynthesisPanel({
               return (
                 <div key={item.field} className="space-y-1">
                   <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className="truncate text-foreground">{item.field}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground">
+                    <span className="truncate text-[var(--ink)]">{item.field}</span>
+                    <span className="shrink-0 text-xs text-[var(--ink-4)]">
                       {item.count} paper{item.count !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  <div className="h-2 rounded-full bg-muted">
+                  <div className="h-2 rounded-full bg-[var(--paper-2)]">
                     <div
-                      className="h-2 rounded-full bg-sky-500/70"
+                      className="h-2 rounded-full bg-[#2c4870]/70"
                       style={{ width: `${width}%` }}
                     />
                   </div>
@@ -196,10 +196,10 @@ export function ProjectSynthesisPanel({
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl shadow-sm">
+        <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
-              <CalendarRange className="h-4 w-4 text-violet-500" />
+              <CalendarRange className="h-4 w-4 text-[#2c4870]" />
               Publication Timeline
             </CardTitle>
           </CardHeader>
@@ -211,14 +211,14 @@ export function ProjectSynthesisPanel({
                 return (
                   <div key={item.year} className="space-y-1">
                     <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-foreground">{item.year}</span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[var(--ink)]">{item.year}</span>
+                      <span className="text-xs text-[var(--ink-4)]">
                         {item.count} paper{item.count !== 1 ? "s" : ""}
                       </span>
                     </div>
-                    <div className="h-2 rounded-full bg-muted">
+                    <div className="h-2 rounded-full bg-[var(--paper-2)]">
                       <div
-                        className="h-2 rounded-full bg-violet-500/70"
+                        className="h-2 rounded-full bg-[#2c4870]/70"
                         style={{ width: `${width}%` }}
                       />
                     </div>
@@ -226,7 +226,7 @@ export function ProjectSynthesisPanel({
                 );
               })
             ) : (
-              <p className="text-sm text-muted-foreground">No year metadata available for this project yet.</p>
+              <p className="text-sm text-[var(--ink-4)]">No year metadata available for this project yet.</p>
             )}
           </CardContent>
         </Card>
@@ -274,10 +274,10 @@ export function ProjectSynthesisPanel({
       </div>
 
       {landscape.puzzles.length > 0 && (
-        <Card className="rounded-xl shadow-sm">
+        <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
-              <Sparkles className="h-4 w-4 text-amber-500" />
+              <Sparkles className="h-4 w-4 text-[#8a6d3b]" />
               Open Puzzles Already Present
             </CardTitle>
           </CardHeader>
@@ -285,13 +285,13 @@ export function ProjectSynthesisPanel({
             {landscape.puzzles.slice(0, 8).map((puzzle) => (
               <div
                 key={puzzle.slug}
-                className="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2 transition-colors hover:bg-accent/40"
+                className="flex items-start justify-between gap-3 rounded-[var(--r)] border border-[var(--line-soft)] px-3 py-2 transition-colors hover:bg-[var(--paper-2)]"
               >
                 <div className="min-w-0 flex-1">
                   <button
                     type="button"
                     onClick={() => router.push(getAtomDetailHref(puzzle.slug))}
-                    className="text-left text-sm font-medium text-foreground hover:text-primary"
+                    className="text-left text-sm font-medium text-[var(--ink)] hover:text-[var(--forest)]"
                   >
                     {puzzle.title}
                   </button>
@@ -299,20 +299,20 @@ export function ProjectSynthesisPanel({
                     <button
                       type="button"
                       onClick={() => router.push(getAtomDetailHref(puzzle.slug))}
-                      className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+                      className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-2 py-1 text-[11px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                     >
                       Detail
                     </button>
                     <Link
                       href={getExplorerHref(puzzle.slug)}
-                      className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 transition-colors hover:bg-amber-100"
+                      className="inline-flex items-center gap-1 rounded-[var(--r)] border border-[#d6b678] bg-[#f4ead8] px-2 py-1 text-[11px] font-medium text-[#7a5a18] transition-colors hover:bg-[#f4ead8]"
                     >
                       <Search className="h-3 w-3" />
                       Explorer
                     </Link>
                   </div>
                 </div>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-[var(--ink-4)]">
                   {puzzle.paperCount} paper{puzzle.paperCount !== 1 ? "s" : ""}
                 </span>
               </div>

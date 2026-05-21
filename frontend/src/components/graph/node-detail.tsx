@@ -6,6 +6,7 @@ import { X, ExternalLink, Expand } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { useI18n } from "@/lib/i18n/locale-context";
 import type { GraphNode } from "@/lib/types";
 
 interface NodeDetailProps {
@@ -14,16 +15,23 @@ interface NodeDetailProps {
     relation: string;
     count: number;
   }>;
+  relatedNodes?: Array<{
+    id: string;
+    label: string;
+    type: string;
+    relation: string;
+  }>;
+  wide?: boolean;
   onClose: () => void;
   onExpand: (nodeId: string, nodeType: string) => void;
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  paper: "#3b82f6",
-  mechanism: "#f97316",
-  method: "#22c55e",
-  dataset: "#a855f7",
-  puzzle: "#ef4444",
+  paper: "#2c4870",
+  mechanism: "#b88a3b",
+  method: "#15803d",
+  dataset: "#2c4870",
+  puzzle: "#b54820",
 };
 
 function getNodeLink(node: GraphNode): string | null {
@@ -53,105 +61,140 @@ function getVariant(
   return "secondary";
 }
 
-function formatRelationLabel(relation: string): string {
+const RELATION_LABEL_KEYS: Record<string, string> = {
+  uses_dataset: "graph.relations.usesDataset",
+  uses_method: "graph.relations.usesMethod",
+  addresses_puzzle: "graph.relations.addressesPuzzle",
+  engages_mechanism: "graph.relations.engagesMechanism",
+  co_occurs: "graph.relations.coOccurs",
+  cites: "graph.relations.cites",
+  cited_by: "graph.relations.citedBy",
+};
+
+function formatRelationLabel(relation: string, t: (key: string) => string): string {
+  const key = RELATION_LABEL_KEYS[relation];
+  if (key) return t(key);
   return relation
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 }
 
-export function NodeDetail({ node, connections = [], onClose, onExpand }: NodeDetailProps) {
+export function NodeDetail({
+  node,
+  connections = [],
+  relatedNodes = [],
+  wide = false,
+  onClose,
+  onExpand,
+}: NodeDetailProps) {
+  const { t } = useI18n();
   const link = getNodeLink(node);
-  const color = TYPE_COLORS[node.type] ?? "#6b7280";
+  const color = TYPE_COLORS[node.type] ?? "#807968";
 
   return (
-    <Card className="paper-panel w-80 rounded-[1.55rem] bg-background/92 shadow-none backdrop-blur-md">
+    <Card className={`lp-card ${wide ? "w-full" : "w-80"} rounded-[var(--r-md)] bg-[var(--paper)] shadow-none backdrop-blur-md`}>
       <div className="p-4">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="section-kicker">Node dossier</p>
+            <p className="section-kicker">{t("graph.detail.kicker")}</p>
             <Badge variant={getVariant(node.type)} className="mt-1 text-xs">
-              {node.type}
+              {t(`graph.nodeTypes.${node.type}`)}
             </Badge>
           </div>
           <button
             onClick={onClose}
-            className="rounded-full p-1.5 text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
-            aria-label="Close detail panel"
+            className="rounded-full p-1.5 text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
+            aria-label={t("common.actions.close")}
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Title */}
-        <h3 className="font-display mt-3 text-[1.55rem] leading-tight text-foreground">
-          {node.label}
-        </h3>
+        {link ? (
+          <Link
+            href={link}
+            className="font-display mt-3 block text-[1.55rem] leading-tight text-[var(--ink)] transition hover:text-[var(--forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--forest)] focus-visible:ring-offset-2"
+          >
+            {node.label}
+          </Link>
+        ) : (
+          <h3 className="font-display mt-3 text-[1.55rem] leading-tight text-[var(--ink)]">
+            {node.label}
+          </h3>
+        )}
 
-        {/* Node info */}
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span
-              className="inline-block h-3 w-3 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-            <span className="capitalize">{node.type}</span>
-            <span className="text-border">|</span>
-            <span>ID: {node.id}</span>
-          </div>
-
-          {node.isSeed ? (
-            <div className="text-xs font-medium text-primary">Seed node in current graph</div>
-          ) : null}
-
-          {node.size != null && (
-            <div className="text-xs text-muted-foreground">
-              Relative size: {node.size}
-            </div>
-          )}
-
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: color }}
+          />
           {node.year != null ? (
-            <div className="text-xs text-muted-foreground">Year: {node.year}</div>
+            <span className="rounded-full bg-[var(--paper)]/75 px-2 py-0.5 text-xs text-[var(--ink-4)]">
+              {node.year}
+            </span>
           ) : null}
-
-          {node.theme ? (
-            <div className="text-xs text-muted-foreground">Theme: {node.theme}</div>
+          {node.isSeed ? (
+            <span className="rounded-full bg-[var(--forest-soft)] px-2 py-0.5 text-xs font-medium text-[var(--forest)]">
+              {t("graph.detail.seed")}
+            </span>
           ) : null}
+          {node.fields?.slice(0, 3).map((field) => (
+            <span
+              key={field}
+              className="rounded-full bg-[var(--paper-2)] px-2 py-0.5 text-xs text-[var(--ink)]"
+            >
+              {field}
+            </span>
+          ))}
+        </div>
 
-          {node.paperCount != null ? (
-            <div className="text-xs text-muted-foreground">Linked papers: {node.paperCount}</div>
-          ) : null}
-
-          {node.fields && node.fields.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {node.fields.slice(0, 4).map((field) => (
-                <span
-                  key={field}
-                  className="rounded-full bg-[color:oklch(var(--accent)/0.45)] px-2 py-0.5 text-[11px] text-foreground"
-                >
-                  {field}
-                </span>
+        {connections.length > 0 ? (
+          <div className="mt-4 rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)]/50 p-3">
+            <p className="section-kicker">{t("graph.detail.connectedBy")}</p>
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              {connections.map((item) => (
+                <div key={item.relation} className="rounded-[0.75rem] bg-[var(--paper)] px-2 py-1.5">
+                  <p className="truncate text-[11px] text-[var(--ink-4)]">
+                    {formatRelationLabel(item.relation, t)}
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold tabular-nums text-[var(--ink)]">
+                    {item.count}
+                  </p>
+                </div>
               ))}
             </div>
-          ) : null}
+          </div>
+        ) : null}
 
-          {connections.length > 0 ? (
-            <div className="rounded-[1rem] border border-[color:color-mix(in_oklch,oklch(var(--foreground))_7%,transparent)] bg-[color:oklch(var(--accent)/0.38)] p-3">
-              <p className="section-kicker">Connected by</p>
-              <div className="mt-2 space-y-1.5">
-                {connections.map((item) => (
-                  <div key={item.relation} className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{formatRelationLabel(item.relation)}</span>
-                    <span className="rounded-full bg-background/85 px-1.5 py-0.5 font-medium text-foreground">
-                      {item.count}
-                    </span>
-                  </div>
-                ))}
-              </div>
+        {node.paperCount != null && node.type !== "paper" ? (
+          <p className="mt-3 text-xs text-[var(--ink-4)]">
+            {node.visiblePaperCount != null && node.visiblePaperCount !== node.paperCount
+              ? t("graph.detail.visibleLinkedPapers", {
+                  visible: node.visiblePaperCount,
+                  total: node.paperCount,
+                })
+              : t("graph.detail.linkedPapers", { value: node.paperCount })}
+          </p>
+        ) : null}
+
+        {relatedNodes.length > 0 ? (
+          <div className="mt-4 rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)]/50 p-3">
+            <p className="section-kicker">{t("graph.detail.neighbors")}</p>
+            <div className="mt-2 space-y-2">
+              {relatedNodes.slice(0, 6).map((item) => (
+                <div key={`${item.relation}-${item.id}`} className="min-w-0">
+                  <p className="truncate text-sm font-medium text-[var(--ink)]">{item.label}</p>
+                  <p className="mt-0.5 text-[11px] text-[var(--ink-4)]">
+                    {formatRelationLabel(item.relation, t)} · {t(`graph.nodeTypes.${item.type}`)}
+                  </p>
+                </div>
+              ))}
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         {/* Actions */}
         <div className="mt-4 flex gap-2">
@@ -159,7 +202,7 @@ export function NodeDetail({ node, connections = [], onClose, onExpand }: NodeDe
             <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 rounded-full text-xs">
               <Link href={link}>
                 <ExternalLink className="h-3 w-3" />
-                Open detail
+                {t("graph.detail.open")}
               </Link>
             </Button>
           )}
@@ -170,7 +213,7 @@ export function NodeDetail({ node, connections = [], onClose, onExpand }: NodeDe
             onClick={() => onExpand(node.id, node.type)}
           >
             <Expand className="h-3 w-3" />
-            Expand
+            {t("graph.detail.expand")}
           </Button>
         </div>
       </div>

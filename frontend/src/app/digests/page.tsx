@@ -125,12 +125,12 @@ class MarkdownErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryS
     if (this.state.hasError) {
       return (
         this.props.fallback ?? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          <div className="rounded-[var(--r)] border border-[#d6b678] bg-[#f4ead8] px-4 py-3 text-sm text-[#7a5a18]">
             <div className="flex items-center gap-2 mb-1">
               <AlertTriangle className="h-4 w-4" />
               <span className="font-medium">Unable to render this digest</span>
             </div>
-            <p className="text-xs text-amber-600">
+            <p className="text-xs text-[#7a5a18]">
               The content could not be displayed. This is usually caused by unexpected formatting.
             </p>
           </div>
@@ -220,27 +220,27 @@ export default function DigestsPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       {/* Header */}
-      <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="lp-card grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="space-y-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-[1.2rem] border border-border/70 bg-accent/55 text-primary">
+            <div className="flex h-12 w-12 items-center justify-center rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper-2)] text-[var(--forest)]">
               <Newspaper className="h-5 w-5" />
             </div>
             <p className="section-kicker">Daily Briefing</p>
           </div>
           <div>
-            <h1 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+            <h1 className="font-display text-4xl tracking-tight text-[var(--ink)] sm:text-5xl">
               Research Digests
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--ink-4)] sm:text-[15px]">
               Daily summaries of new research, organized as briefings you can
               skim, search, and open as long-form archive notes.
             </p>
           </div>
         </div>
-        <div className="rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
+        <div className="rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)] p-4">
           <p className="section-kicker">{t("common.pageInfo")}</p>
-          <p className="mt-2 text-sm leading-6 text-foreground/80">
+          <p className="mt-2 text-sm leading-6 text-[var(--ink-3)]">
             Start here for recency. Move to Research or Projects when a digest
             deserves a deeper thematic read.
           </p>
@@ -254,7 +254,7 @@ export default function DigestsPage() {
             {[...Array(6)].map((_, i) => (
               <div
                 key={i}
-                className="h-9 w-20 animate-pulse rounded-full bg-muted"
+                className="h-9 w-20 animate-pulse rounded-full bg-[var(--paper-2)]"
               />
             ))}
           </div>
@@ -262,7 +262,7 @@ export default function DigestsPage() {
             {[...Array(4)].map((_, i) => (
               <div
                 key={i}
-                className="h-6 animate-pulse rounded bg-muted"
+                className="h-6 animate-pulse rounded bg-[var(--paper-2)]"
                 style={{ width: `${80 - i * 15}%` }}
               />
             ))}
@@ -272,21 +272,21 @@ export default function DigestsPage() {
 
       {/* Error state */}
       {error && (
-        <div className="paper-panel border-red-200/80 bg-red-50/80 px-4 py-3 text-sm text-red-700 shadow-none">
+        <div className="lp-card border-[#da9a80]/80 bg-[#f4dfd5]/80 px-4 py-3 text-sm text-[#8a3318] shadow-none">
           Failed to load digests: {error.message}
         </div>
       )}
 
       {/* Empty state */}
       {!loading && !error && digests.length === 0 && (
-        <div className="paper-panel flex flex-col items-center justify-center py-16 text-center">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-            <Newspaper className="h-7 w-7 text-muted-foreground" />
+        <div className="lp-card flex flex-col items-center justify-center py-16 text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--paper-2)]">
+            <Newspaper className="h-7 w-7 text-[var(--ink-4)]" />
           </div>
-          <p className="font-display text-2xl tracking-tight text-foreground">
+          <p className="font-display text-2xl tracking-tight text-[var(--ink)]">
             No digests available yet.
           </p>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+          <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--ink-4)]">
             No digests available yet. Digests will appear here once they are
             generated.
           </p>
@@ -297,8 +297,8 @@ export default function DigestsPage() {
       {!loading && digests.length > 0 && (
         <div className="space-y-5">
           {/* Search input */}
-          <div className="paper-panel relative px-4 py-3 shadow-none">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="lp-card relative px-4 py-3 shadow-none">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--ink-4)]" />
             <input
               type="text"
               placeholder="Search digests by keyword..."
@@ -307,10 +307,10 @@ export default function DigestsPage() {
                 setSearchQuery(e.target.value);
                 setSelectedDate(null);
               }}
-              className="w-full rounded-2xl border border-border/70 bg-background/85 py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
+              className="w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] py-2.5 pl-10 pr-4 text-sm text-[var(--ink)] placeholder:text-[var(--ink-4)] transition-colors focus:border-[var(--forest)] focus:outline-none focus:ring-2 focus:ring-[var(--forest)]"
             />
             {searchQuery && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--ink-4)]">
                 {filteredDigests.length} of {digests.length} digests
               </span>
             )}
@@ -333,8 +333,8 @@ export default function DigestsPage() {
                     onClick={() => setSelectedDate(digest.date)}
                     className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                       isActive
-                        ? "bg-amber-100 text-amber-800 ring-1 ring-amber-300"
-                        : "bg-muted text-muted-foreground hover:bg-muted"
+                        ? "bg-[#f4ead8] text-[#654814] ring-1 ring-[#b88a3b]"
+                        : "bg-[var(--paper-2)] text-[var(--ink-4)] hover:bg-[var(--paper-2)]"
                     } ${searchQuery && !isMatched ? "opacity-40" : ""}`}
                   >
                     <span className="block">{shortDate(digest.date)}</span>
@@ -357,28 +357,28 @@ export default function DigestsPage() {
                 <button
                   key={digest.date}
                   onClick={() => setSelectedDate(digest.date)}
-                  className={`paper-panel text-left p-4 transition-all hover:-translate-y-0.5 ${
+                  className={`lp-card text-left p-4 transition-all hover:-translate-y-0.5 ${
                     isActive
-                      ? "border-primary/20 bg-accent/55 shadow-sm ring-1 ring-primary/15"
-                      : "hover:border-border"
+                      ? "border-[var(--forest)] bg-[var(--paper-2)] shadow-[var(--shadow-1)] ring-1 ring-[var(--forest)]"
+                      : "hover:border-[var(--line-soft)]"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-foreground">
+                    <span className="text-sm font-semibold text-[var(--ink)]">
                       {shortDate(digest.date)}
                     </span>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] ${
                       isActive
-                        ? "bg-primary/10 text-primary"
-                        : "bg-muted text-muted-foreground"
+                        ? "bg-[var(--forest-soft)] text-[var(--forest)]"
+                        : "bg-[var(--paper-2)] text-[var(--ink-4)]"
                     }`}>
                       {daysAgoLabel(digest.date)}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed mb-3 line-clamp-2">
+                  <p className="text-xs text-[var(--ink-4)] leading-relaxed mb-3 line-clamp-2">
                     {extractSummary(digest.content)}
                   </p>
-                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-3 text-[11px] text-[var(--ink-4)]">
                     {pIds.length > 0 && (
                       <span>{pIds.length} paper{pIds.length !== 1 ? "s" : ""}</span>
                     )}
@@ -394,13 +394,13 @@ export default function DigestsPage() {
           {/* No results for search */}
           {filteredDigests.length === 0 && searchQuery && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Search className="mb-3 h-8 w-8 text-muted-foreground" />
-              <p className="font-display text-2xl tracking-tight text-foreground">
+                <Search className="mb-3 h-8 w-8 text-[var(--ink-4)]" />
+              <p className="font-display text-2xl tracking-tight text-[var(--ink)]">
                 No digests match &quot;{searchQuery}&quot;
               </p>
               <button
                 onClick={() => setSearchQuery("")}
-                className="mt-3 text-xs font-medium text-primary underline"
+                className="mt-3 text-xs font-medium text-[var(--forest)] underline"
               >
                 Clear search
               </button>
@@ -409,27 +409,27 @@ export default function DigestsPage() {
 
           {/* Selected digest content */}
           {activeDigest && (
-            <div className="paper-panel overflow-hidden p-0">
+            <div className="lp-card overflow-hidden p-0">
               {/* Enhanced content header */}
-              <div className="flex items-center gap-3 border-b border-border/70 px-5 py-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-[1rem] border border-border/70 bg-accent/55 text-primary">
+              <div className="flex items-center gap-3 border-b border-[var(--line-soft)] px-5 py-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper-2)] text-[var(--forest)]">
                   <Calendar className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-base font-medium text-foreground">
+                  <h2 className="text-base font-medium text-[var(--ink)]">
                     {formatDate(activeDigest.date)}
                   </h2>
                   <div className="flex items-center gap-3 mt-0.5">
-                    <span className="text-xs font-medium text-primary">
+                    <span className="text-xs font-medium text-[var(--forest)]">
                       {daysAgoLabel(activeDigest.date)}
                     </span>
                     {paperIds.length > 0 && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-[var(--ink-4)]">
                         {paperIds.length} paper{paperIds.length !== 1 ? "s" : ""} mentioned
                       </span>
                     )}
                     {sections.length > 0 && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-[var(--ink-4)]">
                         {sections.length} section{sections.length !== 1 ? "s" : ""}
                       </span>
                     )}
@@ -439,15 +439,15 @@ export default function DigestsPage() {
 
               {/* Section navigation tabs */}
               {sections.length > 0 && (
-                  <div className="flex gap-1 overflow-x-auto border-b border-border/70 px-5 py-2 scrollbar-thin scrollbar-thumb-border">
+                  <div className="flex gap-1 overflow-x-auto border-b border-[var(--line-soft)] px-5 py-2 scrollbar-thin scrollbar-thumb-border">
                     {sections.map((section) => (
                       <button
                         key={section.id}
                         onClick={() => scrollToSection(section.id)}
                         className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                           activeSection === section.id
-                          ? "bg-accent/70 text-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          ? "bg-[var(--paper-2)] text-[var(--ink)]"
+                          : "text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
                         }`}
                       >
                       {section.title}

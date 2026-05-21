@@ -70,20 +70,20 @@ export function MethodAdvisor({
     const pct = Math.round(Math.max(0, Math.min(1, score)) * 100);
     return (
       <div className="flex items-center gap-1.5">
-        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-gray-100">
+        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-[var(--paper-2)]">
           <div
             className={cn(
               "h-full rounded-full transition-all",
               pct >= 70
-                ? "bg-emerald-500"
+                ? "bg-[var(--forest)]"
                 : pct >= 50
-                  ? "bg-yellow-500"
-                  : "bg-gray-400"
+                  ? "bg-[#b88a3b]"
+                  : "bg-[var(--ink-5)]"
             )}
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className="text-[10px] tabular-nums text-muted-foreground">
+        <span className="text-[10px] tabular-nums text-[var(--ink-4)]">
           {pct}%
         </span>
       </div>
@@ -91,24 +91,24 @@ export function MethodAdvisor({
   };
 
   return (
-    <Card className={cn("rounded-xl shadow-sm", compact && "border-0 shadow-none")}>
+    <Card className={cn("rounded-[var(--r)] shadow-[var(--shadow-1)]", compact && "border-0 shadow-none")}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <FlaskConical className="h-4 w-4 text-emerald-500" />
+            <FlaskConical className="h-4 w-4 text-[var(--forest)]" />
             Method Advisor
           </CardTitle>
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+              className="rounded p-1 text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
             >
               <X className="h-4 w-4" />
             </button>
           )}
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-[var(--ink-4)]">
           Describe your research setup to find the best methods.
         </p>
       </CardHeader>
@@ -121,7 +121,7 @@ export function MethodAdvisor({
             onChange={(e) => setDescription(e.target.value)}
             placeholder="e.g., I have panel data on Chinese hospitals with staggered policy adoption across provinces..."
             rows={2}
-            className="flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex-1 resize-none rounded-[var(--r)] border border-[var(--line)] bg-[var(--paper)] px-3 py-2 text-sm ring-offset-[var(--paper)] placeholder:text-[var(--ink-4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--forest)]"
           />
           <Button
             type="submit"
@@ -140,7 +140,7 @@ export function MethodAdvisor({
             {Array.from({ length: 3 }).map((_, i) => (
               <div
                 key={i}
-                className="flex items-center gap-3 rounded-lg border border-border/50 p-3"
+                className="flex items-center gap-3 rounded-[var(--r)] border border-[var(--line-soft)]/50 p-3"
               >
                 <Skeleton className="h-4 flex-1" />
                 <Skeleton className="h-4 w-16" />
@@ -151,7 +151,7 @@ export function MethodAdvisor({
 
         {/* Results */}
         {!loading && called && methods.length === 0 && (
-          <p className="py-4 text-center text-sm text-muted-foreground">
+          <p className="py-4 text-center text-sm text-[var(--ink-4)]">
             No methods found. Try a different description.
           </p>
         )}
@@ -161,13 +161,13 @@ export function MethodAdvisor({
             {methods.map((method) => (
               <div
                 key={method.slug}
-                className="rounded-lg border border-border/50 transition-colors hover:bg-accent/30"
+                className="rounded-[var(--r)] border border-[var(--line-soft)]/50 transition-colors hover:bg-[var(--paper-2)]"
               >
                 {/* Header row */}
                 <div className="flex items-center gap-2 px-3 py-2">
                   <Link
                     href={`/atom/${method.slug}`}
-                    className="flex-1 text-sm font-medium text-foreground hover:text-primary transition-colors"
+                    className="flex-1 text-sm font-medium text-[var(--ink)] hover:text-[var(--forest)] transition-colors"
                   >
                     {method.title}
                   </Link>
@@ -177,10 +177,10 @@ export function MethodAdvisor({
                       className={cn(
                         "shrink-0 rounded-full px-1.5 py-0 text-[10px] font-medium",
                         method.evidenceStrength === "strong"
-                          ? "bg-green-100 text-green-700"
+                          ? "bg-[var(--forest-soft)] text-[var(--forest-2)]"
                           : method.evidenceStrength === "moderate"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-gray-100 text-gray-600"
+                            ? "bg-[#f4ead8] text-[#7a5a18]"
+                            : "bg-[var(--paper-2)] text-[var(--ink-3)]"
                       )}
                     >
                       {method.evidenceStrength}
@@ -192,7 +192,7 @@ export function MethodAdvisor({
                   </Badge>
                   <button
                     type="button"
-                    className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                    className="shrink-0 rounded p-0.5 text-[var(--ink-4)] hover:text-[var(--ink)]"
                     onClick={() =>
                       setExpandedSlug(
                         expandedSlug === method.slug ? null : method.slug
@@ -210,26 +210,26 @@ export function MethodAdvisor({
 
                 {/* Expanded details */}
                 {expandedSlug === method.slug && (
-                  <div className="space-y-2 border-t border-border/50 px-3 py-2">
+                  <div className="space-y-2 border-t border-[var(--line-soft)]/50 px-3 py-2">
                     {method.whenToUse && (
-                      <div className="rounded-md bg-emerald-50 px-3 py-2">
-                        <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                      <div className="rounded-[var(--r)] bg-[var(--forest-soft)] px-3 py-2">
+                        <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--forest-2)]">
                           When to use
                         </p>
-                        <p className="text-xs leading-relaxed text-emerald-900">
+                        <p className="text-xs leading-relaxed text-[var(--forest-2)]">
                           {method.whenToUse}
                         </p>
                       </div>
                     )}
                     {method.description && (
-                      <p className="text-xs leading-relaxed text-muted-foreground">
+                      <p className="text-xs leading-relaxed text-[var(--ink-4)]">
                         {method.description}
                       </p>
                     )}
                     <div className="flex gap-2">
                       <Link
                         href={`/atom/${method.slug}`}
-                        className="inline-flex items-center gap-1 text-[10px] font-medium text-primary hover:underline"
+                        className="inline-flex items-center gap-1 text-[10px] font-medium text-[var(--forest)] hover:underline"
                       >
                         <ExternalLink className="h-2.5 w-2.5" />
                         View method details

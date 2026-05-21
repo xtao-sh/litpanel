@@ -134,7 +134,7 @@ Core tables in `backend/kb.db`:
 
 ## 3. Backend API
 
-Built with **FastAPI** + **Strawberry GraphQL**, served via uvicorn on port 8001.
+Built with **FastAPI** + **Strawberry GraphQL**, served locally via uvicorn on port 8050.
 
 ### 3.1 GraphQL API (`/graphql`)
 
@@ -200,7 +200,7 @@ Three search modes, ranked via Reciprocal Rank Fusion:
 
 ## 4. Frontend
 
-Built with **Next.js 14** (App Router), **Apollo Client** for GraphQL, **Tailwind CSS** + **shadcn/ui** for styling.
+Built with **Next.js 16** (App Router), **Apollo Client** for GraphQL, **Tailwind CSS** + **shadcn/ui** for styling.
 
 ### 4.1 Page Map
 
@@ -292,7 +292,7 @@ Built with **Next.js 14** (App Router), **Apollo Client** for GraphQL, **Tailwin
 
 | Layer | Technology |
 |-------|------------|
-| **Frontend** | Next.js 14 (App Router), React, TypeScript |
+| **Frontend** | Next.js 16 (App Router), React, TypeScript |
 | **Styling** | Tailwind CSS, shadcn/ui (Radix primitives) |
 | **GraphQL Client** | Apollo Client |
 | **Graph Visualization** | Cytoscape.js |

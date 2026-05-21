@@ -23,11 +23,11 @@ function ScoreMetric({
   shortLabel: string;
 }) {
   return (
-    <span className="flex items-center gap-1 text-xs text-muted-foreground" title={label}>
+    <span className="flex items-center gap-1 text-xs text-[var(--ink-4)]" title={label}>
       <span
         className={`inline-block h-2 w-2 rounded-full ${color}`}
       />
-      <span className="text-[9px] text-muted-foreground">{shortLabel}</span>
+      <span className="text-[9px] text-[var(--ink-4)]">{shortLabel}</span>
       {value !== null ? value.toFixed(1) : "--"}
     </span>
   );
@@ -37,7 +37,7 @@ export function ActiveIdeas({ ideas, loading }: ActiveIdeasProps) {
   const { t } = useI18n();
 
   return (
-    <Card className="paper-panel rounded-[1.45rem] border-border/75 shadow-none">
+    <Card className="lp-card rounded-[var(--r-md)] border-[var(--line-soft)] shadow-none">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold">
@@ -45,7 +45,7 @@ export function ActiveIdeas({ ideas, loading }: ActiveIdeasProps) {
           </CardTitle>
           <Link
             href="/ideas"
-            className="text-xs font-medium text-primary hover:underline"
+            className="text-xs font-medium text-[var(--forest)] hover:underline"
           >
             {t("dashboard.actions.viewAll")}
           </Link>
@@ -67,7 +67,7 @@ export function ActiveIdeas({ ideas, loading }: ActiveIdeasProps) {
             ))}
           </div>
         ) : ideas.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">
+          <p className="py-4 text-center text-sm text-[var(--ink-4)]">
             {t("dashboard.activeIdeas.empty")}
           </p>
         ) : (
@@ -76,35 +76,35 @@ export function ActiveIdeas({ ideas, loading }: ActiveIdeasProps) {
               <Link
                 key={idea.id}
                 href={`/ideas#idea-${encodeURIComponent(idea.id)}`}
-                className="group -mx-2 block rounded-[1rem] px-2 py-2 transition-colors hover:bg-[color:oklch(var(--accent)/0.4)]"
+                className="group -mx-2 block rounded-[var(--r-md)] px-2 py-2 transition-colors hover:bg-[var(--paper-2)]"
               >
                 <div className="flex items-start gap-2 mb-1.5">
-                  <span className="min-w-0 flex-1 line-clamp-1 text-sm text-foreground transition-colors group-hover:text-primary">
+                  <span className="min-w-0 flex-1 line-clamp-1 text-sm text-[var(--ink)] transition-colors group-hover:text-[var(--forest)]">
                     {idea.title}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-x-3 gap-y-1">
                   <ScoreMetric
                     value={idea.composite}
-                    color="bg-sky-500"
+                    color="bg-[#2c4870]"
                     label={t("dashboard.activeIdeas.composite")}
                     shortLabel={t("dashboard.activeIdeas.compositeShort")}
                   />
                   <ScoreMetric
                     value={idea.novelty}
-                    color="bg-violet-400"
+                    color="bg-[#6f86a6]"
                     label={t("dashboard.activeIdeas.novelty")}
                     shortLabel="N"
                   />
                   <ScoreMetric
                     value={idea.feasibility}
-                    color="bg-green-400"
+                    color="bg-[var(--forest)]"
                     label={t("dashboard.activeIdeas.feasibility")}
                     shortLabel="F"
                   />
                   <ScoreMetric
                     value={idea.impact}
-                    color="bg-amber-400"
+                    color="bg-[#b88a3b]"
                     label={t("dashboard.activeIdeas.impact")}
                     shortLabel="I"
                   />

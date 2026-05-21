@@ -93,11 +93,11 @@ function PathBlock({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-background/80 px-4 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+    <div className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-4 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-4)]">
         {label}
       </p>
-      <p className="mt-2 break-all font-mono text-xs leading-5 text-foreground">
+      <p className="mt-2 break-all font-mono text-xs leading-5 text-[var(--ink)]">
         {value}
       </p>
     </div>
@@ -112,8 +112,8 @@ function MetricPill({
   value: string | number;
 }) {
   return (
-    <div className="rounded-full border border-border bg-background/80 px-3 py-1.5 text-xs text-muted-foreground">
-      <span className="font-medium text-foreground">{value}</span> {label}
+    <div className="rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5 text-xs text-[var(--ink-4)]">
+      <span className="font-medium text-[var(--ink)]">{value}</span> {label}
     </div>
   );
 }
@@ -134,6 +134,13 @@ export default function SetupPage() {
   const [editingLibraryDiscipline, setEditingLibraryDiscipline] = useState("");
   const [editingLibraryDescription, setEditingLibraryDescription] = useState("");
   const [savingLibraryId, setSavingLibraryId] = useState<number | null>(null);
+  const [editingPaths, setEditingPaths] = useState(false);
+  const [savingPaths, setSavingPaths] = useState(false);
+  const [pathDrafts, setPathDrafts] = useState({
+    papersDir: "",
+    knowledgeBaseDir: "",
+    agentDbPath: "",
+  });
   const [deletingLibraryId, setDeletingLibraryId] = useState<number | null>(null);
   const [reindexingLibraryId, setReindexingLibraryId] = useState<number | null>(null);
   const [exportingLibraryId, setExportingLibraryId] = useState<number | null>(null);
@@ -216,6 +223,15 @@ export default function SetupPage() {
   const defaultLibraryId = libraries[0]?.id ?? null;
   const activeLibraryId = resolveInitialLibraryId(libraries);
   const activeLibrary = libraries.find((library) => library.id === activeLibraryId) ?? null;
+
+  useEffect(() => {
+    if (!activeLibrary) return;
+    setPathDrafts({
+      papersDir: activeLibrary.papers_dir ?? "",
+      knowledgeBaseDir: activeLibrary.knowledge_base_dir ?? "",
+      agentDbPath: activeLibrary.agent_db_path ?? "",
+    });
+  }, [activeLibrary]);
 
   const providerCatalogMap = useMemo(
     () => new Map(aiProviders.map((provider) => [provider.key, provider])),
@@ -443,6 +459,38 @@ export default function SetupPage() {
     }
   }
 
+  async function handleSavePaths() {
+    if (!activeLibrary) return;
+    setSavingPaths(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      const resp = await fetch(`${API_URL}/api/libraries/${activeLibrary.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: activeLibrary.name,
+          discipline: activeLibrary.discipline ?? "",
+          description: activeLibrary.description ?? "",
+          papers_dir: pathDrafts.papersDir.trim(),
+          knowledge_base_dir: pathDrafts.knowledgeBaseDir.trim(),
+          agent_db_path: pathDrafts.agentDbPath.trim(),
+        }),
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) {
+        throw new Error(data?.detail ?? t("setup.messages.failedUpdateLibrary"));
+      }
+      await loadLibraries();
+      setEditingPaths(false);
+      setStatusMessage(t("setup.messages.pathsSaved"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("setup.messages.failedUpdateLibrary"));
+    } finally {
+      setSavingPaths(false);
+    }
+  }
+
   async function handleDeleteLibrary(library: Library) {
     const confirmed = window.confirm(
       t("setup.messages.deleteConfirm", { name: library.name })
@@ -565,25 +613,25 @@ export default function SetupPage() {
   return (
     <div className="space-y-8">
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-[var(--r)] border border-[#da9a80] bg-[#f4dfd5] px-4 py-3 text-sm text-[#8a3318]">
           {error}
         </div>
       )}
 
       {statusMessage && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+        <div className="rounded-[var(--r)] border border-[var(--forest)] bg-[var(--forest-soft)] px-4 py-3 text-sm text-[var(--forest-2)]">
           {statusMessage}
         </div>
       )}
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-        <Card className="rounded-[1.4rem]">
+        <Card className="rounded-[var(--r-md)]">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{t("setup.ai.providersTitle")}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 text-sm text-muted-foreground">
-            <div className="rounded-2xl border border-border bg-background/75 p-3">
-              <p className="text-xs font-medium text-foreground">
+          <CardContent className="space-y-4 text-sm text-[var(--ink-4)]">
+            <div className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)]/75 p-3">
+              <p className="text-xs font-medium text-[var(--ink)]">
                 {t("setup.ai.enabledProviders")}
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -591,31 +639,31 @@ export default function SetupPage() {
                   enabledProviders.map((provider) => (
                     <span
                       key={provider.provider}
-                      className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800"
+                      className="rounded-full bg-[var(--forest-soft)] px-3 py-1 text-xs font-medium text-[var(--forest-2)]"
                     >
                       {provider.label}
                     </span>
                   ))
                 ) : (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-[var(--ink-4)]">
                     {t("setup.ai.noEnabledProviders")}
                   </span>
                 )}
               </div>
             </div>
-            <div className="flex flex-col gap-2 rounded-2xl border border-border bg-background/75 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)]/75 p-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="text-xs font-medium text-foreground">
+                <p className="text-xs font-medium text-[var(--ink)]">
                   {t("setup.ai.providerPicker")}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-xs text-[var(--ink-4)]">
                   {t("setup.ai.configuredProviders", { count: configuredProviderCount })}
                 </p>
               </div>
               <select
                 value={activeProviderKey}
                 onChange={(event) => setSelectedProviderKey(event.target.value)}
-                className="h-10 min-w-[220px] rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+                className="h-10 min-w-[220px] rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-sm text-[var(--ink)]"
               >
                 {aiProviders.map((provider) => (
                   <option key={provider.key} value={provider.key}>
@@ -626,15 +674,15 @@ export default function SetupPage() {
             </div>
 
             {activeProvider && activeProviderSetting ? (
-              <div className="rounded-2xl border border-border bg-background/75 p-4" title={activeProvider.description}>
+              <div className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)]/75 p-4" title={activeProvider.description}>
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm font-semibold text-foreground">{activeProvider.label}</p>
-                    <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                    <p className="text-sm font-semibold text-[var(--ink)]">{activeProvider.label}</p>
+                    <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-[var(--ink-4)]">
                       {t("setup.ai.apiLabel", { style: activeProvider.api_style })}
                     </p>
                   </div>
-                  <label className="flex items-center gap-2 text-xs font-medium text-foreground">
+                  <label className="flex items-center gap-2 text-xs font-medium text-[var(--ink)]">
                     <Checkbox
                       checked={activeProviderSetting.enabled}
                       onCheckedChange={(checked) =>
@@ -651,7 +699,7 @@ export default function SetupPage() {
                       updateProviderSetting(activeProvider.key, { base_url: event.target.value })
                     }
                     placeholder={activeProvider.default_base_url}
-                    className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+                    className="h-11 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-sm text-[var(--ink)]"
                   />
                   <input
                     value={activeProviderSetting.default_model}
@@ -659,7 +707,7 @@ export default function SetupPage() {
                       updateProviderSetting(activeProvider.key, { default_model: event.target.value })
                     }
                     placeholder={activeProvider.default_model}
-                    className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+                    className="h-11 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-sm text-[var(--ink)]"
                   />
                 </div>
                 <input
@@ -676,7 +724,7 @@ export default function SetupPage() {
                       ? t("setup.ai.savedKey", { hint: activeProviderSetting.api_key_hint || t("setup.ai.storedInKeychain") })
                       : t("setup.ai.apiKeyPlaceholder", { provider: activeProvider.label })
                   }
-                  className="mt-3 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+                  className="mt-3 h-11 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-sm text-[var(--ink)]"
                 />
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Button
@@ -708,14 +756,14 @@ export default function SetupPage() {
                       {t("setup.ai.clearSavedKey")}
                     </Button>
                   ) : null}
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-[var(--ink-4)]">
                     {activeProviderSetting.has_key
                       ? t("setup.ai.keySaved", { hint: activeProviderSetting.api_key_hint ? ` (${activeProviderSetting.api_key_hint})` : "" })
                       : t("setup.ai.noSavedKey")}
                   </span>
                 </div>
                 {providerTestResults[activeProvider.key] ? (
-                  <p className="mt-2 text-xs text-muted-foreground">
+                  <p className="mt-2 text-xs text-[var(--ink-4)]">
                     {providerTestResults[activeProvider.key]}
                   </p>
                 ) : null}
@@ -724,12 +772,12 @@ export default function SetupPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-[1.4rem]">
+        <Card className="rounded-[var(--r-md)]">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{t("setup.ai.stepRoutingTitle")}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 text-sm text-muted-foreground">
-            <div className="rounded-2xl border border-border bg-background/75 p-4">
+          <CardContent className="space-y-4 text-sm text-[var(--ink-4)]">
+            <div className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)]/75 p-4">
               <div className="grid gap-2 sm:grid-cols-2">
                 <button
                   type="button"
@@ -738,10 +786,10 @@ export default function SetupPage() {
                     setSingleStepRouting(true);
                     applySingleStepRouting(defaultStepProvider, defaultStepModel);
                   }}
-                  className={`rounded-xl border px-3 py-2 text-left text-sm transition ${
+                  className={`rounded-[var(--r)] border px-3 py-2 text-left text-sm transition ${
                     singleStepRouting
-                      ? "border-primary bg-primary/15 text-foreground"
-                      : "border-border bg-background text-muted-foreground"
+                      ? "border-[var(--forest)] bg-[var(--forest-soft)] text-[var(--ink)]"
+                      : "border-[var(--line-soft)] bg-[var(--paper)] text-[var(--ink-4)]"
                   }`}
                 >
                   <span className="block font-medium">{t("setup.ai.sameModel")}</span>
@@ -750,10 +798,10 @@ export default function SetupPage() {
                   type="button"
                   title={t("setup.ai.perStepModelBody")}
                   onClick={() => setSingleStepRouting(false)}
-                  className={`rounded-xl border px-3 py-2 text-left text-sm transition ${
+                  className={`rounded-[var(--r)] border px-3 py-2 text-left text-sm transition ${
                     !singleStepRouting
-                      ? "border-primary bg-primary/15 text-foreground"
-                      : "border-border bg-background text-muted-foreground"
+                      ? "border-[var(--forest)] bg-[var(--forest-soft)] text-[var(--ink)]"
+                      : "border-[var(--line-soft)] bg-[var(--paper)] text-[var(--ink-4)]"
                   }`}
                 >
                   <span className="block font-medium">{t("setup.ai.perStepModel")}</span>
@@ -763,7 +811,7 @@ export default function SetupPage() {
               {singleStepRouting ? (
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-xs font-medium text-foreground">
+                    <label className="mb-2 block text-xs font-medium text-[var(--ink)]">
                       {t("setup.ai.globalProvider")}
                     </label>
                     <Select
@@ -783,7 +831,7 @@ export default function SetupPage() {
                     </Select>
                   </div>
                   <div>
-                    <label className="mb-2 block text-xs font-medium text-foreground">
+                    <label className="mb-2 block text-xs font-medium text-[var(--ink)]">
                       {t("setup.ai.globalModel")}
                     </label>
                     <input
@@ -793,13 +841,13 @@ export default function SetupPage() {
                         providerCatalogMap.get(defaultStepProvider)?.default_model ??
                         t("setup.ai.defaultModel")
                       }
-                      className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+                      className="h-10 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-sm text-[var(--ink)]"
                     />
                   </div>
                 </div>
               ) : (
                 <div className="mt-4 space-y-3">
-                  <p className="text-xs font-medium text-foreground">{t("setup.ai.perStepList")}</p>
+                  <p className="text-xs font-medium text-[var(--ink)]">{t("setup.ai.perStepList")}</p>
                   {aiSteps.map((step) => {
                     const config = stepConfigMap.get(step.key) ?? {
                       step: step.key,
@@ -807,9 +855,9 @@ export default function SetupPage() {
                       model: "",
                     };
                     return (
-                      <div key={step.key} className="rounded-xl border border-border bg-background/70 p-3" title={step.description}>
+                      <div key={step.key} className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] p-3" title={step.description}>
                         <div className="mb-3">
-                          <p className="text-sm font-semibold text-foreground">
+                          <p className="text-sm font-semibold text-[var(--ink)]">
                             {step.group === "pipeline" ? t("setup.ai.pipelineSteps") : t("setup.ai.workspaceFeatures")} · {step.label}
                           </p>
                         </div>
@@ -837,7 +885,7 @@ export default function SetupPage() {
                               providerCatalogMap.get(step.default_provider)?.default_model ??
                               t("setup.ai.modelOverride")
                             }
-                            className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+                            className="h-10 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-sm text-[var(--ink)]"
                           />
                         </div>
                       </div>
@@ -855,49 +903,100 @@ export default function SetupPage() {
       </section>
 
       {loading ? (
-        <div className="paper-panel flex items-center gap-3 rounded-[1.4rem] px-5 py-4 text-sm text-muted-foreground">
+        <div className="lp-card flex items-center gap-3 rounded-[var(--r-md)] px-5 py-4 text-sm text-[var(--ink-4)]">
           <Loader2 className="h-4 w-4 animate-spin" />
           {t("setup.steps.loading")}
         </div>
       ) : (
-        <section className="space-y-4 rounded-[1.4rem] border border-border bg-background/85 px-5 py-5">
-          <div>
-            <h3 className="text-lg font-semibold text-foreground">{t("setup.steps.confirmPathsTitle")}</h3>
+        <section className="space-y-4 rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)] px-5 py-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-lg font-semibold text-[var(--ink)]">{t("setup.steps.confirmPathsTitle")}</h3>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2 rounded-full"
+              onClick={() => setEditingPaths((value) => !value)}
+              disabled={!activeLibrary}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              {editingPaths ? t("common.actions.cancel") : t("setup.paths.edit")}
+            </Button>
           </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <PathBlock label={t("setup.paths.knowledgeBase")} value={config?.knowledge_base_dir ?? t("setup.status.unavailable")} />
-            <PathBlock label={t("setup.paths.pdfCache")} value={config?.papers_dir ?? t("setup.status.unavailable")} />
-            <PathBlock label={t("setup.paths.agentDb")} value={config?.agent_db_path ?? t("setup.status.unavailable")} />
-            <PathBlock label={t("setup.paths.appDb")} value={config?.kb_db_path ?? t("setup.status.unavailable")} />
-          </div>
+          {editingPaths ? (
+            <div className="grid gap-3 lg:grid-cols-3">
+              <label className="space-y-2 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-4 py-3">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-4)]">
+                  {t("setup.paths.knowledgeBase")}
+                </span>
+                <input
+                  value={pathDrafts.knowledgeBaseDir}
+                  onChange={(event) =>
+                    setPathDrafts((prev) => ({ ...prev, knowledgeBaseDir: event.target.value }))
+                  }
+                  className="h-10 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 font-mono text-xs text-[var(--ink)]"
+                />
+              </label>
+              <label className="space-y-2 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-4 py-3">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-4)]">
+                  {t("setup.paths.pdfCache")}
+                </span>
+                <input
+                  value={pathDrafts.papersDir}
+                  onChange={(event) =>
+                    setPathDrafts((prev) => ({ ...prev, papersDir: event.target.value }))
+                  }
+                  className="h-10 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 font-mono text-xs text-[var(--ink)]"
+                />
+              </label>
+              <label className="space-y-2 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-4 py-3">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-4)]">
+                  {t("setup.paths.agentDb")}
+                </span>
+                <input
+                  value={pathDrafts.agentDbPath}
+                  onChange={(event) =>
+                    setPathDrafts((prev) => ({ ...prev, agentDbPath: event.target.value }))
+                  }
+                  className="h-10 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 font-mono text-xs text-[var(--ink)]"
+                />
+              </label>
+              <div className="flex items-center gap-2 lg:col-span-3">
+                <Button type="button" onClick={handleSavePaths} disabled={savingPaths} className="gap-2 rounded-full">
+                  {savingPaths ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {t("setup.paths.save")}
+                </Button>
+                <span className="text-xs text-[var(--ink-4)]">{t("setup.paths.appDbReadonly")}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <PathBlock label={t("setup.paths.knowledgeBase")} value={activeLibrary?.knowledge_base_dir ?? config?.knowledge_base_dir ?? t("setup.status.unavailable")} />
+              <PathBlock label={t("setup.paths.pdfCache")} value={activeLibrary?.papers_dir ?? config?.papers_dir ?? t("setup.status.unavailable")} />
+              <PathBlock label={t("setup.paths.agentDb")} value={activeLibrary?.agent_db_path ?? config?.agent_db_path ?? t("setup.status.unavailable")} />
+              <PathBlock label={t("setup.paths.appDb")} value={config?.kb_db_path ?? t("setup.status.unavailable")} />
+            </div>
+          )}
         </section>
       )}
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <Card className="rounded-[1.4rem]">
+      <section className="grid gap-4">
+        <Card className="rounded-[var(--r-md)]">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Database className="h-4 w-4" />
               {t("setup.cards.activeLibrary")}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>
-              {t("setup.cards.name")}: <span className="font-semibold text-foreground">{activeLibrary?.name ?? t("setup.status.unavailable")}</span>
-            </p>
-            <p>
-              {t("setup.cards.discipline")}: <span className="font-semibold text-foreground">{activeLibrary?.discipline || t("setup.status.uncategorized")}</span>
-            </p>
-            <p>
-              {t("setup.cards.indexedPapers")}: <span className="font-semibold text-foreground">{totalPapers.toLocaleString()}</span>
-            </p>
-            <p>
-              {t("setup.cards.structuredCards")}: <span className="font-semibold text-foreground">{statsData?.stats.totalCards?.toLocaleString() ?? 0}</span>
-            </p>
-            <p>
-              {t("setup.cards.atoms")}: <span className="font-semibold text-foreground">{statsData?.stats.totalAtoms?.toLocaleString() ?? 0}</span>
-            </p>
-            <div className="flex flex-wrap gap-2 pt-1">
+          <CardContent className="space-y-4 text-sm text-[var(--ink-4)]">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="font-semibold text-[var(--ink)]">{activeLibrary?.name ?? t("setup.status.unavailable")}</span>
+              <span>{activeLibrary?.discipline || t("setup.status.uncategorized")}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+              <MetricPill label={t("setup.cards.indexedPapers")} value={totalPapers.toLocaleString()} />
+              <MetricPill label={t("setup.cards.structuredCards")} value={statsData?.stats.totalCards?.toLocaleString() ?? 0} />
+              <MetricPill label={t("setup.cards.atoms")} value={statsData?.stats.totalAtoms?.toLocaleString() ?? 0} />
               <MetricPill label={t("setup.cards.maps")} value={activeLibrary?.field_map_count ?? 0} />
               <MetricPill label={t("setup.cards.ideas")} value={activeLibrary?.idea_count ?? 0} />
               <MetricPill label={t("setup.cards.digests")} value={activeLibrary?.digest_count ?? 0} />
@@ -905,39 +1004,20 @@ export default function SetupPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-[1.4rem]">
+        <Card className="rounded-[var(--r-md)]">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <FileStack className="h-4 w-4" />
-              {t("setup.cards.importedFiles")}
+              {t("setup.cards.importAndDatabase")}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>
-              {t("setup.cards.cachedPdfs")}: <span className="font-semibold text-foreground">{status?.downloaded_pdfs ?? 0}</span>
-            </p>
-            <p>
-              {t("setup.cards.pendingQueue")}: <span className="font-semibold text-foreground">{status?.counts?.pending ?? 0}</span>
-            </p>
-            <p>
-              {t("setup.cards.completedItems")}: <span className="font-semibold text-foreground">{status?.counts?.completed ?? 0}</span>
-            </p>
-            <p>
-              {t("setup.cards.importBatches")}: <span className="font-semibold text-foreground">{activeLibrary?.import_batch_count ?? 0}</span>
-            </p>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        <Card className="rounded-[1.4rem]">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Database className="h-4 w-4" />
-              {t("setup.libraryExchange.title")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm text-muted-foreground">
+          <CardContent className="space-y-4 text-sm text-[var(--ink-4)]">
+            <div className="grid grid-cols-2 gap-2">
+              <MetricPill label={t("setup.cards.cachedPdfs")} value={status?.downloaded_pdfs ?? 0} />
+              <MetricPill label={t("setup.cards.pendingQueue")} value={status?.counts?.pending ?? 0} />
+              <MetricPill label={t("setup.cards.completedItems")} value={status?.counts?.completed ?? 0} />
+              <MetricPill label={t("setup.cards.importBatches")} value={activeLibrary?.import_batch_count ?? 0} />
+            </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -976,36 +1056,38 @@ export default function SetupPage() {
             </div>
           </CardContent>
         </Card>
+      </section>
 
-        <Card className="rounded-[1.4rem]">
+      <section className="grid gap-4 lg:grid-cols-2">
+        <Card className="rounded-[var(--r-md)]">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{t("setup.libraryForm.title")}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <CardContent className="space-y-3 text-sm text-[var(--ink-4)]">
             <input
               value={newLibraryName}
               onChange={(event) => setNewLibraryName(event.target.value)}
               placeholder={t("setup.libraryForm.namePlaceholder")}
-              className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+              className="h-11 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-sm text-[var(--ink)]"
             />
             <input
               value={newLibraryDiscipline}
               onChange={(event) => setNewLibraryDiscipline(event.target.value)}
               placeholder={t("setup.libraryForm.disciplinePlaceholder")}
-              className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+              className="h-11 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-sm text-[var(--ink)]"
             />
             <Button onClick={handleCreateLibrary} disabled={creatingLibrary || !newLibraryName.trim()} className="w-full">
               {creatingLibrary ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {t("setup.libraryForm.create")}
             </Button>
             {libraries.length > 0 && (
-              <div className="rounded-2xl border border-border bg-background/70 px-3 py-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              <div className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
                   {t("setup.libraryForm.existing")}
                 </p>
                 <div className="mt-3 space-y-3">
                   {libraries.map((library) => (
-                    <div key={library.id} className="rounded-xl border border-border bg-background px-3 py-3">
+                    <div key={library.id} className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-3">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           {editingLibraryId === library.id ? (
@@ -1013,25 +1095,25 @@ export default function SetupPage() {
                               <input
                                 value={editingLibraryName}
                                 onChange={(event) => setEditingLibraryName(event.target.value)}
-                                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+                                className="h-10 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-sm text-[var(--ink)]"
                               />
                               <input
                                 value={editingLibraryDiscipline}
                                 onChange={(event) => setEditingLibraryDiscipline(event.target.value)}
                                 placeholder={t("setup.libraryForm.disciplineEditPlaceholder")}
-                                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+                                className="h-10 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-sm text-[var(--ink)]"
                               />
                               <textarea
                                 value={editingLibraryDescription}
                                 onChange={(event) => setEditingLibraryDescription(event.target.value)}
                                 placeholder={t("setup.libraryForm.descriptionPlaceholder")}
-                                className="min-h-[84px] w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground"
+                                className="min-h-[84px] w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)]"
                               />
                             </div>
                           ) : (
                             <>
-                              <p className="text-sm font-medium text-foreground">{library.name}</p>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-sm font-medium text-[var(--ink)]">{library.name}</p>
+                              <p className="text-xs text-[var(--ink-4)]">
                                 {library.discipline || t("setup.status.uncategorized")} · {t("setup.libraryForm.papersCount", { count: library.paper_count })}
                                 {library.id === defaultLibraryId ? ` · ${t("setup.status.default")}` : ""}
                               </p>
@@ -1042,11 +1124,11 @@ export default function SetupPage() {
                                 <MetricPill label={t("setup.cards.imports")} value={library.import_batch_count} />
                               </div>
                               {library.description ? (
-                                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                                <p className="mt-1 text-xs leading-5 text-[var(--ink-4)]">
                                   {library.description}
                                 </p>
                               ) : null}
-                              <div className="mt-2 text-[11px] text-muted-foreground">
+                              <div className="mt-2 text-[11px] text-[var(--ink-4)]">
                                 {t("setup.libraryForm.latestMeta", {
                                   digest: library.latest_digest_date ?? t("setup.status.none"),
                                   idea: library.latest_idea_date ?? t("setup.status.none"),

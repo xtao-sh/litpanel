@@ -5,10 +5,10 @@ import { Filter } from "lucide-react";
 import type { Atom } from "@/lib/types";
 
 const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  mechanism: { bg: "bg-orange-50", text: "text-orange-800", border: "border-orange-200" },
-  method:    { bg: "bg-green-50",  text: "text-green-800",  border: "border-green-200" },
-  dataset:   { bg: "bg-purple-50", text: "text-purple-800", border: "border-purple-200" },
-  puzzle:    { bg: "bg-red-50",    text: "text-red-800",    border: "border-red-200" },
+  mechanism: { bg: "bg-[#f4ead8]", text: "text-[#654814]", border: "border-[#d6b678]" },
+  method: { bg: "bg-[var(--forest-soft)]", text: "text-[var(--forest-2)]", border: "border-[var(--forest)]" },
+  dataset: { bg: "bg-[#e9eef6]", text: "text-[#1b2e4d]", border: "border-[#bccbe0]" },
+  puzzle: { bg: "bg-[#f4dfd5]", text: "text-[#742b14]", border: "border-[#da9a80]" },
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -47,8 +47,8 @@ export function AtomChips({ atoms, getAtomHref, getExplorerHref }: AtomChipsProp
 
         return (
           <div key={type}>
-            <h4 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-gray-700">
-              <span className={`inline-block h-2 w-2 rounded-full ${colors.bg.replace("bg-", "bg-").replace("-50", "-500")}`} style={{ backgroundColor: type === "mechanism" ? "#f97316" : type === "method" ? "#22c55e" : type === "dataset" ? "#a855f7" : "#ef4444" }} />
+            <h4 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-[var(--ink-3)]">
+              <span className={`inline-block h-2 w-2 rounded-full ${colors.bg.replace("bg-", "bg-").replace("-50", "-500")}`} style={{ backgroundColor: type === "mechanism" ? "#b88a3b" : type === "method" ? "#15803d" : type === "dataset" ? "#2c4870" : "#b54820" }} />
               {TYPE_LABELS[type] ?? type}
             </h4>
             <div className="flex flex-wrap gap-2">
@@ -70,7 +70,7 @@ export function AtomChips({ atoms, getAtomHref, getExplorerHref }: AtomChipsProp
                   <span
                     className={`
                       inline-flex h-4.5 min-w-4.5 items-center justify-center
-                      rounded-full bg-white/70 px-1 text-[10px] font-semibold
+                      rounded-full bg-[var(--paper)]/70 px-1 text-[10px] font-semibold
                     `}
                   >
                     {atom.paperCount}
@@ -81,7 +81,7 @@ export function AtomChips({ atoms, getAtomHref, getExplorerHref }: AtomChipsProp
                         ? getExplorerHref(atom.slug)
                         : `/explorer?tab=papers&atomSlug=${encodeURIComponent(atom.slug)}`
                     }
-                    className="ml-0.5 rounded-full p-0.5 hover:bg-black/10 transition-colors"
+                    className="ml-0.5 rounded-full p-0.5 hover:bg-[var(--ink)]/10 transition-colors"
                     title="Filter papers by this atom in Explorer"
                   >
                     <Filter className="h-3 w-3" />

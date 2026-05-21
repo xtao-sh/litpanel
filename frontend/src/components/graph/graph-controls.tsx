@@ -12,11 +12,11 @@ import type { LayoutName } from "./cytoscape-graph";
 import type { GraphNode, SearchResult, SearchHit } from "@/lib/types";
 
 const NODE_TYPE_CONFIG = [
-  { type: "paper", label: "Papers", color: "#3b82f6" },
-  { type: "mechanism", label: "Mechanisms", color: "#f97316" },
-  { type: "method", label: "Methods", color: "#22c55e" },
-  { type: "dataset", label: "Datasets", color: "#a855f7" },
-  { type: "puzzle", label: "Puzzles", color: "#ef4444" },
+  { type: "paper", label: "Papers", color: "#2c4870" },
+  { type: "mechanism", label: "Mechanisms", color: "#b88a3b" },
+  { type: "method", label: "Methods", color: "#15803d" },
+  { type: "dataset", label: "Datasets", color: "#2c4870" },
+  { type: "puzzle", label: "Puzzles", color: "#b54820" },
 ] as const;
 
 const LAYOUT_OPTIONS: { value: LayoutName; label: string }[] = [
@@ -141,17 +141,17 @@ export function GraphControls({
   const selectedLayout = LAYOUT_OPTIONS.find((l) => l.value === layout);
 
   return (
-    <Card className="paper-panel w-72 rounded-[1.55rem] bg-background/92 shadow-none backdrop-blur-md">
+    <Card className="lp-card w-72 rounded-[var(--r-md)] bg-[var(--paper)] shadow-none backdrop-blur-md">
       <div className="p-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <p className="section-kicker">Research map</p>
-            <h3 className="font-display text-[1.45rem] text-foreground">Controls</h3>
+            <h3 className="font-display text-[1.45rem] text-[var(--ink)]">Controls</h3>
           </div>
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="rounded-full p-1.5 text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
+            className="rounded-full p-1.5 text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
             aria-label={collapsed ? "Expand controls" : "Collapse controls"}
           >
             {collapsed ? (
@@ -166,13 +166,13 @@ export function GraphControls({
           <div className="mt-3 space-y-4">
             {/* Search */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              <label className="mb-1 block text-xs font-medium text-[var(--ink-4)]">
                 Search
               </label>
               <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[var(--ink-4)]" />
                 {topicSuggestionsLoading && (
-                  <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                  <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-[var(--ink-4)]" />
                 )}
                 <Input
                   value={searchQuery}
@@ -184,20 +184,20 @@ export function GraphControls({
                   onFocus={() => setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                   placeholder="ID, atom, or keywords..."
-                  className="h-10 rounded-[1rem] pl-9 text-sm"
+                  className="h-10 rounded-[var(--r-md)] pl-9 text-sm"
                 />
                 {showSuggestions && (localSuggestions.length > 0 || topicSuggestions.length > 0) && (
-                  <div className="paper-panel absolute top-full z-50 mt-2 max-h-72 w-[320px] overflow-y-auto rounded-[1.1rem] py-1.5 shadow-none ring-1 ring-black/5">
+                  <div className="lp-card absolute top-full z-50 mt-2 max-h-72 w-[320px] overflow-y-auto rounded-[var(--r-md)] py-1.5 shadow-none ring-1 ring-black/5">
                     {/* Local graph node suggestions */}
                     {localSuggestions.length > 0 && (
                       <>
-                        <div className="border-b border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary bg-[color:oklch(var(--accent)/0.45)]">
+                        <div className="border-b border-[var(--line-soft)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--forest)] bg-[var(--paper-2)]">
                           In current graph
                         </div>
                         {localSuggestions.map((node) => (
                           <button
                             key={node.id}
-                            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-[color:oklch(var(--accent)/0.45)] transition-colors"
+                            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-[var(--paper-2)] transition-colors"
                             onMouseDown={() => handleSuggestionClick(node)}
                           >
                             <span
@@ -209,10 +209,10 @@ export function GraphControls({
                                   )?.color ?? "#999",
                               }}
                             />
-                            <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                            <span className="min-w-0 flex-1 truncate font-medium text-[var(--ink)]">
                               {node.label}
                             </span>
-                            <span className="ml-auto flex-shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                            <span className="ml-auto flex-shrink-0 rounded bg-[var(--paper-2)] px-1.5 py-0.5 text-xs font-medium text-[var(--ink-4)]">
                               {node.type}
                             </span>
                           </button>
@@ -222,13 +222,13 @@ export function GraphControls({
                     {/* Backend search suggestions for topic keywords */}
                     {topicSuggestions.length > 0 && (
                       <>
-                        <div className="border-b border-border bg-[color:oklch(var(--accent)/0.45)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
+                        <div className="border-b border-[var(--line-soft)] bg-[var(--paper-2)] px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--forest)]">
                           Search results
                         </div>
                         {topicSuggestions.map((hit) => (
                           <button
                             key={`${hit.entityType}-${hit.entityId}`}
-                            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-[color:oklch(var(--accent)/0.45)] transition-colors"
+                            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-[var(--paper-2)] transition-colors"
                             onMouseDown={() => handleTopicSuggestionClick(hit)}
                           >
                             <span
@@ -240,10 +240,10 @@ export function GraphControls({
                                   )?.color ?? "#999",
                               }}
                             />
-                            <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                            <span className="min-w-0 flex-1 truncate font-medium text-[var(--ink)]">
                               {hit.title}
                             </span>
-                            <span className="ml-auto flex-shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                            <span className="ml-auto flex-shrink-0 rounded bg-[var(--paper-2)] px-1.5 py-0.5 text-xs font-medium text-[var(--ink-4)]">
                               {hit.entityType}
                             </span>
                           </button>
@@ -257,7 +257,7 @@ export function GraphControls({
 
             {/* Depth */}
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              <label className="mb-1.5 block text-xs font-medium text-[var(--ink-4)]">
                 Depth
               </label>
               <div className="flex gap-1.5">
@@ -275,7 +275,7 @@ export function GraphControls({
                 ))}
               </div>
               {depthHint ? (
-                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                <p className="mt-2 text-[11px] leading-relaxed text-[var(--ink-4)]">
                   {depthHint}
                 </p>
               ) : null}
@@ -283,7 +283,7 @@ export function GraphControls({
 
             {/* Node types */}
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              <label className="mb-1.5 block text-xs font-medium text-[var(--ink-4)]">
                 Node Types
               </label>
               <div className="space-y-1.5">
@@ -308,7 +308,7 @@ export function GraphControls({
                       className="inline-block h-2 w-2 rounded-full"
                       style={{ backgroundColor: color }}
                     />
-                    <span className="text-xs text-muted-foreground">{label}</span>
+                    <span className="text-xs text-[var(--ink-4)]">{label}</span>
                   </label>
                 ))}
               </div>
@@ -316,26 +316,26 @@ export function GraphControls({
 
             {/* Layout */}
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              <label className="mb-1.5 block text-xs font-medium text-[var(--ink-4)]">
                 Layout
               </label>
               <div className="relative">
                 <button
                   onClick={() => setLayoutOpen(!layoutOpen)}
-                  className="flex h-10 w-full items-center justify-between rounded-[1rem] border border-border bg-background/80 px-3 text-sm text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)]"
+                  className="flex h-10 w-full items-center justify-between rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 text-sm text-[var(--ink-4)] hover:bg-[var(--paper-2)]"
                 >
                   <span>{selectedLayout?.label ?? "Force-directed"}</span>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  <ChevronDown className="h-4 w-4 text-[var(--ink-4)]" />
                 </button>
                 {layoutOpen && (
-                  <div className="paper-panel absolute top-full z-50 mt-2 w-full rounded-[1rem] py-1 shadow-none">
+                  <div className="lp-card absolute top-full z-50 mt-2 w-full rounded-[var(--r-md)] py-1 shadow-none">
                     {LAYOUT_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
-                        className={`w-full px-3 py-1.5 text-left text-xs hover:bg-[color:oklch(var(--accent)/0.45)] ${
+                        className={`w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--paper-2)] ${
                           layout === opt.value
-                            ? "bg-[color:oklch(var(--accent)/0.55)] font-medium text-primary"
-                            : "text-muted-foreground"
+                            ? "bg-[var(--paper-3)] font-medium text-[var(--forest)]"
+                            : "text-[var(--ink-4)]"
                         }`}
                         onClick={() => {
                           onLayoutChange(opt.value);
@@ -351,14 +351,14 @@ export function GraphControls({
             </div>
 
             {/* Stats & reset */}
-            <div className="flex items-center justify-between border-t border-border pt-3">
-              <span className="text-xs text-muted-foreground">
+            <div className="flex items-center justify-between border-t border-[var(--line-soft)] pt-3">
+              <span className="text-xs text-[var(--ink-4)]">
                 {nodeCount} nodes / {edgeCount} edges
               </span>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 gap-1 rounded-full px-3 text-xs text-muted-foreground"
+                className="h-8 gap-1 rounded-full px-3 text-xs text-[var(--ink-4)]"
                 onClick={onReset}
               >
                 <RotateCcw className="h-3 w-3" />

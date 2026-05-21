@@ -27,21 +27,21 @@ export function LandscapeDatasetsCard({
   if (sorted.length === 0) return null;
 
   return (
-    <Card className="rounded-xl shadow-sm">
+    <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <Database className="h-4 w-4 text-purple-500" />
+          <Database className="h-4 w-4 text-[#2c4870]" />
           Datasets in this literature
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-1">
         {sorted.map((dataset) => (
-          <div key={dataset.slug} className="rounded-lg transition-colors hover:bg-accent/40">
+          <div key={dataset.slug} className="rounded-[var(--r)] transition-colors hover:bg-[var(--paper-2)]">
             <div className="flex items-start gap-2 px-2 py-1.5">
               <div className="min-w-0 flex-1">
                 <button
                   type="button"
-                  className="text-left text-sm font-medium text-foreground transition-colors hover:text-primary"
+                  className="text-left text-sm font-medium text-[var(--ink)] transition-colors hover:text-[var(--forest)]"
                   onClick={() => onAtomClick(dataset.slug)}
                 >
                   {dataset.title}
@@ -51,7 +51,7 @@ export function LandscapeDatasetsCard({
                     <button
                       type="button"
                       onClick={() => onAtomClick(dataset.slug)}
-                      className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+                      className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-2 py-1 text-[11px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                     >
                       Detail
                     </button>
@@ -61,7 +61,7 @@ export function LandscapeDatasetsCard({
                           ? getExplorerHref(dataset.slug)
                           : `/explorer?tab=papers&atomSlug=${encodeURIComponent(dataset.slug)}`
                       }
-                      className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2 py-1 text-[11px] font-medium text-purple-700 transition-colors hover:bg-purple-100"
+                      className="inline-flex items-center gap-1 rounded-[var(--r)] border border-[#bccbe0] bg-[#e9eef6] px-2 py-1 text-[11px] font-medium text-[#223a5e] transition-colors hover:bg-[#e9eef6]"
                     >
                       <Filter className="h-3 w-3" />
                       Explorer
@@ -76,7 +76,7 @@ export function LandscapeDatasetsCard({
                       ? getExplorerHref(dataset.slug)
                       : `/explorer?tab=papers&atomSlug=${encodeURIComponent(dataset.slug)}`
                   }
-                  className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:text-purple-600"
+                  className="shrink-0 rounded p-0.5 text-[var(--ink-4)] transition-colors hover:text-[#2c4870]"
                   title="Filter papers by this dataset in Explorer"
                 >
                   <Filter className="h-3 w-3" />
@@ -90,10 +90,10 @@ export function LandscapeDatasetsCard({
                   className={cn(
                     "shrink-0 rounded-full px-1.5 py-0 text-[10px] font-medium",
                     dataset.access === "public"
-                      ? "bg-green-100 text-green-700"
+                      ? "bg-[var(--forest-soft)] text-[var(--forest-2)]"
                       : dataset.access === "restricted"
-                        ? "bg-yellow-100 text-yellow-700"
-                        : "bg-gray-100 text-gray-600"
+                        ? "bg-[#f4ead8] text-[#7a5a18]"
+                        : "bg-[var(--paper-2)] text-[var(--ink-3)]"
                   )}
                 >
                   {dataset.access}
@@ -102,7 +102,7 @@ export function LandscapeDatasetsCard({
               {dataset.description && (
                 <button
                   type="button"
-                  className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  className="shrink-0 rounded p-0.5 text-[var(--ink-4)] hover:text-[var(--ink)]"
                   onClick={() =>
                     setExpandedSlug(expandedSlug === dataset.slug ? null : dataset.slug)
                   }
@@ -117,7 +117,7 @@ export function LandscapeDatasetsCard({
               )}
             </div>
             {expandedSlug === dataset.slug && dataset.description && (
-              <p className="px-2 pb-2 text-xs leading-relaxed text-muted-foreground">
+              <p className="px-2 pb-2 text-xs leading-relaxed text-[var(--ink-4)]">
                 {dataset.description}
               </p>
             )}

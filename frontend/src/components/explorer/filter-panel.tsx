@@ -139,11 +139,11 @@ function CheckboxGroup({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
           {label}
         </h4>
         {activeCount > 0 && (
-          <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+          <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--ink)] px-1 text-[10px] font-medium text-[var(--paper)]">
             {activeCount}
           </span>
         )}
@@ -152,7 +152,7 @@ function CheckboxGroup({
         {options.map((option) => (
           <label
             key={option}
-            className="flex cursor-pointer items-center gap-2 text-sm text-foreground/80 hover:text-foreground transition-colors"
+            className="flex cursor-pointer items-center gap-2 text-sm text-[var(--ink-3)] hover:text-[var(--ink)] transition-colors"
           >
             <Checkbox
               checked={selected.includes(option)}
@@ -248,18 +248,18 @@ function AuthorSearch({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
           {t("explorer.filters.authors")}
         </h4>
         {selected.length > 0 && (
-          <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+          <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--ink)] px-1 text-[10px] font-medium text-[var(--paper)]">
             {selected.length}
           </span>
         )}
       </div>
 
       <div className="relative">
-        <User className="absolute left-2 top-2 h-3.5 w-3.5 text-gray-400" />
+        <User className="absolute left-2 top-2 h-3.5 w-3.5 text-[var(--ink-5)]" />
         <input
           ref={inputRef}
           type="text"
@@ -271,17 +271,17 @@ function AuthorSearch({
             }
           }}
           placeholder={t("explorer.filters.authorPlaceholder")}
-          className="h-8 w-full rounded-md border border-input bg-background pl-7 pr-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          className="h-8 w-full rounded-[var(--r)] border border-[var(--line)] bg-[var(--paper)] pl-7 pr-2 text-xs placeholder:text-[var(--ink-4)] focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
         />
         {showDropdown && suggestions.length > 0 && (
           <div
             ref={dropdownRef}
-            className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-md border border-border bg-background shadow-lg"
+            className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] shadow-[var(--shadow-2)]"
           >
             {suggestions.map((name) => (
               <button
                 key={name}
-                className="flex w-full items-center px-3 py-1.5 text-left text-xs text-foreground hover:bg-accent transition-colors"
+                className="flex w-full items-center px-3 py-1.5 text-left text-xs text-[var(--ink)] hover:bg-[var(--paper-2)] transition-colors"
                 onClick={() => addAuthor(name)}
               >
                 {name}
@@ -296,12 +296,12 @@ function AuthorSearch({
           {selected.map((name) => (
             <span
               key={name}
-              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-accent/55 px-2 py-0.5 text-[11px] font-medium text-primary"
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper-2)] px-2 py-0.5 text-[11px] font-medium text-[var(--forest)]"
             >
               {name.length > 20 ? name.slice(0, 18) + ".." : name}
               <button
                 onClick={() => removeAuthor(name)}
-                className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-accent/80"
+                className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-[var(--paper-2)]"
               >
                 <X className="h-2.5 w-2.5" />
               </button>
@@ -357,11 +357,11 @@ function MethodFilter({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
           {t("explorer.filters.methods")}
         </h4>
         {selected.length > 0 && (
-          <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+          <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--ink)] px-1 text-[10px] font-medium text-[var(--paper)]">
             {selected.length}
           </span>
         )}
@@ -370,7 +370,7 @@ function MethodFilter({
         {displayMethods.map((method) => (
           <label
             key={method}
-            className="flex cursor-pointer items-center gap-2 text-sm text-foreground/80 hover:text-foreground transition-colors"
+            className="flex cursor-pointer items-center gap-2 text-sm text-[var(--ink-3)] hover:text-[var(--ink)] transition-colors"
           >
             <Checkbox
               checked={selected.includes(method)}
@@ -384,7 +384,7 @@ function MethodFilter({
       </div>
       {allMethods.length > TOP_METHODS_LIMIT && (
         <button
-          className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
+          className="text-xs font-medium text-[var(--forest)] transition-colors hover:text-[var(--forest)]/80"
           onClick={() => setShowAll(!showAll)}
         >
           {showAll
@@ -401,10 +401,10 @@ function MethodFilter({
 // ---------------------------------------------------------------------------
 
 const ATOM_TYPE_COLORS: Record<string, string> = {
-  mechanism: "bg-orange-100 text-orange-800",
-  method: "bg-emerald-100 text-emerald-800",
-  dataset: "bg-violet-100 text-violet-800",
-  puzzle: "bg-rose-100 text-rose-800",
+  mechanism: "bg-[#f4ead8] text-[#654814]",
+  method: "bg-[var(--forest-soft)] text-[var(--forest-2)]",
+  dataset: "bg-[#e9eef6] text-[#1b2e4d]",
+  puzzle: "bg-[#f4dfd5] text-[#742b14]",
 };
 
 function AtomSearch({
@@ -483,18 +483,18 @@ function AtomSearch({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
           {t("explorer.filters.atoms")}
         </h4>
         {selected.length > 0 && (
-          <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+          <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--ink)] px-1 text-[10px] font-medium text-[var(--paper)]">
             {selected.length}
           </span>
         )}
       </div>
 
       <div className="relative">
-        <Atom className="absolute left-2 top-2 h-3.5 w-3.5 text-gray-400" />
+        <Atom className="absolute left-2 top-2 h-3.5 w-3.5 text-[var(--ink-5)]" />
         <input
           ref={inputRef}
           type="text"
@@ -506,26 +506,26 @@ function AtomSearch({
             }
           }}
           placeholder={t("explorer.filters.atomPlaceholder")}
-          className="h-8 w-full rounded-md border border-input bg-background pl-7 pr-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          className="h-8 w-full rounded-[var(--r)] border border-[var(--line)] bg-[var(--paper)] pl-7 pr-2 text-xs placeholder:text-[var(--ink-4)] focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
         />
         {showDropdown && suggestions.length > 0 && (
           <div
             ref={dropdownRef}
-            className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-md border border-border bg-background shadow-lg"
+            className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] shadow-[var(--shadow-2)]"
           >
             {suggestions.map((atom) => (
               <button
                 key={atom.slug}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-foreground hover:bg-accent transition-colors"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-[var(--ink)] hover:bg-[var(--paper-2)] transition-colors"
                 onClick={() => addAtom(atom.slug)}
               >
                 <span
-                  className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium ${ATOM_TYPE_COLORS[atom.type] || "bg-gray-100 text-gray-800"}`}
+                  className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium ${ATOM_TYPE_COLORS[atom.type] || "bg-[var(--paper-2)] text-[var(--ink-2)]"}`}
                 >
                   {translateValue(t, atom.type)}
                 </span>
                 <span className="truncate flex-1">{atom.title}</span>
-                <span className="shrink-0 text-[10px] text-muted-foreground">
+                <span className="shrink-0 text-[10px] text-[var(--ink-4)]">
                   {atom.paperCount}
                 </span>
               </button>
@@ -539,12 +539,12 @@ function AtomSearch({
           {selected.map((slug) => (
             <span
               key={slug}
-              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-accent/55 px-2 py-0.5 text-[11px] font-medium text-primary"
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper-2)] px-2 py-0.5 text-[11px] font-medium text-[var(--forest)]"
             >
               {slug.length > 25 ? slug.slice(0, 23) + ".." : slug.replace(/_/g, " ")}
               <button
                 onClick={() => removeAtom(slug)}
-                className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-accent/80"
+                className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-[var(--paper-2)]"
               >
                 <X className="h-2.5 w-2.5" />
               </button>
@@ -553,7 +553,7 @@ function AtomSearch({
         </div>
       )}
       {selected.length > 0 && (
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-[10px] text-[var(--ink-4)]">
           {t("explorer.filters.atomsMustMatchAll")}
         </p>
       )}
@@ -606,24 +606,24 @@ function DynamicFieldFilter({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
           {t("explorer.filters.fields")}
         </h4>
         {selected.length > 0 && (
-          <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+          <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--ink)] px-1 text-[10px] font-medium text-[var(--paper)]">
             {selected.length}
           </span>
         )}
       </div>
       {allFields.length > 10 && (
         <div className="relative">
-          <Search className="absolute left-2 top-1.5 h-3 w-3 text-muted-foreground" />
+          <Search className="absolute left-2 top-1.5 h-3 w-3 text-[var(--ink-4)]" />
           <input
             type="text"
             value={fieldSearch}
             onChange={(e) => setFieldSearch(e.target.value)}
             placeholder={t("explorer.filters.fieldPlaceholder")}
-            className="h-7 w-full rounded-md border border-input bg-background pl-6 pr-2 text-[11px] placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            className="h-7 w-full rounded-[var(--r)] border border-[var(--line)] bg-[var(--paper)] pl-6 pr-2 text-[11px] placeholder:text-[var(--ink-4)] focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
           />
         </div>
       )}
@@ -631,7 +631,7 @@ function DynamicFieldFilter({
         {filteredFields.map((field) => (
           <label
             key={field}
-            className="flex cursor-pointer items-center gap-2 text-sm text-foreground/80 hover:text-foreground transition-colors"
+            className="flex cursor-pointer items-center gap-2 text-sm text-[var(--ink-3)] hover:text-[var(--ink)] transition-colors"
           >
             <Checkbox
               checked={selected.includes(field)}
@@ -641,14 +641,14 @@ function DynamicFieldFilter({
           </label>
         ))}
         {fieldSearch.trim() && filteredFields.length === 0 && (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-[var(--ink-4)]">
             {t("explorer.empty.noFields", { query: fieldSearch.trim() })}
           </p>
         )}
       </div>
       {!fieldSearch.trim() && allFields.length > TOP_FIELDS_LIMIT && (
         <button
-          className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
+          className="text-xs font-medium text-[var(--forest)] transition-colors hover:text-[var(--forest)]/80"
           onClick={() => setShowAll(!showAll)}
         >
           {showAll ? t("explorer.filters.showFewer") : t("explorer.filters.showAllFields", { count: allFields.length })}
@@ -735,19 +735,19 @@ function ScoreDimensionFilterSection({
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
             {t("explorer.filters.scoreDimensions")}
           </h4>
           {activeCount > 0 && (
-            <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+            <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--ink)] px-1 text-[10px] font-medium text-[var(--paper)]">
               {activeCount}
             </span>
           )}
         </div>
         {expanded ? (
-          <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+          <ChevronUp className="h-3.5 w-3.5 text-[var(--ink-4)]" />
         ) : (
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          <ChevronDown className="h-3.5 w-3.5 text-[var(--ink-4)]" />
         )}
       </button>
 
@@ -760,7 +760,7 @@ function ScoreDimensionFilterSection({
                 key={dim}
                 className="flex items-center justify-between gap-1.5"
               >
-                <span className="truncate text-[11px] text-foreground/80">
+                <span className="truncate text-[11px] text-[var(--ink-3)]">
                   {formatDimensionName(dim)}
                 </span>
                 <div className="flex shrink-0 gap-0.5">
@@ -770,8 +770,8 @@ function ScoreDimensionFilterSection({
                       onClick={() => handleDimensionChange(dim, opt.value)}
                       className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
                         currentScore === opt.value
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground hover:bg-accent/70"
+                          ? "bg-[var(--ink)] text-[var(--paper)]"
+                          : "bg-[var(--paper-2)] text-[var(--ink-4)] hover:bg-[var(--paper-2)]"
                       }`}
                     >
                       {opt.value === 0 ? t("explorer.filters.any") : opt.label}
@@ -822,7 +822,7 @@ function PaperFilterControls({
       />
 
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
           {t("explorer.filters.yearRange")}
         </h4>
         <Slider
@@ -838,14 +838,14 @@ function PaperFilterControls({
             })
           }
         />
-        <div className="flex justify-between text-xs font-medium text-muted-foreground">
+        <div className="flex justify-between text-xs font-medium text-[var(--ink-4)]">
           <span>{filters.yearMin ?? 2000}</span>
           <span>{filters.yearMax ?? 2026}</span>
         </div>
       </div>
 
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
           {t("explorer.filters.scoreRange")}
         </h4>
         <Slider
@@ -861,7 +861,7 @@ function PaperFilterControls({
             })
           }
         />
-        <div className="flex justify-between text-xs font-medium text-muted-foreground">
+        <div className="flex justify-between text-xs font-medium text-[var(--ink-4)]">
           <span>{(filters.scoreMin ?? 1).toFixed(1)}</span>
           <span>{(filters.scoreMax ?? 5).toFixed(1)}</span>
         </div>
@@ -876,10 +876,10 @@ function PaperFilterControls({
       />
 
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
           {t("explorer.filters.hasCard")}
         </h4>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground/80 hover:text-foreground transition-colors">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--ink-3)] hover:text-[var(--ink)] transition-colors">
           <Checkbox
             checked={filters.hasCard === true}
             onCheckedChange={(checked) =>
@@ -937,13 +937,13 @@ function AtomFilterControls({
       {/* Theme dropdown filter */}
       {availableThemes.length > 0 && (
         <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
             {t("explorer.filters.theme")}
           </label>
           <select
             value={filters.theme}
             onChange={(e) => onChange({ ...filters, theme: e.target.value })}
-            className="w-full h-8 rounded border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full h-8 rounded border border-[var(--line)] bg-[var(--paper)] px-2 text-xs text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
           >
             <option value="">{t("explorer.filters.allThemes")}</option>
             {availableThemes.map((t) => (
@@ -1081,13 +1081,13 @@ export function FilterPanel({
 
   const content = (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+      <div className="flex items-center justify-between border-b border-[var(--line-soft)] px-4 py-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
           <SlidersHorizontal className="h-4 w-4" />
           {t("explorer.filters.title")}
         </div>
         <button
-          className="rounded p-1 text-muted-foreground hover:text-foreground transition-colors lg:hidden"
+          className="rounded p-1 text-[var(--ink-4)] hover:text-[var(--ink)] transition-colors lg:hidden"
           onClick={onMobileClose}
         >
           <X className="h-4 w-4" />
@@ -1096,12 +1096,12 @@ export function FilterPanel({
 
       <div className="px-4 py-3">
         <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[var(--ink-4)]" />
           <Input
             placeholder={t("explorer.filters.searchPlaceholder")}
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="h-9 rounded-2xl border-border/70 bg-background/85 pl-9 text-sm"
+            className="h-9 rounded-[var(--r)] border-[var(--line-soft)] bg-[var(--paper)] pl-9 text-sm"
           />
         </div>
       </div>
@@ -1129,7 +1129,7 @@ export function FilterPanel({
         </div>
       </ScrollArea>
 
-      <div className="border-t border-border/70 px-4 py-3">
+      <div className="border-t border-[var(--line-soft)] px-4 py-3">
         <Button
           variant={hasActiveFilters ? "default" : "outline"}
           size="sm"
@@ -1146,7 +1146,7 @@ export function FilterPanel({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden w-[260px] shrink-0 border-r border-border/70 bg-background/85 lg:flex lg:flex-col">
+      <aside className="hidden w-[260px] shrink-0 border-r border-[var(--line-soft)] bg-[var(--paper)] lg:flex lg:flex-col">
         {content}
       </aside>
 
@@ -1154,10 +1154,10 @@ export function FilterPanel({
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div
-            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+            className="absolute inset-0 bg-[var(--ink)]/30 backdrop-blur-sm"
             onClick={onMobileClose}
           />
-          <aside className="absolute inset-y-0 left-0 w-[280px] border-r border-border/70 bg-background/95 shadow-xl backdrop-blur-sm">
+          <aside className="absolute inset-y-0 left-0 w-[280px] border-r border-[var(--line-soft)] bg-[var(--paper)]/95 shadow-[var(--shadow-2)] backdrop-blur-sm">
             {content}
           </aside>
         </div>

@@ -24,10 +24,10 @@ export function QueryErrorBanner({ error, message }: QueryErrorBannerProps) {
   const displayMessage = message || "Failed to load data. Please try refreshing the page.";
 
   return (
-    <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950 p-4 text-sm text-red-800 dark:text-red-200">
+    <div className="rounded-[var(--r)] border border-[#da9a80] bg-[#f4dfd5] p-4 text-sm text-[#742b14]">
       <p className="font-medium">{displayMessage}</p>
       {error.message && (
-        <p className="mt-1 text-red-600 dark:text-red-400 text-xs">{error.message}</p>
+        <p className="mt-1 text-xs text-[#8a3318]">{error.message}</p>
       )}
     </div>
   );

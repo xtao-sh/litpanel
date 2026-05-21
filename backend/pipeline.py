@@ -53,6 +53,7 @@ from database import (
 )
 
 logger = logging.getLogger(__name__)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -67,9 +68,9 @@ AGENT_TIMEOUT_SECONDS = 600
 READING_PROFILE_CONFIG: dict[str, dict[str, object]] = {
     "auto": {
         "label": "Auto",
-        "description": "Use scout triage first, then deep-read only when the paper looks worth expanding.",
-        "run_scout": True,
-        "reader_mode": "auto",
+        "description": "Read the paper directly with a balanced academic extraction template.",
+        "run_scout": False,
+        "reader_mode": "always",
     },
     "metadata_only": {
         "label": "Metadata Only",
@@ -79,20 +80,32 @@ READING_PROFILE_CONFIG: dict[str, dict[str, object]] = {
     },
     "title_abstract": {
         "label": "Title + Abstract",
-        "description": "Read lightweight signals and produce a scout-level summary only.",
-        "run_scout": True,
-        "reader_mode": "never",
+        "description": "Read the paper directly and emphasize the title, abstract, and framing.",
+        "run_scout": False,
+        "reader_mode": "always",
     },
     "full_content": {
         "label": "Full Content",
         "description": "Read the full paper content and extract structured knowledge.",
-        "run_scout": True,
+        "run_scout": False,
+        "reader_mode": "always",
+    },
+    "section_batch": {
+        "label": "Section-by-section",
+        "description": "Read long papers section by section before synthesizing the final structured cards. Slower, but better coverage for long PDFs.",
+        "run_scout": False,
         "reader_mode": "always",
     },
     "style_logic": {
         "label": "Style + Logic",
         "description": "Read the full paper and pay extra attention to argument structure and writing style.",
-        "run_scout": True,
+        "run_scout": False,
+        "reader_mode": "always",
+    },
+    "custom": {
+        "label": "Custom",
+        "description": "Use user-edited reading instructions and custom analysis dimensions.",
+        "run_scout": False,
         "reader_mode": "always",
     },
 }
@@ -100,27 +113,91 @@ READING_PROFILE_CONFIG: dict[str, dict[str, object]] = {
 ANALYSIS_FOCUS_OPTIONS: dict[str, dict[str, str]] = {
     "title_abstract": {
         "label": "Title & abstract",
-        "description": "Capture the paper's headline framing and concise summary.",
+        "description": "Extract the title framing, abstract structure, object of study, keywords, and one-sentence takeaway; separate the question, materials, and final claim.",
     },
     "research_question": {
         "label": "Research question",
-        "description": "Focus on what problem the paper is actually trying to answer.",
+        "description": "State the exact question, why it matters, which debate or empirical gap it addresses, and what evidence or explanation the paper adds.",
+    },
+    "literature_position": {
+        "label": "Literature position",
+        "description": "Map the paper to its closest literatures, predecessors, and disagreements; explain whether the contribution is theory, method, data, or empirical fact.",
+    },
+    "theory_framework": {
+        "label": "Theory framework",
+        "description": "Extract model setup, agents, actions, constraints, information structure, equilibrium concept, propositions, and predictions; distinguish formal results from intuition.",
+    },
+    "hypotheses_predictions": {
+        "label": "Hypotheses & predictions",
+        "description": "List explicit hypotheses, testable predictions, and comparative statics; connect each prediction to variables, samples, tests, and whether results support it.",
+    },
+    "institutional_context": {
+        "label": "Institutional context",
+        "description": "Explain institutional, policy, market, technical, or historical background; include key timelines, actors, rule changes, and implications for identification.",
     },
     "methods_data": {
         "label": "Methods & data",
-        "description": "Focus on identification strategy, methodology, and datasets.",
+        "description": "Identify methods, data sources, sample coverage, unit of observation, variables, cleaning/merge steps, and exclusions needed for replication.",
+    },
+    "identification": {
+        "label": "Identification",
+        "description": "Extract causal variation, estimating equation, treatment/control definitions, fixed effects, standard errors, identifying assumptions, and evidence against endogeneity.",
+    },
+    "robustness": {
+        "label": "Robustness",
+        "description": "Summarize robustness checks, placebo tests, sensitivity analysis, alternative variables/samples/specifications, what they rule out, and remaining threats.",
     },
     "findings": {
         "label": "Findings",
-        "description": "Focus on core results, conclusions, and claimed contributions.",
+        "description": "Report main results with magnitudes, statistical and economic significance, heterogeneity, boundary conditions, and the difference between evidence and author interpretation.",
+    },
+    "mechanisms": {
+        "label": "Mechanisms",
+        "description": "Extract proposed causal channels, mechanism tests, mediators, and auxiliary evidence; mark which mechanisms are supported, speculative, or omitted.",
+    },
+    "external_validity": {
+        "label": "External validity",
+        "description": "Discuss portability across populations, places, periods, institutions, and markets; identify failure conditions and evidence needed to test external validity.",
+    },
+    "policy_implications": {
+        "label": "Policy implications",
+        "description": "Explain policy, regulatory, or organizational implications; identify stakeholders, welfare direction, unintended consequences, implementation constraints, and tradeoffs.",
+    },
+    "welfare_counterfactuals": {
+        "label": "Welfare & counterfactuals",
+        "description": "Extract welfare analysis, counterfactual exercises, distributional impacts, cost-benefit logic, key parameters, assumptions, and uncertainty sources.",
+    },
+    "method_reuse": {
+        "label": "Reusable research design",
+        "description": "Identify reusable designs, measurement strategies, data construction recipes, and identification ideas; state prerequisites for applying them elsewhere.",
+    },
+    "data_reuse": {
+        "label": "Reusable data assets",
+        "description": "List data assets, access conditions, licensing limits, replication barriers, substitute sources, public/private status, and potential reuse domains.",
+    },
+    "limitations": {
+        "label": "Limitations",
+        "description": "Identify strongest assumptions, unresolved weaknesses, data limits, measurement error, selection, interpretation threats, and issues not acknowledged by the authors.",
+    },
+    "future_research": {
+        "label": "Future research",
+        "description": "Propose concrete follow-up questions, new settings, additional data, mechanism tests, and publishable extensions that can become research designs.",
     },
     "writing_style": {
         "label": "Writing style",
-        "description": "Focus on tone, exposition style, and how the paper is written.",
+        "description": "Analyze writing style, introduction structure, narrative order, concept explanation, transitions, and techniques that make complex ideas readable.",
     },
     "argument_logic": {
         "label": "Argument logic",
-        "description": "Focus on reasoning flow, assumptions, and causal logic.",
+        "description": "Trace the reasoning chain from motivation and theory to evidence and conclusion; identify assumptions, evidence jumps, weak links, and responses to objections.",
+    },
+    "figures_tables": {
+        "label": "Figures & tables",
+        "description": "Explain key figures and tables, what each shows, which columns/panels matter, which claim they support, and any anomalies or misreading risks.",
+    },
+    "technical_appendix": {
+        "label": "Technical appendix",
+        "description": "Surface appendix proofs, derivations, extra tables, data construction, algorithms, and robustness evidence that may change interpretation of the main text.",
     },
 }
 
@@ -180,10 +257,22 @@ def normalize_analysis_focuses(analysis_focuses: list[str] | None) -> list[str]:
     seen: set[str] = set()
     for raw in analysis_focuses:
         key = str(raw).strip().lower()
-        if not key or key not in ANALYSIS_FOCUS_OPTIONS or key in seen:
+        if not key or key in seen:
             continue
         seen.add(key)
         normalized.append(key)
+    return normalized
+
+
+def normalize_prompt_map(prompt_map: dict[str, str] | None) -> dict[str, str]:
+    if not prompt_map:
+        return {}
+    normalized: dict[str, str] = {}
+    for raw_key, raw_value in prompt_map.items():
+        key = str(raw_key).strip().lower()
+        value = str(raw_value).strip()
+        if key and value:
+            normalized[key] = value
     return normalized
 
 
@@ -202,18 +291,59 @@ def get_pipeline_options() -> dict[str, list[dict[str, object]]]:
     }
 
 
-def _should_run_reader(reading_profile: str, triage_decision: str | None) -> bool:
+def _should_run_reader(reading_profile: str, triage_decision: str | None = None) -> bool:
     profile_key = normalize_reading_profile(reading_profile)
     reader_mode = str(READING_PROFILE_CONFIG[profile_key]["reader_mode"])
     if reader_mode == "always":
         return True
     if reader_mode == "never":
         return False
-    return (triage_decision or "").upper() == "DEEP_READ"
+    return True
 
 
-def _agent_env(runtime: dict) -> dict[str, str]:
+def _should_prebuild_full_text(reading_profile: str) -> bool:
+    profile_key = normalize_reading_profile(reading_profile)
+    return str(READING_PROFILE_CONFIG[profile_key]["reader_mode"]) == "always"
+
+
+def _ensure_pdf_text_cache(pdf_path: Path, reading_profile: str = "auto") -> dict:
+    """Build reusable text cache files for a PDF.
+
+    The first/last-page preview is kept for quick UI display. Full text is
+    prebuilt for profiles that run Reader so later AI steps can reuse it.
+    """
+    try:
+        agents_parent = AGENTS_DIR.parent
+        if str(agents_parent) not in sys.path:
+            sys.path.insert(0, str(agents_parent))
+        from agents.pdf_utils import ensure_text_cache  # type: ignore[import-not-found]
+
+        return {
+            "status": "ok",
+            **ensure_text_cache(
+                pdf_path,
+                first_n=3,
+                last_n=2,
+                max_pages=80,
+                include_full=_should_prebuild_full_text(reading_profile),
+            ),
+        }
+    except Exception as exc:
+        logger.warning("Failed to build text cache for %s: %s", pdf_path, exc)
+        return {"status": "error", "error": str(exc)}
+
+
+def _agent_env(runtime: dict, paper_ids: list[str] | None = None) -> dict[str, str]:
     env = os.environ.copy()
+    existing_pythonpath = env.get("PYTHONPATH", "")
+    pythonpath_entries = [
+        str(PROJECT_ROOT),
+        str(PROJECT_ROOT / "backend"),
+        str(AGENTS_DIR.parent),
+    ]
+    env["PYTHONPATH"] = os.pathsep.join(
+        [*pythonpath_entries, *([existing_pythonpath] if existing_pythonpath else [])]
+    )
     env["KB_DB_PATH"] = str(KB_DB_PATH)
     env["KB_LIBRARY_ID"] = str(runtime["id"])
     env["KB_AGENT_DB_PATH"] = str(runtime["agent_db_path"])
@@ -223,6 +353,8 @@ def _agent_env(runtime: dict) -> dict[str, str]:
     env["KB_AGENT_PROJECT_ROOT"] = str(runtime["knowledge_base_dir"].parent)
     env["EXISTING_AGENT_DB_PATHS"] = str(runtime["agent_db_path"])
     env["KB_EXISTING_AGENT_DB_PATHS"] = str(runtime["agent_db_path"])
+    if paper_ids:
+        env["KB_TARGET_PAPER_IDS"] = ",".join(paper_ids)
     return env
 
 
@@ -250,6 +382,8 @@ def _ensure_agent_db_schema(agent_db_path: Path) -> None:
                 linker_batch INTEGER,
                 reading_profile TEXT DEFAULT 'auto',
                 analysis_focuses TEXT DEFAULT '[]',
+                analysis_focus_prompts TEXT DEFAULT '{}',
+                custom_reading_instructions TEXT DEFAULT '',
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """
@@ -258,14 +392,29 @@ def _ensure_agent_db_schema(agent_db_path: Path) -> None:
             row[1]
             for row in conn.execute("PRAGMA table_info(papers)").fetchall()
         }
-        if "reading_profile" not in existing_columns:
-            conn.execute(
-                "ALTER TABLE papers ADD COLUMN reading_profile TEXT DEFAULT 'auto'"
-            )
-        if "analysis_focuses" not in existing_columns:
-            conn.execute(
-                "ALTER TABLE papers ADD COLUMN analysis_focuses TEXT DEFAULT '[]'"
-            )
+        required_columns = {
+            "status": "TEXT DEFAULT 'pending'",
+            "year": "INTEGER",
+            "folder": "TEXT DEFAULT ''",
+            "title": "TEXT DEFAULT ''",
+            "authors": "TEXT DEFAULT ''",
+            "relevance_score": "REAL",
+            "field_tags": "TEXT DEFAULT ''",
+            "key_contribution": "TEXT DEFAULT ''",
+            "triage_decision": "TEXT",
+            "triage_summary": "TEXT",
+            "triaged_at": "TIMESTAMP",
+            "completed_at": "TIMESTAMP",
+            "linker_batch": "INTEGER",
+            "reading_profile": "TEXT DEFAULT 'auto'",
+            "analysis_focuses": "TEXT DEFAULT '[]'",
+            "analysis_focus_prompts": "TEXT DEFAULT '{}'",
+            "custom_reading_instructions": "TEXT DEFAULT ''",
+            "updated_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        }
+        for column, definition in required_columns.items():
+            if column not in existing_columns:
+                conn.execute(f"ALTER TABLE papers ADD COLUMN {column} {definition}")
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_agent_papers_status ON papers(status)"
         )
@@ -308,6 +457,23 @@ def _get_agent_paper(paper_id: str, agent_db_path: Path) -> sqlite3.Row | None:
         ).fetchone()
     finally:
         conn.close()
+
+
+def _agent_output_summary(result: dict, limit: int = 500) -> str:
+    output = "\n".join(
+        part.strip()
+        for part in (str(result.get("stderr") or ""), str(result.get("stdout") or ""))
+        if part and str(part).strip()
+    )
+    return output[-limit:] if output else ""
+
+
+def _agent_status_error(paper_record: sqlite3.Row | None) -> str:
+    if paper_record is None:
+        return "target paper was not found in the agent DB"
+    if "error" not in paper_record.keys():
+        return ""
+    return str(paper_record["error"] or "").strip()
 
 
 # ---------------------------------------------------------------------------
@@ -440,18 +606,23 @@ def register_paper(
     authors: str = "",
     reading_profile: str = "auto",
     analysis_focuses: list[str] | None = None,
+    analysis_focus_prompts: dict[str, str] | None = None,
+    custom_reading_instructions: str = "",
 ) -> bool:
     """Register a paper in the agent database as pending."""
     _ensure_agent_db_schema(agent_db_path)
     normalized_profile = normalize_reading_profile(reading_profile)
     normalized_focuses = normalize_analysis_focuses(analysis_focuses)
+    normalized_prompts = normalize_prompt_map(analysis_focus_prompts)
+    custom_instructions = str(custom_reading_instructions or "").strip()
 
     conn = _get_agent_db(agent_db_path)
     try:
         conn.execute(
             "INSERT OR IGNORE INTO papers "
-            "(paper_id, file_path, status, year, folder, title, authors, reading_profile, analysis_focuses) "
-            "VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?)",
+            "(paper_id, file_path, status, year, folder, title, authors, reading_profile, analysis_focuses, "
+            "analysis_focus_prompts, custom_reading_instructions) "
+            "VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 paper_id,
                 str(pdf_path),
@@ -461,13 +632,16 @@ def register_paper(
                 authors,
                 normalized_profile,
                 json.dumps(normalized_focuses),
+                json.dumps(normalized_prompts, ensure_ascii=False),
+                custom_instructions,
             ),
         )
         conn.execute(
             "UPDATE papers SET file_path = ?, year = ?, folder = ?, title = ?, authors = ?, "
-            "reading_profile = ?, analysis_focuses = ?, "
+            "reading_profile = ?, analysis_focuses = ?, analysis_focus_prompts = ?, "
+            "custom_reading_instructions = ?, "
             "status = CASE WHEN ? = 'metadata_only' THEN 'triaged' ELSE 'pending' END, "
-            "triage_decision = CASE WHEN ? = 'metadata_only' THEN 'SKIP' ELSE NULL END, "
+            "triage_decision = NULL, "
             "triage_summary = CASE WHEN ? = 'metadata_only' THEN 'Stored without AI reading (metadata only).' ELSE NULL END, "
             "triaged_at = CASE WHEN ? = 'metadata_only' THEN CURRENT_TIMESTAMP ELSE NULL END, "
             "completed_at = NULL, linker_batch = NULL, updated_at = CURRENT_TIMESTAMP "
@@ -480,7 +654,8 @@ def register_paper(
                 authors,
                 normalized_profile,
                 json.dumps(normalized_focuses),
-                normalized_profile,
+                json.dumps(normalized_prompts, ensure_ascii=False),
+                custom_instructions,
                 normalized_profile,
                 normalized_profile,
                 normalized_profile,
@@ -505,6 +680,7 @@ def run_agent_pipeline(
     agent: str = "full-cycle",
     batch_size: int = 10,
     runtime: dict | None = None,
+    paper_ids: list[str] | None = None,
 ) -> dict:
     """Run the agent pipeline as a subprocess.  Returns result summary."""
     resolved_runtime = runtime or _resolve_library_runtime(None)
@@ -526,7 +702,7 @@ def run_agent_pipeline(
             capture_output=True,
             text=True,
             timeout=AGENT_TIMEOUT_SECONDS,
-            env=_agent_env(resolved_runtime),
+            env=_agent_env(resolved_runtime, paper_ids=paper_ids),
         )
         return {
             "success": result.returncode == 0,
@@ -639,22 +815,28 @@ async def process_paper(
     library_id: int | None = None,
     reading_profile: str = "auto",
     analysis_focuses: list[str] | None = None,
+    analysis_focus_prompts: dict[str, str] | None = None,
+    custom_reading_instructions: str = "",
 ) -> dict:
     """Complete pipeline for a single paper: download -> register -> agents -> refresh."""
     normalized_profile = normalize_reading_profile(reading_profile)
     normalized_focuses = normalize_analysis_focuses(analysis_focuses)
-    profile_config = READING_PROFILE_CONFIG[normalized_profile]
+    normalized_prompts = normalize_prompt_map(analysis_focus_prompts)
+    custom_instructions = str(custom_reading_instructions or "").strip()
     steps: dict = {
         "reading_profile": normalized_profile,
         "analysis_focuses": normalized_focuses,
+        "analysis_focus_prompts": normalized_prompts,
     }
     runtime = _resolve_library_runtime(library_id)
     resolved_library_id = runtime["id"]
+    _ensure_agent_db_schema(runtime["agent_db_path"])
 
     # 1. Download
     try:
         pdf_path = download_paper(paper_id, runtime["papers_dir"])
         steps["download"] = {"status": "ok", "path": str(pdf_path)}
+        steps["text_cache"] = _ensure_pdf_text_cache(pdf_path, normalized_profile)
     except Exception as exc:
         steps["download"] = {"status": "error", "error": str(exc)}
         return steps
@@ -675,52 +857,60 @@ async def process_paper(
         title=paper_id,
         reading_profile=normalized_profile,
         analysis_focuses=normalized_focuses,
+        analysis_focus_prompts=normalized_prompts,
+        custom_reading_instructions=custom_instructions,
     )
     steps["registered"] = registered
     if not registered:
         steps["error"] = "Failed to register paper in agent DB"
         return steps
+    try:
+        batch_id = create_import_batch(
+            library_id=resolved_library_id,
+            source_type="nber",
+            source_label=f"NBER {paper_id}",
+            total_files=1,
+        )
+        add_import_batch_file(
+            batch_id=batch_id,
+            filename=pdf_path.name,
+            paper_id=paper_id,
+            status="imported",
+            detail="Downloaded and registered for AI reading.",
+        )
+        finalize_import_batch(
+            batch_id=batch_id,
+            imported_files=1,
+            skipped_files=0,
+            failed_files=0,
+        )
+    except Exception as exc:
+        logger.warning("Failed to record import batch for %s: %s", paper_id, exc)
     get_paper_processing_state(library_id=resolved_library_id, paper_id=paper_id)
 
-    # 3. Run scout (triage) when the profile requires any AI reading.
-    if bool(profile_config["run_scout"]):
-        scout_result = run_agent_pipeline("scout", batch_size=1, runtime=runtime)
-        steps["scout"] = {
-            "success": scout_result["success"],
-            "detail": scout_result.get("stderr", "")[:200],
-        }
-    else:
-        steps["scout"] = {
-            "skipped": True,
-            "reason": "metadata_only profile does not run scout",
-        }
-
-    # 4. Run reader when the selected profile requires deep reading.
-    paper_record = _get_agent_paper(paper_id, runtime["agent_db_path"])
-    triage_decision = None
-    if paper_record is not None:
-        triage_decision = paper_record["triage_decision"]
-        steps["triage_decision"] = triage_decision
-
-    should_run_reader = bool(profile_config["run_scout"]) and _should_run_reader(
-        normalized_profile,
-        triage_decision,
-    )
-    if should_run_reader and steps.get("scout", {}).get("success", True):
-        reader_result = run_agent_pipeline("reader", batch_size=1, runtime=runtime)
+    # 3. Run Reader directly for every profile that asks for AI reading.
+    should_run_reader = _should_run_reader(normalized_profile)
+    if should_run_reader:
+        reader_result = run_agent_pipeline("reader", batch_size=1, runtime=runtime, paper_ids=[paper_id])
         steps["reader"] = {
             "success": reader_result["success"],
-            "detail": reader_result.get("stderr", "")[:200],
+            "detail": _agent_output_summary(reader_result, 300),
         }
+        reader_record = _get_agent_paper(paper_id, runtime["agent_db_path"])
+        if not reader_result["success"] or (reader_record is not None and reader_record["status"] != "completed"):
+            detail = steps["reader"].get("detail") or _agent_status_error(reader_record)
+            steps["error"] = (
+                "Reader did not complete the target paper."
+                + (f" {detail}" if detail else "")
+            )
+            return steps
     else:
         steps["reader"] = {
             "skipped": True,
-            "reason": "selected profile does not require reader"
-            if not _should_run_reader(normalized_profile, triage_decision)
-            else "scout did not complete successfully",
+            "reason": "selected profile does not require reader",
         }
 
-    # 5. Refresh website DB
+    # 4. Refresh website DB
     try:
         refresh_result = refresh_website_db(resolved_library_id)
         steps["refresh"] = refresh_result
@@ -738,9 +928,12 @@ async def reprocess_existing_paper(
     library_id: int | None = None,
     reading_profile: str | None = None,
     analysis_focuses: list[str] | None = None,
+    analysis_focus_prompts: dict[str, str] | None = None,
+    custom_reading_instructions: str | None = None,
 ) -> dict:
     runtime = _resolve_library_runtime(library_id)
     resolved_library_id = runtime["id"]
+    _ensure_agent_db_schema(runtime["agent_db_path"])
 
     conn = get_connection()
     try:
@@ -764,6 +957,14 @@ async def reprocess_existing_paper(
     if not pdf_path.is_file():
         raise RuntimeError("Local PDF file not found for this paper.")
 
+    attach_paper_to_library(
+        library_id=resolved_library_id,
+        paper_id=paper_id,
+        title=paper_id,
+        source_path=str(pdf_path),
+        source_url=build_paper_url(paper_id),
+    )
+
     existing_agent_record = _get_agent_paper(paper_id, runtime["agent_db_path"])
     existing_profile = str(existing_agent_record["reading_profile"]) if existing_agent_record else "auto"
     if existing_agent_record is not None:
@@ -772,20 +973,39 @@ async def reprocess_existing_paper(
             existing_focuses = [str(item) for item in parsed_focuses] if isinstance(parsed_focuses, list) else []
         except json.JSONDecodeError:
             existing_focuses = []
+        try:
+            parsed_prompts = json.loads(str(existing_agent_record["analysis_focus_prompts"] or "{}"))
+            existing_prompts = (
+                {str(key): str(value) for key, value in parsed_prompts.items()}
+                if isinstance(parsed_prompts, dict)
+                else {}
+            )
+        except json.JSONDecodeError:
+            existing_prompts = {}
+        existing_custom_instructions = str(existing_agent_record["custom_reading_instructions"] or "")
     else:
         existing_focuses = []
+        existing_prompts = {}
+        existing_custom_instructions = ""
 
     normalized_profile = normalize_reading_profile(reading_profile or existing_profile or "auto")
     normalized_focuses = normalize_analysis_focuses(
         analysis_focuses if analysis_focuses is not None else existing_focuses
     )
-    profile_config = READING_PROFILE_CONFIG[normalized_profile]
-
+    normalized_prompts = normalize_prompt_map(
+        analysis_focus_prompts if analysis_focus_prompts is not None else existing_prompts
+    )
+    custom_instructions = (
+        str(custom_reading_instructions).strip()
+        if custom_reading_instructions is not None
+        else existing_custom_instructions
+    )
     steps: dict = {
         "paper_id": paper_id,
         "library_id": resolved_library_id,
         "reading_profile": normalized_profile,
         "analysis_focuses": normalized_focuses,
+        "analysis_focus_prompts": normalized_prompts,
         "source_path": str(pdf_path),
     }
 
@@ -797,46 +1017,37 @@ async def reprocess_existing_paper(
         title=paper_id,
         reading_profile=normalized_profile,
         analysis_focuses=normalized_focuses,
+        analysis_focus_prompts=normalized_prompts,
+        custom_reading_instructions=custom_instructions,
     )
     steps["registered"] = register_ok
     if not register_ok:
         steps["error"] = "Failed to re-register paper in agent DB"
         return steps
 
+    steps["text_cache"] = _ensure_pdf_text_cache(pdf_path, normalized_profile)
+
     get_paper_processing_state(library_id=resolved_library_id, paper_id=paper_id)
 
-    if bool(profile_config["run_scout"]):
-        scout_result = run_agent_pipeline("scout", batch_size=1, runtime=runtime)
-        steps["scout"] = {
-            "success": scout_result["success"],
-            "detail": scout_result.get("stderr", "")[:200],
-        }
-    else:
-        steps["scout"] = {
-            "skipped": True,
-            "reason": "metadata_only profile does not run scout",
-        }
-
-    refreshed_record = _get_agent_paper(paper_id, runtime["agent_db_path"])
-    triage_decision = refreshed_record["triage_decision"] if refreshed_record is not None else None
-    steps["triage_decision"] = triage_decision
-
-    should_run_reader = bool(profile_config["run_scout"]) and _should_run_reader(
-        normalized_profile,
-        triage_decision,
-    )
-    if should_run_reader and steps.get("scout", {}).get("success", True):
-        reader_result = run_agent_pipeline("reader", batch_size=1, runtime=runtime)
+    should_run_reader = _should_run_reader(normalized_profile)
+    if should_run_reader:
+        reader_result = run_agent_pipeline("reader", batch_size=1, runtime=runtime, paper_ids=[paper_id])
         steps["reader"] = {
             "success": reader_result["success"],
-            "detail": reader_result.get("stderr", "")[:200],
+            "detail": _agent_output_summary(reader_result, 300),
         }
+        reader_record = _get_agent_paper(paper_id, runtime["agent_db_path"])
+        if not reader_result["success"] or (reader_record is not None and reader_record["status"] != "completed"):
+            detail = steps["reader"].get("detail") or _agent_status_error(reader_record)
+            steps["error"] = (
+                "Reader did not complete the target paper."
+                + (f" {detail}" if detail else "")
+            )
+            return steps
     else:
         steps["reader"] = {
             "skipped": True,
-            "reason": "selected profile does not require reader"
-            if not _should_run_reader(normalized_profile, triage_decision)
-            else "scout did not complete successfully",
+            "reason": "selected profile does not require reader",
         }
 
     try:
@@ -860,6 +1071,8 @@ def process_uploaded_pdf(
     batch_id: int | None = None,
     reading_profile: str = "auto",
     analysis_focuses: list[str] | None = None,
+    analysis_focus_prompts: dict[str, str] | None = None,
+    custom_reading_instructions: str = "",
 ) -> dict:
     """Process an uploaded PDF through the pipeline.
 
@@ -899,6 +1112,8 @@ def process_uploaded_pdf(
     library_dir.mkdir(parents=True, exist_ok=True)
     normalized_profile = normalize_reading_profile(reading_profile)
     normalized_focuses = normalize_analysis_focuses(analysis_focuses)
+    normalized_prompts = normalize_prompt_map(analysis_focus_prompts)
+    custom_instructions = str(custom_reading_instructions or "").strip()
 
     file_sha256 = hashlib.sha256(pdf_bytes).hexdigest()
     if is_duplicate_file_for_library(library_id, file_sha256):
@@ -932,6 +1147,7 @@ def process_uploaded_pdf(
     pdf_path = library_dir / f"{paper_id}.pdf"
     pdf_path.write_bytes(pdf_bytes)
     logger.info("Saved uploaded PDF: %s (%d bytes)", pdf_path, len(pdf_bytes))
+    text_cache = _ensure_pdf_text_cache(pdf_path, normalized_profile)
 
     attach_paper_to_library(
         library_id=library_id,
@@ -948,6 +1164,8 @@ def process_uploaded_pdf(
         title=Path(filename).stem or paper_id,
         reading_profile=normalized_profile,
         analysis_focuses=normalized_focuses,
+        analysis_focus_prompts=normalized_prompts,
+        custom_reading_instructions=custom_instructions,
     )
 
     result = {
@@ -958,6 +1176,8 @@ def process_uploaded_pdf(
         "duplicate": False,
         "reading_profile": normalized_profile,
         "analysis_focuses": normalized_focuses,
+        "analysis_focus_prompts": normalized_prompts,
+        "text_cache": text_cache,
         "status": "registered" if registered else "registration_failed",
     }
     get_paper_processing_state(library_id=library_id, paper_id=paper_id)
@@ -979,6 +1199,8 @@ def process_uploaded_batch(
     batch_id: int | None = None,
     reading_profile: str = "auto",
     analysis_focuses: list[str] | None = None,
+    analysis_focus_prompts: dict[str, str] | None = None,
+    custom_reading_instructions: str = "",
 ) -> dict:
     if not library_exists(library_id):
         return {"error": "Library not found.", "results": []}
@@ -996,6 +1218,8 @@ def process_uploaded_batch(
             batch_id=batch_id,
             reading_profile=reading_profile,
             analysis_focuses=analysis_focuses,
+            analysis_focus_prompts=analysis_focus_prompts,
+            custom_reading_instructions=custom_reading_instructions,
         )
         results.append({
             "filename": filename,
@@ -1036,6 +1260,8 @@ def import_uploaded_file(
     filename: str = "",
     reading_profile: str = "auto",
     analysis_focuses: list[str] | None = None,
+    analysis_focus_prompts: dict[str, str] | None = None,
+    custom_reading_instructions: str = "",
 ) -> dict:
     batch_id = create_import_batch(
         library_id=library_id,
@@ -1051,6 +1277,8 @@ def import_uploaded_file(
         batch_id=batch_id,
         reading_profile=reading_profile,
         analysis_focuses=analysis_focuses,
+        analysis_focus_prompts=analysis_focus_prompts,
+        custom_reading_instructions=custom_reading_instructions,
     )
     status = result.get("status")
     finalize_import_batch(
@@ -1069,6 +1297,8 @@ def import_uploaded_batch(
     library_id: int,
     reading_profile: str = "auto",
     analysis_focuses: list[str] | None = None,
+    analysis_focus_prompts: dict[str, str] | None = None,
+    custom_reading_instructions: str = "",
 ) -> dict:
     batch_id = create_import_batch(
         library_id=library_id,
@@ -1082,6 +1312,8 @@ def import_uploaded_batch(
         batch_id=batch_id,
         reading_profile=reading_profile,
         analysis_focuses=analysis_focuses,
+        analysis_focus_prompts=analysis_focus_prompts,
+        custom_reading_instructions=custom_reading_instructions,
     )
     result["batch_id"] = batch_id
     return result
@@ -1240,6 +1472,13 @@ def get_pipeline_status(library_id: int | None = None) -> dict:
         status["downloaded_pdfs"] = len(list(target_papers_dir.glob("*.pdf")))
 
     if not target_agent_db_path.exists():
+        return status
+
+    try:
+        _ensure_agent_db_schema(target_agent_db_path)
+    except Exception as exc:
+        logger.error("Failed to migrate agent DB schema: %s", exc)
+        status["error"] = str(exc)
         return status
 
     conn = _get_agent_db(target_agent_db_path)

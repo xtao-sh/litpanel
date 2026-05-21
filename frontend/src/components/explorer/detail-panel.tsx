@@ -71,18 +71,18 @@ export function DetailPanel({ item, onClose }: DetailPanelProps) {
 
   return (
     <aside
-      className="fixed inset-y-0 right-0 z-30 w-full max-w-md border-l border-border/70 bg-background/95 shadow-[-12px_0_36px_rgba(44,51,71,0.12)] backdrop-blur-sm transition-transform duration-200 ease-out lg:relative lg:inset-auto lg:z-auto lg:w-[400px] lg:shadow-[-12px_0_36px_rgba(44,51,71,0.08)]"
+      className="fixed inset-y-0 right-0 z-30 w-full max-w-md border-l border-[var(--line-soft)] bg-[var(--paper)]/95 shadow-[var(--shadow-2)] backdrop-blur-sm transition-transform duration-200 ease-out lg:relative lg:inset-auto lg:z-auto lg:w-[400px] lg:shadow-[var(--shadow-2)]"
       style={{ animation: "slideInRight 0.2s ease-out" }}
     >
       <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+        <div className="flex items-center justify-between border-b border-[var(--line-soft)] px-4 py-3">
           <div>
             <p className="section-kicker">{t("explorer.detail.kicker")}</p>
-            <h3 className="font-display text-2xl tracking-tight text-foreground">{t("explorer.detail.title")}</h3>
+            <h3 className="font-display text-2xl tracking-tight text-[var(--ink)]">{t("explorer.detail.title")}</h3>
           </div>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--line-soft)] text-[var(--ink-4)] transition-colors hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
           >
             <X className="h-4 w-4" />
           </button>
@@ -96,8 +96,8 @@ export function DetailPanel({ item, onClose }: DetailPanelProps) {
           </div>
         </ScrollArea>
 
-        <div className="border-t border-border/50 px-4 py-2 text-center">
-          <span className="text-[10px] text-muted-foreground">{t("explorer.detail.escToClose")}</span>
+        <div className="border-t border-[var(--line-soft)]/50 px-4 py-2 text-center">
+          <span className="text-[10px] text-[var(--ink-4)]">{t("explorer.detail.escToClose")}</span>
         </div>
       </div>
     </aside>
@@ -118,7 +118,7 @@ function PaperDetail({ paperId }: { paperId: string }) {
 
   const paper = data?.paper;
   if (!paper) {
-    return <p className="text-sm text-muted-foreground">{t("explorer.detail.paperNotFound")}</p>;
+    return <p className="text-sm text-[var(--ink-4)]">{t("explorer.detail.paperNotFound")}</p>;
   }
 
   return (
@@ -126,25 +126,25 @@ function PaperDetail({ paperId }: { paperId: string }) {
       <div>
         <Link
           href={`/paper/${paper.paperId}`}
-          className="group flex items-center gap-1.5 text-lg font-semibold text-foreground hover:text-primary"
+          className="group flex items-center gap-1.5 text-lg font-semibold text-[var(--ink)] hover:text-[var(--forest)]"
         >
           {paper.title || paper.paperId}
           <ExternalLink className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
         </Link>
-        <p className="mt-1 font-mono text-xs text-muted-foreground">{paper.paperId}</p>
+        <p className="mt-1 font-mono text-xs text-[var(--ink-4)]">{paper.paperId}</p>
       </div>
 
       {paper.authors && paper.authors.length > 0 && (
         <div>
           <Label>{t("explorer.detail.authors")}</Label>
-          <p className="text-sm text-muted-foreground">{paper.authors.join(", ")}</p>
+          <p className="text-sm text-[var(--ink-4)]">{paper.authors.join(", ")}</p>
         </div>
       )}
 
       {paper.year && (
         <div>
           <Label>{t("explorer.detail.year")}</Label>
-          <p className="text-sm text-muted-foreground">{paper.year}</p>
+          <p className="text-sm text-[var(--ink-4)]">{paper.year}</p>
         </div>
       )}
 
@@ -168,10 +168,10 @@ function PaperDetail({ paperId }: { paperId: string }) {
             <p
               className={`text-lg font-semibold tabular-nums ${
                 paper.averageScore >= 4
-                  ? "text-green-600"
+                  ? "text-[var(--forest)]"
                   : paper.averageScore >= 3
-                    ? "text-yellow-600"
-                    : "text-muted-foreground"
+                    ? "text-[#7a5a18]"
+                    : "text-[var(--ink-4)]"
               }`}
             >
               {paper.averageScore.toFixed(1)}
@@ -206,7 +206,7 @@ function PaperDetail({ paperId }: { paperId: string }) {
           <div className="mt-1 space-y-1">
             {paper.scores.map((s) => (
               <div key={s.dimension} className="flex items-center justify-between text-sm">
-                <span className="capitalize text-muted-foreground">{s.dimension}</span>
+                <span className="capitalize text-[var(--ink-4)]">{s.dimension}</span>
                 <span className="font-medium tabular-nums">{s.score}</span>
               </div>
             ))}
@@ -220,7 +220,7 @@ function PaperDetail({ paperId }: { paperId: string }) {
           <div className="mt-1 space-y-3">
             {paper.sections.slice(0, 3).map((sec) => (
               <div key={sec.section}>
-                <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <h5 className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-4)]">
                   {sec.section.replace(/_/g, " ")}
                 </h5>
                 <div className="mt-0.5">
@@ -237,7 +237,7 @@ function PaperDetail({ paperId }: { paperId: string }) {
             {paper.sections.length > 3 && (
               <Link
                 href={`/paper/${paper.paperId}`}
-                className="inline-block text-sm text-primary hover:underline"
+                className="inline-block text-sm text-[var(--forest)] hover:underline"
               >
                 {t("explorer.actions.viewFullCard", { count: paper.sections.length })}
               </Link>
@@ -264,7 +264,7 @@ function AtomDetail({ slug }: { slug: string }) {
   const atom = data?.atom;
 
   if (!atom) {
-    return <p className="text-sm text-muted-foreground">{t("explorer.detail.atomNotFound")}</p>;
+    return <p className="text-sm text-[var(--ink-4)]">{t("explorer.detail.atomNotFound")}</p>;
   }
 
   return (
@@ -272,7 +272,7 @@ function AtomDetail({ slug }: { slug: string }) {
       <div>
         <Link
           href={`/atom/${atom.slug}`}
-          className="group flex items-center gap-1.5 text-lg font-semibold text-foreground hover:text-primary"
+          className="group flex items-center gap-1.5 text-lg font-semibold text-[var(--ink)] hover:text-[var(--forest)]"
         >
           {atom.title}
           <ExternalLink className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
@@ -319,10 +319,10 @@ function AtomDetail({ slug }: { slug: string }) {
               <Link
                 key={p.paperId}
                 href={`/paper/${p.paperId}`}
-                className="block rounded border border-border p-2 text-sm transition-colors hover:bg-muted/50"
+                className="block rounded border border-[var(--line-soft)] p-2 text-sm transition-colors hover:bg-[var(--paper-2)]/50"
               >
-                <span className="text-primary">{p.title || p.paperId}</span>
-                <div className="mt-0.5 flex gap-3 text-xs text-muted-foreground">
+                <span className="text-[var(--forest)]">{p.title || p.paperId}</span>
+                <div className="mt-0.5 flex gap-3 text-xs text-[var(--ink-4)]">
                   {p.year && <span>{p.year}</span>}
                   {p.averageScore != null && (
                     <span>{t("explorer.detail.score", { score: p.averageScore.toFixed(1) })}</span>
@@ -333,7 +333,7 @@ function AtomDetail({ slug }: { slug: string }) {
             {atom.papers.length > 10 && (
               <Link
                 href={`/atom/${atom.slug}`}
-                className="inline-block text-sm text-primary hover:underline"
+                className="inline-block text-sm text-[var(--forest)] hover:underline"
               >
                 {t("explorer.actions.viewAllPapers", { count: atom.paperCount })}
               </Link>
@@ -354,8 +354,8 @@ function IdeaDetail({ idea }: { idea: Idea }) {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">{idea.title}</h2>
-        <p className="mt-1 font-mono text-xs text-muted-foreground">{idea.id}</p>
+        <h2 className="text-lg font-semibold text-[var(--ink)]">{idea.title}</h2>
+        <p className="mt-1 font-mono text-xs text-[var(--ink-4)]">{idea.id}</p>
       </div>
 
       {idea.status && (
@@ -378,7 +378,7 @@ function IdeaDetail({ idea }: { idea: Idea }) {
       {idea.composite != null && (
         <div>
           <Label>{t("explorer.detail.compositeScore")}</Label>
-          <p className="text-xl font-semibold tabular-nums text-foreground">
+          <p className="text-xl font-semibold tabular-nums text-[var(--ink)]">
             {idea.composite.toFixed(1)}
           </p>
         </div>
@@ -387,7 +387,7 @@ function IdeaDetail({ idea }: { idea: Idea }) {
       {idea.generatedDate && (
         <div>
           <Label>{t("explorer.detail.generated")}</Label>
-          <p className="text-sm text-muted-foreground">{idea.generatedDate}</p>
+          <p className="text-sm text-[var(--ink-4)]">{idea.generatedDate}</p>
         </div>
       )}
 
@@ -399,7 +399,7 @@ function IdeaDetail({ idea }: { idea: Idea }) {
               <Link
                 key={pid}
                 href={`/paper/${pid}`}
-                className="block text-sm text-primary hover:underline"
+                className="block text-sm text-[var(--forest)] hover:underline"
               >
                 {pid}
               </Link>
@@ -424,7 +424,7 @@ function IdeaDetail({ idea }: { idea: Idea }) {
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
       {children}
     </h4>
   );
@@ -438,9 +438,9 @@ function ScoreCell({
   value: number | null;
 }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-background/75 p-2.5 text-center">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-lg font-semibold tabular-nums text-foreground">
+    <div className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)]/75 p-2.5 text-center">
+      <p className="text-xs text-[var(--ink-4)]">{label}</p>
+      <p className="text-lg font-semibold tabular-nums text-[var(--ink)]">
         {value ?? "-"}
       </p>
     </div>
@@ -505,27 +505,27 @@ function atomTypeVariant(type: string): BadgeProps["variant"] {
 function evidenceBadgeClass(strength: string | null): string {
   switch (strength) {
     case "strong":
-      return "bg-emerald-100 text-emerald-800";
+      return "bg-[var(--forest-soft)] text-[var(--forest-2)]";
     case "moderate":
-      return "bg-amber-100 text-amber-800";
+      return "bg-[#f4ead8] text-[#654814]";
     case "weak":
-      return "bg-rose-100 text-rose-800";
+      return "bg-[#f4dfd5] text-[#742b14]";
     default:
-      return "bg-muted text-muted-foreground";
+      return "bg-[var(--paper-2)] text-[var(--ink-4)]";
   }
 }
 
 function statusBadgeClass(status: string | null): string {
   switch (status) {
     case "new":
-      return "bg-sky-100 text-sky-800";
+      return "bg-[#e9eef6] text-[#1b2e4d]";
     case "developing":
-      return "bg-amber-100 text-amber-800";
+      return "bg-[#f4ead8] text-[#654814]";
     case "promoted":
-      return "bg-emerald-100 text-emerald-800";
+      return "bg-[var(--forest-soft)] text-[var(--forest-2)]";
     case "killed":
-      return "bg-rose-100 text-rose-800";
+      return "bg-[#f4dfd5] text-[#742b14]";
     default:
-      return "bg-muted text-muted-foreground";
+      return "bg-[var(--paper-2)] text-[var(--ink-4)]";
   }
 }

@@ -111,19 +111,19 @@ export function ResearchQueryBar({
   );
 
   return (
-    <div className="sticky top-0 z-20 border-b border-border/70 bg-background/85 backdrop-blur-md">
+    <div className="sticky top-0 z-20 border-b border-[var(--line-soft)] bg-[var(--paper)] backdrop-blur-md">
       {/* Main query row */}
       <div className="flex items-center gap-3 px-4 py-3 lg:px-6">
         <form onSubmit={handleSubmit} className="flex flex-1 items-center gap-3">
-          <div className="paper-panel relative flex-1 rounded-[1.35rem] p-1.5">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="lp-card relative flex-1 rounded-[var(--r-md)] p-1.5">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--ink-4)]" />
             <input
               ref={inputRef}
               type="text"
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
               placeholder={t("research.queryBar.placeholder")}
-              className="flex h-11 w-full rounded-[1rem] border border-input bg-background/75 pl-10 pr-4 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex h-11 w-full rounded-[var(--r-md)] border border-[var(--line)] bg-[var(--paper)]/75 pl-10 pr-4 text-sm ring-offset-[var(--paper)] placeholder:text-[var(--ink-4)] focus-visible:bg-[var(--paper)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--forest)] focus-visible:ring-offset-2"
             />
           </div>
           <Button type="submit" size="default" className="h-11 rounded-full px-6">
@@ -133,7 +133,7 @@ export function ResearchQueryBar({
 
         {/* Results count */}
         {totalPapers !== null && (
-          <span className="hidden shrink-0 text-sm text-muted-foreground sm:block">
+          <span className="hidden shrink-0 text-sm text-[var(--ink-4)] sm:block">
             {t("common.counts.matchedPapers", { count: totalPapers.toLocaleString() })}
           </span>
         )}
@@ -152,14 +152,14 @@ export function ResearchQueryBar({
           {sortOpen && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setSortOpen(false)} />
-              <div className="paper-panel absolute right-0 top-full z-40 mt-2 w-44 rounded-[1rem] p-1 shadow-none">
+              <div className="lp-card absolute right-0 top-full z-40 mt-2 w-44 rounded-[var(--r-md)] p-1 shadow-none">
                 {SORT_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
                     className={`flex w-full items-center rounded-[0.8rem] px-3 py-1.5 text-sm transition-colors ${
                       sort === opt.value
-                        ? "bg-[color:oklch(var(--accent)/0.58)] font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
+                        ? "bg-[var(--paper-3)] font-medium text-[var(--ink)]"
+                        : "text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
                     }`}
                     onClick={() => {
                       onSortChange(opt.value);
@@ -184,13 +184,13 @@ export function ResearchQueryBar({
           <SlidersHorizontal className="h-3.5 w-3.5" />
           {t("research.queryBar.filters")}
           {activeFilterCount > 0 && (
-            <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary-foreground px-1 text-[10px] font-bold text-primary">
+            <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--paper-2)] px-1 text-[10px] font-bold text-[var(--forest)]">
               {activeFilterCount}
             </span>
           )}
         </Button>
         {!filtersOpen && activeFilterCount === 0 && (
-          <span className="hidden sm:inline text-[11px] text-muted-foreground/70 ml-1">{t("research.queryBar.tip")}</span>
+          <span className="hidden sm:inline text-[11px] text-[var(--ink-4)]/70 ml-1">{t("research.queryBar.tip")}</span>
         )}
 
         {/* Extra action buttons (e.g., Save Session) */}
@@ -200,12 +200,12 @@ export function ResearchQueryBar({
       {/* Active filter chips */}
       {(filters.atomSlugs?.length ?? 0) > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 px-4 pb-2 lg:px-6">
-          <span className="text-xs text-muted-foreground">{t("research.queryBar.filteringBy")}</span>
+          <span className="text-xs text-[var(--ink-4)]">{t("research.queryBar.filteringBy")}</span>
           {filters.atomSlugs?.map((slug) => (
             <Badge
               key={slug}
               variant="secondary"
-              className="cursor-pointer gap-1 rounded-full text-xs hover:bg-destructive/10"
+              className="cursor-pointer gap-1 rounded-full text-xs hover:bg-[var(--rust)]/10"
               onClick={() => clearAtomFilter(slug)}
             >
               {slug}
@@ -217,18 +217,18 @@ export function ResearchQueryBar({
 
       {/* Filter popover */}
       {filtersOpen && (
-        <div className="border-t border-border/70 bg-[color:oklch(var(--accent)/0.18)] px-4 py-4 lg:px-6">
+        <div className="border-t border-[var(--line-soft)] bg-[var(--paper-2)] px-4 py-4 lg:px-6">
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {/* Fields */}
-            <div className="paper-panel rounded-[1.25rem] p-4 space-y-2">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="lp-card rounded-[var(--r-md)] p-4 space-y-2">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
                 {t("research.queryBar.fields")}
               </h4>
               <div className="max-h-48 space-y-1.5 overflow-y-auto">
                 {PAPER_FIELDS.map((field) => (
                   <label
                     key={field}
-                    className="flex cursor-pointer items-center gap-2 text-xs text-foreground/80 hover:text-foreground"
+                    className="flex cursor-pointer items-center gap-2 text-xs text-[var(--ink-3)] hover:text-[var(--ink)]"
                   >
                     <Checkbox
                       checked={(filters.fields ?? []).includes(field)}
@@ -250,8 +250,8 @@ export function ResearchQueryBar({
             </div>
 
             {/* Year range */}
-            <div className="paper-panel rounded-[1.25rem] p-4 space-y-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="lp-card rounded-[var(--r-md)] p-4 space-y-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
                 {t("research.queryBar.yearRange")}
               </h4>
               <Slider
@@ -267,15 +267,15 @@ export function ResearchQueryBar({
                   })
                 }
               />
-              <div className="flex justify-between text-xs font-medium text-muted-foreground">
+              <div className="flex justify-between text-xs font-medium text-[var(--ink-4)]">
                 <span>{filters.yearMin ?? 2000}</span>
                 <span>{filters.yearMax ?? 2026}</span>
               </div>
             </div>
 
             {/* Score range */}
-            <div className="paper-panel rounded-[1.25rem] p-4 space-y-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="lp-card rounded-[var(--r-md)] p-4 space-y-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
                 {t("research.queryBar.scoreRange")}
               </h4>
               <Slider
@@ -291,18 +291,18 @@ export function ResearchQueryBar({
                   })
                 }
               />
-              <div className="flex justify-between text-xs font-medium text-muted-foreground">
+              <div className="flex justify-between text-xs font-medium text-[var(--ink-4)]">
                 <span>{(filters.scoreMin ?? 1).toFixed(1)}</span>
                 <span>{(filters.scoreMax ?? 5).toFixed(1)}</span>
               </div>
             </div>
 
             {/* Has Card */}
-            <div className="paper-panel rounded-[1.25rem] p-4 space-y-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="lp-card rounded-[var(--r-md)] p-4 space-y-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
                 {t("research.queryBar.options")}
               </h4>
-              <label className="flex cursor-pointer items-center gap-2 text-xs text-foreground/80 hover:text-foreground">
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--ink-3)] hover:text-[var(--ink)]">
                 <Checkbox
                   checked={filters.hasCard === true}
                   onCheckedChange={(checked) =>

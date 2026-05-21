@@ -1,5 +1,16 @@
 .DS_Store
 
+# Private corpus/data archives
+Data/
+private_data_archive/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.pdf
+*.zip
+
 # Root build artifacts
 .next/
 .run/
@@ -28,5 +39,7 @@ desktop-mvp/.bundle/
 desktop-mvp/.staging/
 
 # Python virtualenvs
+__pycache__/
+*.pyc
 .venv/
 venv/

@@ -16,22 +16,22 @@ import { useI18n } from "@/lib/i18n/locale-context";
 // ---------------------------------------------------------------------------
 
 function heatColor(value: number, maxValue: number): string {
-  if (maxValue === 0 || value === 0) return "bg-background";
+  if (maxValue === 0 || value === 0) return "bg-[var(--paper)]";
   const ratio = value / maxValue;
-  if (ratio > 0.75) return "bg-sky-600";
-  if (ratio > 0.5) return "bg-sky-500";
-  if (ratio > 0.3) return "bg-sky-400";
-  if (ratio > 0.15) return "bg-sky-200";
-  if (ratio > 0.05) return "bg-sky-100";
-  return "bg-[color:oklch(var(--accent)/0.45)]";
+  if (ratio > 0.75) return "bg-[#2c4870]";
+  if (ratio > 0.5) return "bg-[#2c4870]";
+  if (ratio > 0.3) return "bg-[#6f86a6]";
+  if (ratio > 0.15) return "bg-[#dfe7f2]";
+  if (ratio > 0.05) return "bg-[#e9eef6]";
+  return "bg-[var(--paper-2)]";
 }
 
 function heatTextColor(value: number, maxValue: number): string {
-  if (maxValue === 0 || value === 0) return "text-muted-foreground/40";
+  if (maxValue === 0 || value === 0) return "text-[var(--ink-4)]/40";
   const ratio = value / maxValue;
-  if (ratio > 0.5) return "text-white";
-  if (ratio > 0.15) return "text-sky-900";
-  return "text-sky-700";
+  if (ratio > 0.5) return "text-[var(--paper)]";
+  if (ratio > 0.15) return "text-[#172741]";
+  return "text-[#223a5e]";
 }
 
 // ---------------------------------------------------------------------------
@@ -50,17 +50,17 @@ function truncateLabel(label: string, maxLen: number = 20): string {
 function Legend({ maxValue }: { maxValue: number }) {
   const { t } = useI18n();
   const stops = [
-    { label: "0", cls: "bg-background border border-border/70" },
-    { label: "", cls: "bg-[color:oklch(var(--accent)/0.45)]" },
-    { label: "", cls: "bg-sky-100" },
-    { label: "", cls: "bg-sky-200" },
-    { label: "", cls: "bg-sky-400" },
-    { label: "", cls: "bg-sky-500" },
-    { label: String(maxValue), cls: "bg-sky-600" },
+    { label: "0", cls: "bg-[var(--paper)] border border-[var(--line-soft)]" },
+    { label: "", cls: "bg-[var(--paper-2)]" },
+    { label: "", cls: "bg-[#e9eef6]" },
+    { label: "", cls: "bg-[#dfe7f2]" },
+    { label: "", cls: "bg-[#6f86a6]" },
+    { label: "", cls: "bg-[#2c4870]" },
+    { label: String(maxValue), cls: "bg-[#2c4870]" },
   ];
 
   return (
-    <div className="flex items-center gap-1 text-[13px] text-muted-foreground">
+    <div className="flex items-center gap-1 text-[13px] text-[var(--ink-4)]">
       <span>{t("dashboard.heatmap.low")}</span>
       {stops.map((s, i) => (
         <div key={i} className={`h-3 w-4 rounded-sm ${s.cls}`} />
@@ -76,7 +76,7 @@ function Legend({ maxValue }: { maxValue: number }) {
 
 function HeatmapSkeleton() {
   return (
-    <Card className="paper-panel rounded-[1.5rem] border-border/75 shadow-none">
+    <Card className="lp-card rounded-[var(--r-md)] border-[var(--line-soft)] shadow-none">
       <CardHeader className="pb-3">
         <Skeleton className="h-5 w-52" />
       </CardHeader>
@@ -140,18 +140,18 @@ export function MethodFieldHeatmap() {
   if (error) {
     const combinedErrorMessage = collectErrorMessages([error]);
     return (
-      <Card className="paper-panel rounded-[1.5rem] border-border/75 shadow-none">
+      <Card className="lp-card rounded-[var(--r-md)] border-[var(--line-soft)] shadow-none">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <AlertTriangle className="h-4 w-4 text-amber-500" /> {t("dashboard.heatmap.title")}
+            <AlertTriangle className="h-4 w-4 text-[#8a6d3b]" /> {t("dashboard.heatmap.title")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center py-6 text-center">
-            <AlertTriangle className="h-8 w-8 text-muted-foreground/40 mb-2" />
-            <p className="text-sm text-muted-foreground">{t("dashboard.heatmap.failed")}</p>
+            <AlertTriangle className="h-8 w-8 text-[var(--ink-4)]/40 mb-2" />
+            <p className="text-sm text-[var(--ink-4)]">{t("dashboard.heatmap.failed")}</p>
             {combinedErrorMessage ? (
-              <p className="mt-1 text-xs text-red-600">{combinedErrorMessage}</p>
+              <p className="mt-1 text-xs text-[#8a3318]">{combinedErrorMessage}</p>
             ) : null}
           </div>
         </CardContent>
@@ -161,16 +161,16 @@ export function MethodFieldHeatmap() {
 
   if (!data?.methodFieldMatrix) {
     return (
-      <Card className="paper-panel rounded-[1.5rem] border-border/75 shadow-none">
+      <Card className="lp-card rounded-[var(--r-md)] border-[var(--line-soft)] shadow-none">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <BarChart3 className="h-4 w-4 text-primary" /> {t("dashboard.heatmap.title")}
+            <BarChart3 className="h-4 w-4 text-[var(--forest)]" /> {t("dashboard.heatmap.title")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center py-6 text-center">
-            <BarChart3 className="h-8 w-8 text-muted-foreground/40 mb-2" />
-            <p className="text-sm text-muted-foreground">{t("dashboard.heatmap.empty")}</p>
+            <BarChart3 className="h-8 w-8 text-[var(--ink-4)]/40 mb-2" />
+            <p className="text-sm text-[var(--ink-4)]">{t("dashboard.heatmap.empty")}</p>
           </div>
         </CardContent>
       </Card>
@@ -181,16 +181,16 @@ export function MethodFieldHeatmap() {
 
   if (methods.length === 0 || fields.length === 0) {
     return (
-      <Card className="paper-panel rounded-[1.5rem] border-border/75 shadow-none">
+      <Card className="lp-card rounded-[var(--r-md)] border-[var(--line-soft)] shadow-none">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <BarChart3 className="h-4 w-4 text-primary" /> {t("dashboard.heatmap.title")}
+            <BarChart3 className="h-4 w-4 text-[var(--forest)]" /> {t("dashboard.heatmap.title")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center py-6 text-center">
-            <BarChart3 className="h-8 w-8 text-muted-foreground/40 mb-2" />
-            <p className="text-sm text-muted-foreground">{t("dashboard.heatmap.empty")}</p>
+            <BarChart3 className="h-8 w-8 text-[var(--ink-4)]/40 mb-2" />
+            <p className="text-sm text-[var(--ink-4)]">{t("dashboard.heatmap.empty")}</p>
           </div>
         </CardContent>
       </Card>
@@ -198,31 +198,31 @@ export function MethodFieldHeatmap() {
   }
 
   return (
-    <Card className="paper-panel rounded-[1.5rem] border-border/75 shadow-none">
+    <Card className="lp-card rounded-[var(--r-md)] border-[var(--line-soft)] shadow-none">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div>
             <p className="section-kicker">{t("dashboard.heatmap.kicker")}</p>
-            <h3 className="mt-2 font-display text-[1.4rem] text-foreground">
+            <h3 className="mt-2 font-display text-[1.4rem] text-[var(--ink)]">
               {t("dashboard.heatmap.title")}
             </h3>
           </div>
           <Legend maxValue={maxValue} />
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-[var(--ink-4)]">
           {t("dashboard.heatmap.body")}
         </p>
       </CardHeader>
       <CardContent className="relative pb-4">
         {/* Mobile simplified view */}
         <div className="md:hidden space-y-2">
-          <p className="text-xs text-muted-foreground">{t("dashboard.heatmap.topMethods")}</p>
+          <p className="text-xs text-[var(--ink-4)]">{t("dashboard.heatmap.topMethods")}</p>
           {methods.slice(0, 5).map((method, mi) => {
             const rowTotal = (matrix[mi] ?? []).reduce((sum: number, v: number) => sum + v, 0);
             return (
               <div key={method} className="flex items-center gap-2 text-sm">
                 <span className="font-medium truncate flex-1">{method}</span>
-                <span className="text-xs text-muted-foreground tabular-nums">
+                <span className="text-xs text-[var(--ink-4)] tabular-nums">
                   {t("dashboard.heatmap.paperCount", { count: rowTotal })}
                 </span>
               </div>
@@ -251,7 +251,7 @@ export function MethodFieldHeatmap() {
                     className="flex items-end justify-center pb-1 text-center"
                     title={field}
                   >
-                    <span className="whitespace-normal text-center text-[13px] font-semibold leading-tight text-muted-foreground">
+                    <span className="whitespace-normal text-center text-[13px] font-semibold leading-tight text-[var(--ink-4)]">
                       {truncateLabel(field, 24)}
                     </span>
                   </div>
@@ -272,7 +272,7 @@ export function MethodFieldHeatmap() {
                     className="flex items-center pr-2"
                     title={method}
                   >
-                    <span className="truncate text-[14px] font-semibold text-muted-foreground">
+                    <span className="truncate text-[14px] font-semibold text-[var(--ink-4)]">
                       {truncateLabel(method)}
                     </span>
                   </div>
@@ -309,17 +309,17 @@ export function MethodFieldHeatmap() {
           {/* Floating tooltip */}
           {tooltip && (
             <div
-              className="paper-panel pointer-events-none fixed z-50 rounded-[1rem] border border-border/75 bg-background/95 px-3 py-2 shadow-[0_18px_44px_rgba(44,51,71,0.16)]"
+              className="lp-card pointer-events-none fixed z-50 rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)]/95 px-3 py-2 shadow-[var(--shadow-2)]"
               style={{
                 left: `${tooltip.x}px`,
                 top: `${tooltip.y - 8}px`,
                 transform: "translate(-50%, -100%)",
               }}
             >
-              <p className="text-xs font-semibold text-foreground">
+              <p className="text-xs font-semibold text-[var(--ink)]">
                 {t("dashboard.heatmap.paperCount", { count: tooltip.count })}
               </p>
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-[13px] text-[var(--ink-4)]">
                 {tooltip.method} &times; {tooltip.field}
               </p>
             </div>

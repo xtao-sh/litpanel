@@ -23,11 +23,11 @@ interface ConsensusCardProps {
 function stanceBadge(stance: string) {
   switch (stance) {
     case "SUPPORTS":
-      return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      return "bg-[var(--forest-soft)] text-[var(--forest-2)] border-[var(--forest)]";
     case "CONTRADICTS":
-      return "bg-rose-100 text-rose-700 border-rose-200";
+      return "bg-[#f4dfd5] text-[#8a3318] border-[#da9a80]";
     default:
-      return "bg-muted text-muted-foreground border-border";
+      return "bg-[var(--paper-2)] text-[var(--ink-4)] border-[var(--line-soft)]";
   }
 }
 
@@ -94,15 +94,15 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
   const visibleItems = showAll ? displayItems : displayItems.slice(0, 5);
 
   return (
-    <Card className="paper-panel rounded-[1.45rem] border-border/75 shadow-none">
+    <Card className="lp-card rounded-[var(--r-md)] border-[var(--line-soft)] shadow-none">
       <CardHeader className="pb-3">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[1rem] bg-primary/10">
-            <Scale className="h-4 w-4 text-primary" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-[var(--r-md)] bg-[var(--forest-soft)]">
+            <Scale className="h-4 w-4 text-[var(--forest)]" />
           </div>
           <div>
             <p className="section-kicker">Synthesis</p>
-            <CardTitle className="mt-2 font-display text-[1.45rem] text-foreground">
+            <CardTitle className="mt-2 font-display text-[1.45rem] text-[var(--ink)]">
               Literature Consensus
             </CardTitle>
           </div>
@@ -112,7 +112,7 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
         {/* Trigger button or results */}
         {!result && !loading && (
           <div className="text-center">
-            <p className="mb-3 text-xs text-muted-foreground">
+            <p className="mb-3 text-xs text-[var(--ink-4)]">
               Analyze how the literature aligns on your research question using AI.
             </p>
             <Button
@@ -131,8 +131,8 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
         {/* Loading */}
         {loading && (
           <div className="flex flex-col items-center gap-2 py-6">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            <p className="text-xs text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin text-[var(--forest)]" />
+            <p className="text-xs text-[var(--ink-4)]">
               Classifying {Math.min(allPaperIds.length, 50)} papers...
             </p>
           </div>
@@ -140,8 +140,8 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
 
         {/* Error */}
         {error && !loading && (
-          <div className="rounded-[1rem] border border-rose-200 bg-rose-50 p-3">
-            <p className="text-xs text-rose-700">{error}</p>
+          <div className="rounded-[var(--r-md)] border border-[#da9a80] bg-[#f4dfd5] p-3">
+            <p className="text-xs text-[#8a3318]">{error}</p>
             <Button
               variant="ghost"
               size="sm"
@@ -162,7 +162,7 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
                 <div className="flex h-6 w-full overflow-hidden rounded-full">
                   {result.supports_count > 0 && (
                     <div
-                      className="flex items-center justify-center bg-emerald-500 text-[10px] font-semibold text-white transition-all"
+                      className="flex items-center justify-center bg-[var(--forest)] text-[10px] font-semibold text-[var(--paper)] transition-all"
                       style={{
                         width: `${(result.supports_count / total) * 100}%`,
                       }}
@@ -172,7 +172,7 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
                   )}
                   {result.neutral_count > 0 && (
                     <div
-                      className="flex items-center justify-center bg-muted-foreground/30 text-[10px] font-semibold text-foreground transition-all"
+                      className="flex items-center justify-center bg-[var(--ink-4)]/30 text-[10px] font-semibold text-[var(--ink)] transition-all"
                       style={{
                         width: `${(result.neutral_count / total) * 100}%`,
                       }}
@@ -182,7 +182,7 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
                   )}
                   {result.contradicts_count > 0 && (
                     <div
-                      className="flex items-center justify-center bg-rose-500 text-[10px] font-semibold text-white transition-all"
+                      className="flex items-center justify-center bg-[var(--rust)] text-[10px] font-semibold text-[var(--paper)] transition-all"
                       style={{
                         width: `${(result.contradicts_count / total) * 100}%`,
                       }}
@@ -191,17 +191,17 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
                     </div>
                   )}
                 </div>
-                <div className="flex justify-between text-[10px] text-muted-foreground">
+                <div className="flex justify-between text-[10px] text-[var(--ink-4)]">
                   <span className="flex items-center gap-1">
-                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                    <span className="inline-block h-2 w-2 rounded-full bg-[var(--forest)]" />
                     Supports ({result.supports_count})
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/30" />
+                    <span className="inline-block h-2 w-2 rounded-full bg-[var(--ink-4)]/30" />
                     Neutral ({result.neutral_count})
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="inline-block h-2 w-2 rounded-full bg-rose-500" />
+                    <span className="inline-block h-2 w-2 rounded-full bg-[var(--rust)]" />
                     Contradicts ({result.contradicts_count})
                   </span>
                 </div>
@@ -214,7 +214,7 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
                 {visibleItems.map((item: ConsensusItem) => (
                   <div
                     key={item.paper_id}
-                    className="rounded-lg border border-border p-2 transition-colors hover:bg-accent/30"
+                    className="rounded-[var(--r)] border border-[var(--line-soft)] p-2 transition-colors hover:bg-[var(--paper-2)]"
                   >
                     <div className="flex items-start gap-2">
                       <span
@@ -223,10 +223,10 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
                         {stanceLabel(item.stance)}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="line-clamp-1 text-xs font-medium text-foreground">
+                        <p className="line-clamp-1 text-xs font-medium text-[var(--ink)]">
                           {item.title || item.paper_id}
                         </p>
-                        <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                        <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-[var(--ink-4)]">
                           {item.reason}
                         </p>
                       </div>
@@ -236,7 +236,7 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
 
                 {displayItems.length > 5 && (
                   <button
-                    className="flex w-full items-center justify-center gap-1 py-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+                    className="flex w-full items-center justify-center gap-1 py-1 text-xs font-medium text-[var(--forest)] transition-colors hover:text-[var(--forest)]/80"
                     onClick={() => setShowAll(!showAll)}
                   >
                     {showAll ? (
@@ -260,7 +260,7 @@ export function ConsensusCard({ allPaperIds, searchQuery }: ConsensusCardProps) 
                 variant="ghost"
                 size="sm"
                 onClick={analyzeConsensus}
-                className="h-7 text-xs text-muted-foreground"
+                className="h-7 text-xs text-[var(--ink-4)]"
               >
                 Re-analyze
               </Button>

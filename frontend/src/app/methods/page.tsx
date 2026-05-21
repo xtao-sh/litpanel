@@ -54,19 +54,19 @@ function evidenceBadge(strength: string | null) {
   switch (strength?.toLowerCase()) {
     case "strong":
       return (
-        <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
+        <Badge className="border-[var(--forest)] bg-[var(--forest-soft)] text-[var(--forest-2)] hover:bg-[var(--forest-soft)]">
           Strong
         </Badge>
       );
     case "moderate":
       return (
-        <Badge className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50">
+        <Badge className="border-[#d6b678] bg-[#f4ead8] text-[#7a5a18] hover:bg-[#f4ead8]">
           Moderate
         </Badge>
       );
     case "emerging":
       return (
-        <Badge className="border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-50">
+        <Badge className="border-[#bccbe0] bg-[#e9eef6] text-[#223a5e] hover:bg-[#e9eef6]">
           Emerging
         </Badge>
       );
@@ -96,10 +96,10 @@ function MethodColumn({
 
   if (loading) {
     return (
-      <div className="paper-panel flex flex-col gap-3 p-4 shadow-none">
+      <div className="lp-card flex flex-col gap-3 p-4 shadow-none">
         <div className="flex items-center justify-between">
           <Skeleton className="h-5 w-32" />
-          <button onClick={onRemove} className="text-muted-foreground transition-colors hover:text-foreground">
+          <button onClick={onRemove} className="text-[var(--ink-4)] transition-colors hover:text-[var(--ink)]">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -112,9 +112,9 @@ function MethodColumn({
 
   if (error || !atom) {
     return (
-      <div className="paper-panel flex flex-col items-center justify-center gap-2 border-red-200/80 bg-red-50/80 p-6 shadow-none">
-        <p className="text-sm text-red-600">Failed to load {slot.title}</p>
-        <button onClick={onRemove} className="text-xs text-red-500 underline">
+      <div className="lp-card flex flex-col items-center justify-center gap-2 border-[#da9a80]/80 bg-[#f4dfd5]/80 p-6 shadow-none">
+        <p className="text-sm text-[#8a3318]">Failed to load {slot.title}</p>
+        <button onClick={onRemove} className="text-xs text-[var(--rust)] underline">
           Remove
         </button>
       </div>
@@ -124,13 +124,13 @@ function MethodColumn({
   const topPapers = atom.papers.slice(0, 3);
 
   return (
-    <div className="paper-panel flex flex-col overflow-hidden p-0">
+    <div className="lp-card flex flex-col overflow-hidden p-0">
       {/* Header */}
-      <div className="flex items-start justify-between border-b border-border/70 px-5 py-4">
+      <div className="flex items-start justify-between border-b border-[var(--line-soft)] px-5 py-4">
         <div className="min-w-0 flex-1">
           <p className="section-kicker mb-2">Method Slot</p>
           <div className="mb-1 flex items-center gap-2">
-            <h3 className="font-display text-2xl tracking-tight text-foreground">
+            <h3 className="font-display text-2xl tracking-tight text-[var(--ink)]">
               {atom.title}
             </h3>
             <Badge variant="outline" className="shrink-0 rounded-full text-[10px] capitalize">
@@ -142,7 +142,7 @@ function MethodColumn({
               href={atom.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+              className="inline-flex items-center gap-1 text-[11px] text-[var(--forest)] hover:underline"
             >
               <ExternalLink className="h-2.5 w-2.5" /> Source
             </a>
@@ -150,20 +150,20 @@ function MethodColumn({
         </div>
         <button
           onClick={onRemove}
-          className="ml-2 shrink-0 rounded-full border border-border/70 p-1.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+          className="ml-2 shrink-0 rounded-full border border-[var(--line-soft)] p-1.5 text-[var(--ink-4)] transition-colors hover:bg-[var(--paper-2)]/60 hover:text-[var(--ink)]"
         >
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
 
       {/* Body sections */}
-      <div className="divide-y divide-border/70">
+      <div className="divide-y divide-[var(--line-soft)]">
         {/* Description */}
         <div className="px-5 py-4">
           <h4 className="section-kicker mb-2">
             Description
           </h4>
-          <p className="text-sm leading-6 text-foreground/80">
+          <p className="text-sm leading-6 text-[var(--ink-3)]">
             {atom.description || "No description available."}
           </p>
         </div>
@@ -173,7 +173,7 @@ function MethodColumn({
           <h4 className="section-kicker mb-2">
             When to Use
           </h4>
-          <p className="text-sm leading-6 text-foreground/80">
+          <p className="text-sm leading-6 text-[var(--ink-3)]">
             {atom.whenToUse || "Not specified."}
           </p>
         </div>
@@ -192,7 +192,7 @@ function MethodColumn({
             </h4>
             <Link
               href={`/explorer?methods=${encodeURIComponent(atom.title)}`}
-              className="font-display text-3xl tracking-tight text-primary hover:underline"
+              className="font-display text-3xl tracking-tight text-[var(--forest)] hover:underline"
             >
               {atom.paperCount}
             </Link>
@@ -210,21 +210,21 @@ function MethodColumn({
                 <Link
                   key={paper.paperId}
                   href={`/paper/${paper.paperId}`}
-                  className="flex items-start gap-1.5 rounded-2xl border border-transparent bg-background/70 p-3 text-xs transition-colors hover:border-border/70 hover:bg-accent/45"
+                  className="flex items-start gap-1.5 rounded-[var(--r)] border border-transparent bg-[var(--paper)] p-3 text-xs transition-colors hover:border-[var(--line-soft)] hover:bg-[var(--paper-2)]"
                 >
-                  <FileText className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
+                  <FileText className="mt-0.5 h-3 w-3 shrink-0 text-[var(--ink-4)]" />
                   <div className="min-w-0 flex-1">
-                    <p className="line-clamp-1 text-sm leading-5 text-foreground/85">
+                    <p className="line-clamp-1 text-sm leading-5 text-[var(--ink)]/85">
                       {paper.title || paper.paperId}
                     </p>
                     <div className="mt-1 flex items-center gap-1.5">
                       {paper.year && (
-                        <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                        <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--ink-4)]">
                           {paper.year}
                         </span>
                       )}
                       {paper.averageScore != null && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-600">
+                        <span className="inline-flex items-center gap-0.5 text-[10px] text-[#7a5a18]">
                           <Star className="h-2 w-2 fill-current" />
                           {paper.averageScore.toFixed(1)}
                         </span>
@@ -278,27 +278,27 @@ export default function MethodComparisonPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 lg:px-8">
       {/* Header */}
-      <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="lp-card grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="space-y-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-[1.25rem] border border-border/70 bg-background/85 text-primary">
+            <div className="flex h-12 w-12 items-center justify-center rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)] text-[var(--forest)]">
               <GitCompare className="h-5 w-5" />
             </div>
             <p className="section-kicker">Comparison Dossier</p>
           </div>
           <div>
-            <h1 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+            <h1 className="font-display text-4xl tracking-tight text-[var(--ink)] sm:text-5xl">
               Compare Methods
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--ink-4)] sm:text-[15px]">
               Place up to three methods side by side to compare description,
               evidence strength, fit conditions, and representative papers.
             </p>
           </div>
         </div>
-        <div className="space-y-3 rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
+        <div className="space-y-3 rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)] p-4">
           <p className="section-kicker">Use This For</p>
-          <p className="text-sm leading-6 text-foreground/80">
+          <p className="text-sm leading-6 text-[var(--ink-3)]">
             Checking which identification strategy fits your question, and
             which papers are most representative for each method family.
           </p>
@@ -306,11 +306,11 @@ export default function MethodComparisonPage() {
       </div>
 
       {/* Method selectors */}
-      <div className="paper-panel space-y-4 p-5">
+      <div className="lp-card space-y-4 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="section-kicker">Comparison Tracks</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            <p className="mt-2 text-sm leading-6 text-[var(--ink-4)]">
               Fill the tracks below. Duplicate methods are ignored.
             </p>
           </div>
@@ -321,16 +321,16 @@ export default function MethodComparisonPage() {
         {slots.map((slot, idx) => (
           <div
             key={slot.slug}
-            className="rounded-[1.25rem] border border-border/70 bg-background/80 p-3 shadow-sm"
+            className="rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)] p-3 shadow-[var(--shadow-1)]"
           >
             <div className="flex items-center gap-2">
-              <FlaskConical className="h-3.5 w-3.5 text-primary" />
-              <span className="truncate text-sm font-medium text-foreground">
+              <FlaskConical className="h-3.5 w-3.5 text-[var(--forest)]" />
+              <span className="truncate text-sm font-medium text-[var(--ink)]">
                 {slot.title}
               </span>
               <button
                 onClick={handleRemove(idx)}
-                className="ml-auto rounded-full border border-border/70 p-1 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+                className="ml-auto rounded-full border border-[var(--line-soft)] p-1 text-[var(--ink-4)] transition-colors hover:bg-[var(--paper-2)]/60 hover:text-[var(--ink)]"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -351,12 +351,12 @@ export default function MethodComparisonPage() {
 
       {/* Comparison grid */}
       {slots.length === 0 ? (
-        <div className="paper-panel flex flex-col items-center justify-center py-16 text-center">
-          <GitCompare className="mb-4 h-10 w-10 text-muted-foreground/45" />
-          <p className="font-display text-2xl tracking-tight text-foreground">
+        <div className="lp-card flex flex-col items-center justify-center py-16 text-center">
+          <GitCompare className="mb-4 h-10 w-10 text-[var(--ink-5)]" />
+          <p className="font-display text-2xl tracking-tight text-[var(--ink)]">
             Search and add methods above to start comparing
           </p>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+          <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--ink-4)]">
             Compare descriptions, evidence strength, and key papers
           </p>
         </div>

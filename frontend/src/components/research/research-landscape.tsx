@@ -51,11 +51,11 @@ function KeyAuthorsCard({ papers }: { papers: ResearchPaperItem[] }) {
   if (authorCounts.length === 0) return null;
 
   return (
-    <div className="paper-panel rounded-[1.5rem] p-5">
+    <div className="lp-card rounded-[var(--r-md)] p-5">
       <div className="mb-3 flex items-center gap-2">
-        <Users className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-semibold text-foreground">{t("research.landscape.authorsTitle")}</h3>
-        <span className="ml-auto text-[11px] text-muted-foreground">
+        <Users className="h-4 w-4 text-[var(--forest)]" />
+        <h3 className="text-sm font-semibold text-[var(--ink)]">{t("research.landscape.authorsTitle")}</h3>
+        <span className="ml-auto text-[11px] text-[var(--ink-4)]">
           {t("research.landscape.authorsScope")}
         </span>
       </div>
@@ -64,12 +64,12 @@ function KeyAuthorsCard({ papers }: { papers: ResearchPaperItem[] }) {
           <Link
             key={name}
             href={`/author/${encodeURIComponent(name)}`}
-            className="group -mx-2 flex items-center gap-2 rounded-[0.9rem] px-2 py-1.5 transition-colors hover:bg-[color:oklch(var(--accent)/0.45)]"
+            className="group -mx-2 flex items-center gap-2 rounded-[0.9rem] px-2 py-1.5 transition-colors hover:bg-[var(--paper-2)]"
           >
-            <span className="text-sm text-foreground group-hover:text-primary truncate flex-1 min-w-0">
+            <span className="text-sm text-[var(--ink)] group-hover:text-[var(--forest)] truncate flex-1 min-w-0">
               {name}
             </span>
-            <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[11px] font-semibold text-primary tabular-nums shrink-0">
+            <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--forest-soft)] px-1.5 text-[11px] font-semibold text-[var(--forest)] tabular-nums shrink-0">
               {count}
             </span>
           </Link>
@@ -89,7 +89,7 @@ function LandscapeSkeleton() {
       {Array.from({ length: 4 }).map((_, i) => (
         <div
           key={i}
-          className="paper-panel rounded-[1.5rem] p-6"
+          className="lp-card rounded-[var(--r-md)] p-6"
         >
           <Skeleton className="mb-4 h-5 w-48" />
           <div className="space-y-2">
@@ -151,13 +151,13 @@ export function ResearchLandscapePanel({
 
   return (
     <div className="space-y-3">
-      <div className="paper-panel sticky top-[4.5rem] z-10 rounded-[1.2rem] p-3">
+      <div className="lp-card sticky top-[4.5rem] z-10 rounded-[var(--r-md)] p-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold text-foreground">{t("research.landscape.title")}</h2>
+            <h2 className="text-base font-semibold text-[var(--ink)]">{t("research.landscape.title")}</h2>
             {allPaperIds.length > 0 && (
               <p
-                className="text-xs text-muted-foreground"
+                className="text-xs text-[var(--ink-4)]"
                 title={t("research.landscape.scopeBody", { count: allPaperIds.length.toLocaleString() })}
               >
                 {t("research.landscape.scopeInline", { count: allPaperIds.length.toLocaleString() })}
@@ -190,7 +190,7 @@ export function ResearchLandscapePanel({
               onClick={() => {
                 document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }}
-              className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground transition-colors"
+              className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium text-[var(--ink-4)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)] transition-colors"
             >
               {item.label}
             </button>

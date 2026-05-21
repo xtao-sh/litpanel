@@ -33,11 +33,11 @@ const entityIcons: Record<string, React.ElementType> = {
 };
 
 const entityDotColor: Record<string, string> = {
-  paper: "bg-sky-500",
-  mechanism: "bg-amber-500",
-  method: "bg-emerald-500",
-  dataset: "bg-violet-500",
-  puzzle: "bg-rose-500",
+  paper: "bg-[#2c4870]",
+  mechanism: "bg-[#b88a3b]",
+  method: "bg-[var(--forest)]",
+  dataset: "bg-[#2c4870]",
+  puzzle: "bg-[var(--rust)]",
 };
 
 const entityBadgeVariant: Record<
@@ -168,7 +168,7 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
       <CommandList className="max-h-[400px]" aria-live="polite" aria-atomic="false">
         {/* Loading state */}
         {loading && hasQuery && (
-          <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 py-8 text-sm text-[var(--ink-4)]">
             <Loader2 className="h-4 w-4 animate-spin" />
             <span>{t("commandSearch.searching")}</span>
           </div>
@@ -176,7 +176,7 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
 
         {/* Error state */}
         {error && hasQuery && !loading && (
-          <div className="py-8 text-center text-sm text-destructive">
+          <div className="py-8 text-center text-sm text-[var(--rust)]">
             {t("commandSearch.unavailable")}
           </div>
         )}
@@ -186,7 +186,7 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
           <CommandEmpty>
             <div className="mx-auto max-w-sm space-y-2 px-4">
               <p className="section-kicker">{t("commandSearch.quickLookupKicker")}</p>
-              <p className="font-display text-[1.35rem] text-foreground">{t("commandSearch.quickLookupTitle")}</p>
+              <p className="font-display text-[1.35rem] text-[var(--ink)]">{t("commandSearch.quickLookupTitle")}</p>
               <p>{t("commandSearch.quickLookupBody")}</p>
             </div>
           </CommandEmpty>
@@ -197,7 +197,7 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
           <CommandEmpty>
             <div className="space-y-1 px-4">
               <p className="section-kicker">{t("commandSearch.noMatchesKicker")}</p>
-              <p className="text-sm text-foreground">{t("commandSearch.noMatchesBody")}</p>
+              <p className="text-sm text-[var(--ink)]">{t("commandSearch.noMatchesBody")}</p>
             </div>
           </CommandEmpty>
         )}
@@ -217,12 +217,12 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
                     className="flex items-start gap-3"
                   >
                     <div className="relative mt-0.5 shrink-0">
-                      <Icon className="h-4 w-4 text-muted-foreground" />
-                      <span className={`absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full ${entityDotColor[hit.entityType] || "bg-muted-foreground"}`} />
+                      <Icon className="h-4 w-4 text-[var(--ink-4)]" />
+                      <span className={`absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full ${entityDotColor[hit.entityType] || "bg-[var(--ink-4)]"}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start gap-2">
-                        <span className="truncate font-medium text-foreground" title={hit.title}>
+                        <span className="truncate font-medium text-[var(--ink)]" title={hit.title}>
                           {hit.title}
                         </span>
                         <Badge
@@ -234,7 +234,7 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
                       </div>
                       {hit.snippet && (
                         <div
-                          className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground [&_mark]:rounded-full [&_mark]:bg-[color:oklch(var(--accent)/0.65)] [&_mark]:px-1 [&_mark]:py-0.5 [&_mark]:text-foreground"
+                          className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--ink-4)] [&_mark]:rounded-full [&_mark]:bg-[var(--paper-3)] [&_mark]:px-1 [&_mark]:py-0.5 [&_mark]:text-[var(--ink)]"
                           dangerouslySetInnerHTML={{ __html: hit.snippet }}
                         />
                       )}
@@ -247,23 +247,23 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
       </CommandList>
 
       {/* Footer with result count + keyboard hints */}
-      <div className="flex items-center justify-between border-t border-border/75 bg-[color:oklch(var(--accent)/0.24)] px-4 py-3">
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+      <div className="flex items-center justify-between border-t border-[var(--line-soft)] bg-[var(--paper-2)] px-4 py-3">
+        <div className="flex items-center gap-3 text-xs text-[var(--ink-4)]">
           <span className="inline-flex items-center gap-1">
-            <kbd className="rounded-full border border-border/75 bg-background/85 px-1.5 py-0.5 font-mono text-[10px]">&uarr;&darr;</kbd>
+            <kbd className="rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-1.5 py-0.5 font-mono text-[10px]">&uarr;&darr;</kbd>
             <span>{t("commandSearch.footer.navigate")}</span>
           </span>
           <span className="inline-flex items-center gap-1">
-            <kbd className="rounded-full border border-border/75 bg-background/85 px-1.5 py-0.5 font-mono text-[10px]">&crarr;</kbd>
+            <kbd className="rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-1.5 py-0.5 font-mono text-[10px]">&crarr;</kbd>
             <span>{t("commandSearch.footer.open")}</span>
           </span>
           <span className="inline-flex items-center gap-1">
-            <kbd className="rounded-full border border-border/75 bg-background/85 px-1.5 py-0.5 font-mono text-[10px]">esc</kbd>
+            <kbd className="rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-1.5 py-0.5 font-mono text-[10px]">esc</kbd>
             <span>{t("commandSearch.footer.close")}</span>
           </span>
         </div>
         {hasQuery && !loading && !error && hasResults && (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-[var(--ink-4)]">
             {t("commandSearch.footer.results", { count: hits.length })} / {total}
           </span>
         )}

@@ -21,23 +21,23 @@ import type { Idea } from "@/lib/types";
 function statusBadgeClass(status: string | null): string {
   switch (status) {
     case "new":
-      return "bg-blue-100 text-blue-800";
+      return "bg-[#e9eef6] text-[#1b2e4d]";
     case "developing":
-      return "bg-yellow-100 text-yellow-800";
+      return "bg-[#f4ead8] text-[#654814]";
     case "promoted":
-      return "bg-green-100 text-green-800";
+      return "bg-[var(--forest-soft)] text-[var(--forest-2)]";
     case "killed":
-      return "bg-red-100 text-red-800";
+      return "bg-[#f4dfd5] text-[#742b14]";
     default:
-      return "bg-gray-100 text-gray-600";
+      return "bg-[var(--paper-2)] text-[var(--ink-3)]";
   }
 }
 
 function scoreBadgeClass(score: number | null): string {
-  if (score == null) return "bg-gray-100 text-gray-500";
-  if (score >= 4) return "bg-green-100 text-green-800";
-  if (score >= 3) return "bg-yellow-100 text-yellow-800";
-  return "bg-gray-100 text-gray-600";
+  if (score == null) return "bg-[var(--paper-2)] text-[var(--ink-4)]";
+  if (score >= 4) return "bg-[var(--forest-soft)] text-[var(--forest-2)]";
+  if (score >= 3) return "bg-[#f4ead8] text-[#654814]";
+  return "bg-[var(--paper-2)] text-[var(--ink-3)]";
 }
 
 // ---------------------------------------------------------------------------
@@ -46,9 +46,9 @@ function scoreBadgeClass(score: number | null): string {
 
 function SortIcon({ column }: { column: { getIsSorted: () => false | "asc" | "desc" } }) {
   const sorted = column.getIsSorted();
-  if (sorted === "asc") return <ArrowUp className="ml-1 inline h-3 w-3 text-foreground" />;
-  if (sorted === "desc") return <ArrowDown className="ml-1 inline h-3 w-3 text-foreground" />;
-  return <ArrowUpDown className="ml-1 inline h-3 w-3 text-muted-foreground/40" />;
+  if (sorted === "asc") return <ArrowUp className="ml-1 inline h-3 w-3 text-[var(--ink)]" />;
+  if (sorted === "desc") return <ArrowDown className="ml-1 inline h-3 w-3 text-[var(--ink)]" />;
+  return <ArrowUpDown className="ml-1 inline h-3 w-3 text-[var(--ink-4)]/40" />;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,7 +69,7 @@ function createColumns(t: (key: string, vars?: Record<string, string | number>) 
       </button>
     ),
     cell: ({ row }) => (
-      <span className="font-mono text-sm text-gray-600">
+      <span className="font-mono text-sm text-[var(--ink-3)]">
         {row.original.id.length > 10
           ? row.original.id.slice(0, 8) + ".."
           : row.original.id}
@@ -106,7 +106,7 @@ function createColumns(t: (key: string, vars?: Record<string, string | number>) 
     ),
     cell: ({ row }) => {
       const status = row.original.status;
-      if (!status) return <span className="text-gray-400 text-sm">-</span>;
+      if (!status) return <span className="text-[var(--ink-5)] text-sm">-</span>;
       return (
         <span
           className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${statusBadgeClass(status)}`}
@@ -247,7 +247,7 @@ export function IdeaTable({
 
   if (data.length === 0) {
     return (
-      <div className="flex h-64 flex-col items-center justify-center text-gray-500">
+      <div className="flex h-64 flex-col items-center justify-center text-[var(--ink-4)]">
         <p className="text-sm">{t("explorer.empty.ideas")}</p>
       </div>
     );
@@ -261,12 +261,12 @@ export function IdeaTable({
             {table.getHeaderGroups().map((headerGroup) => (
               <tr
                 key={headerGroup.id}
-                className="border-b border-border bg-muted/50"
+                className="border-b border-[var(--line-soft)] bg-[var(--paper-2)]/50"
               >
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="h-10 px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                    className="h-10 px-4 text-xs font-medium uppercase tracking-wide text-[var(--ink-4)]"
                     style={{ width: header.getSize() }}
                   >
                     {header.isPlaceholder
@@ -284,9 +284,9 @@ export function IdeaTable({
             {table.getRowModel().rows.map((row) => (
               <tr
                 key={row.id}
-                className={`h-11 cursor-pointer border-b border-border transition-colors hover:bg-accent/50 ${
+                className={`h-11 cursor-pointer border-b border-[var(--line-soft)] transition-colors hover:bg-[var(--paper-2)] ${
                   row.original.id === selectedId
-                    ? "bg-primary/5 border-l-2 border-l-primary"
+                    ? "bg-[var(--ink)]/5 border-l-2 border-l-[var(--forest)]"
                     : ""
                 }`}
                 onClick={() => onRowClick(row.original)}
@@ -304,8 +304,8 @@ export function IdeaTable({
           </tbody>
         </table>
       </div>
-      <div className="border-t border-border px-4 py-3">
-        <p className="text-sm text-muted-foreground">
+      <div className="border-t border-[var(--line-soft)] px-4 py-3">
+        <p className="text-sm text-[var(--ink-4)]">
           {t("explorer.counts.showingIdeas", { count: data.length })}
         </p>
       </div>
@@ -320,7 +320,7 @@ export function IdeaTable({
 function TableSkeleton({ rows, cols }: { rows: number; cols: number }) {
   return (
     <div className="space-y-0">
-      <div className="flex gap-3 border-b border-gray-200 bg-gray-50/50 px-3 py-3">
+      <div className="flex gap-3 border-b border-[var(--line-soft)] bg-[var(--paper-2)]/50 px-3 py-3">
         {Array.from({ length: cols }).map((_, i) => (
           <Skeleton key={i} className="h-4 flex-1" />
         ))}
@@ -328,7 +328,7 @@ function TableSkeleton({ rows, cols }: { rows: number; cols: number }) {
       {Array.from({ length: rows }).map((_, r) => (
         <div
           key={r}
-          className="flex gap-3 border-b border-gray-100 px-3 py-3"
+          className="flex gap-3 border-b border-[var(--line-soft)] px-3 py-3"
         >
           {Array.from({ length: cols }).map((_, c) => (
             <Skeleton key={c} className="h-4 flex-1" />

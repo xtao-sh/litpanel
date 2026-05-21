@@ -22,7 +22,7 @@ function MapSkeleton() {
   return (
     <div className="flex gap-8">
       {/* Main content skeleton */}
-      <div className="paper-panel min-w-0 flex-1 space-y-6 p-6">
+      <div className="lp-card min-w-0 flex-1 space-y-6 p-6">
         <Skeleton className="h-8 w-72" />
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-5/6" />
@@ -40,7 +40,7 @@ function MapSkeleton() {
         <Skeleton className="h-4 w-3/4" />
       </div>
       {/* TOC sidebar skeleton */}
-      <div className="paper-panel hidden w-64 shrink-0 space-y-3 p-5 lg:block">
+      <div className="lp-card hidden w-64 shrink-0 space-y-3 p-5 lg:block">
         <Skeleton className="h-3 w-20" />
         <Skeleton className="h-3 w-full" />
         <Skeleton className="h-3 w-5/6" />
@@ -62,17 +62,17 @@ function MapSkeleton() {
 function MapNotFound({ slug }: { slug: string }) {
   const { t } = useI18n();
   return (
-    <div className="paper-panel flex flex-col items-center justify-center py-24 text-center">
+    <div className="lp-card flex flex-col items-center justify-center py-24 text-center">
       <p className="section-kicker">{t("maps.detail.missingKicker")}</p>
-      <h2 className="mt-3 font-display text-3xl tracking-tight text-foreground">
+      <h2 className="mt-3 font-display text-3xl tracking-tight text-[var(--ink)]">
         {t("maps.detail.notFoundTitle")}
       </h2>
-      <p className="mt-3 text-sm leading-6 text-muted-foreground">
+      <p className="mt-3 text-sm leading-6 text-[var(--ink-4)]">
         {t("maps.detail.notFoundBody", { slug })}
       </p>
       <Link
         href="/maps"
-        className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-border/70 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-accent/50"
+        className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-[var(--line-soft)] px-4 py-2 text-sm font-medium text-[var(--forest)] transition-colors hover:bg-[var(--paper-2)]"
       >
         <ArrowLeft className="h-4 w-4" />
         {t("maps.detail.backToMaps")}
@@ -108,7 +108,7 @@ export default function FieldMapDetailPage({ params }: FieldMapDetailPageProps) 
       {/* Back nav */}
       <Link
         href="/maps"
-        className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-4 py-2 text-sm text-[var(--ink-4)] transition-colors hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         {t("maps.detail.allMaps")}
@@ -123,19 +123,19 @@ export default function FieldMapDetailPage({ params }: FieldMapDetailPageProps) 
       {/* Content */}
       {data?.fieldMap && (
         <>
-          <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <div className="lp-card grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
             <div className="space-y-3">
               <p className="section-kicker">{t("maps.common.fieldBrief")}</p>
-              <h1 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+              <h1 className="font-display text-4xl tracking-tight text-[var(--ink)] sm:text-5xl">
                 {localizedTitle}
               </h1>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+              <p className="max-w-2xl text-sm leading-6 text-[var(--ink-4)] sm:text-[15px]">
                 {isFrontierGaps ? t("maps.detail.frontierGapsBody") : t("maps.detail.body")}
               </p>
             </div>
-            <div className="rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
+            <div className="rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)] p-4">
               <p className="section-kicker">{t("maps.detail.infoKicker")}</p>
-              <p className="mt-2 text-sm leading-6 text-foreground/80">
+              <p className="mt-2 text-sm leading-6 text-[var(--ink-3)]">
                 {t("maps.detail.infoBody")}
               </p>
             </div>
@@ -143,14 +143,14 @@ export default function FieldMapDetailPage({ params }: FieldMapDetailPageProps) 
 
           {isFrontierGaps ? (
             /* Interactive frontier gaps view */
-            <div className="paper-panel max-w-5xl p-6">
+            <div className="lp-card max-w-5xl p-6">
               <FrontierGapsInteractive />
             </div>
           ) : (
             /* Standard markdown rendering */
             <div className="flex gap-8">
               {/* Main content */}
-              <div className="paper-panel min-w-0 max-w-3xl flex-1 p-6">
+              <div className="lp-card min-w-0 max-w-3xl flex-1 p-6">
                 <MarkdownRenderer content={data.fieldMap.content} />
               </div>
 

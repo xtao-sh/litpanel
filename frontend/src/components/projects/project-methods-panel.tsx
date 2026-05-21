@@ -29,16 +29,16 @@ function SummaryCard({
   icon: ReactNode;
 }) {
   return (
-    <Card className="rounded-xl shadow-sm">
+    <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+        <CardTitle className="flex items-center gap-2 text-sm font-medium text-[var(--ink-4)]">
           {icon}
           {title}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-lg font-semibold text-foreground">{value}</p>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{detail}</p>
+        <p className="text-lg font-semibold text-[var(--ink)]">{value}</p>
+        <p className="mt-1 text-xs leading-relaxed text-[var(--ink-4)]">{detail}</p>
       </CardContent>
     </Card>
   );
@@ -82,11 +82,11 @@ export function ProjectMethodsPanel({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-border bg-muted/20 px-4 py-4">
+      <div className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper-2)]/20 px-4 py-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-sm font-medium text-foreground">Methods, Data, and Mechanisms</p>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            <p className="text-sm font-medium text-[var(--ink)]">Methods, Data, and Mechanisms</p>
+            <p className="mt-1 text-sm leading-relaxed text-[var(--ink-4)]">
               This page focuses on repeated empirical strategies and evidence inputs across the{" "}
               {paperCount.toLocaleString()} paper{paperCount !== 1 ? "s" : ""} in the current project.
             </p>
@@ -105,7 +105,7 @@ export function ProjectMethodsPanel({
               tab: "methods",
               label: `${projectTitle} · Methods graph`,
             })}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+            className="inline-flex items-center gap-1.5 rounded-[var(--r)] border border-[#bccbe0] bg-[#e9eef6] px-3 py-2 text-sm font-medium text-[#223a5e] transition-colors hover:bg-[#e9eef6]"
           >
             <GitBranch className="h-3.5 w-3.5" />
             Open Methods Graph
@@ -118,25 +118,25 @@ export function ProjectMethodsPanel({
           title="Methods"
           value={String(landscape.methods.length)}
           detail={`${mappedMethodPapers} paper${mappedMethodPapers !== 1 ? "s" : ""} map to at least one method atom.`}
-          icon={<FlaskConical className="h-4 w-4 text-emerald-500" />}
+          icon={<FlaskConical className="h-4 w-4 text-[var(--forest)]" />}
         />
         <SummaryCard
           title="Datasets"
           value={String(landscape.datasets.length)}
           detail={`${mappedDatasetPapers} paper${mappedDatasetPapers !== 1 ? "s" : ""} map to a dataset atom.`}
-          icon={<Database className="h-4 w-4 text-purple-500" />}
+          icon={<Database className="h-4 w-4 text-[#2c4870]" />}
         />
         <SummaryCard
           title="Mechanisms"
           value={String(landscape.mechanisms.length)}
           detail={`${mappedMechanismPapers} paper${mappedMechanismPapers !== 1 ? "s" : ""} contain a mechanism signal.`}
-          icon={<GitBranchPlus className="h-4 w-4 text-orange-500" />}
+          icon={<GitBranchPlus className="h-4 w-4 text-[#8a6d3b]" />}
         />
         <SummaryCard
           title="Coverage"
           value={`${new Set([...landscape.methods.flatMap((a) => a.paperIds), ...landscape.datasets.flatMap((a) => a.paperIds)]).size}/${paperCount}`}
           detail="Papers covered by the top method or dataset mapping layers."
-          icon={<Layers3 className="h-4 w-4 text-sky-500" />}
+          icon={<Layers3 className="h-4 w-4 text-[#2c4870]" />}
         />
       </div>
 

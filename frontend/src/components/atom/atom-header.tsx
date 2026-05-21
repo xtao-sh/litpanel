@@ -12,9 +12,9 @@ const typeBadgeVariant: Record<string, "mechanism" | "method" | "dataset" | "puz
 };
 
 const evidenceColors: Record<string, string> = {
-  strong: "bg-green-100 text-green-800 border-green-200",
-  moderate: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  weak: "bg-red-100 text-red-800 border-red-200",
+  strong: "bg-[var(--forest-soft)] text-[var(--forest-2)] border-[var(--forest)]",
+  moderate: "bg-[#f4ead8] text-[#654814] border-[#d6b678]",
+  weak: "bg-[#f4dfd5] text-[#742b14] border-[#da9a80]",
 };
 
 interface AtomHeaderProps {
@@ -24,7 +24,7 @@ interface AtomHeaderProps {
 export function AtomHeader({ atom }: AtomHeaderProps) {
   const evidenceClass =
     atom.evidenceStrength
-      ? evidenceColors[atom.evidenceStrength.toLowerCase()] || "bg-gray-100 text-gray-800 border-gray-200"
+      ? evidenceColors[atom.evidenceStrength.toLowerCase()] || "bg-[var(--paper-2)] text-[var(--ink-2)] border-[var(--line-soft)]"
       : null;
 
   return (
@@ -39,7 +39,7 @@ export function AtomHeader({ atom }: AtomHeaderProps) {
           </Badge>
         )}
       </div>
-      <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
+      <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">
         {atom.title}
       </h1>
     </div>

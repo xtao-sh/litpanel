@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo, useRef, Suspense } from "react";
-import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useQuery } from "@apollo/client/react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,7 +20,7 @@ import { IdeaTable } from "@/components/explorer/idea-table";
 import { DetailPanel } from "@/components/explorer/detail-panel";
 import { GET_PAPERS, GET_ATOMS, GET_IDEAS } from "@/lib/queries";
 import { buildCompareHref } from "@/lib/navigation";
-import { ArrowRight, FolderOpen, Microscope, SlidersHorizontal, SearchX } from "lucide-react";
+import { SlidersHorizontal, SearchX } from "lucide-react";
 import { ExportMenu } from "@/components/shared/export-menu";
 import { collectErrorMessages } from "@/components/shared/query-error-banner";
 import { useI18n } from "@/lib/i18n/locale-context";
@@ -87,16 +86,6 @@ function ExplorerContent() {
   const activeTab = searchParams.get("tab") || "papers";
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
   const currentSearchQuery = (searchParams.get("q") || "").trim();
-  const returnToResearch = searchParams.get("returnTo");
-  const researchHref = returnToResearch
-    || (currentSearchQuery ? `/research?q=${encodeURIComponent(currentSearchQuery)}` : "/research");
-  const isProjectReturn = returnToResearch?.startsWith("/projects/") ?? false;
-  const returnLabel = isProjectReturn
-    ? t("explorer.actions.backToProject")
-    : returnToResearch
-      ? t("explorer.actions.return")
-      : t("explorer.actions.openResearch");
-  const ReturnIcon = isProjectReturn ? FolderOpen : Microscope;
   const explorerReturnTo = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
   const getCompareHref = useCallback(
     (paperIds: string[]) =>
@@ -538,57 +527,22 @@ function ExplorerContent() {
 
   return (
     <div className="space-y-5">
-      {/* Error banner */}
-      {anyError && (
-        <div className="paper-panel border-red-200/80 bg-red-50/80 p-4 text-sm text-red-700 shadow-none">
-          <p className="font-medium">{t("explorer.errorTitle")}</p>
-          {combinedErrorMessage ? (
-            <p className="mt-1 text-xs text-red-600">{combinedErrorMessage}</p>
+      <header className="atlas-head">
+        <div>
+          <div className="lp-eyebrow">Atlas · 知识地图</div>
+          <h1 className="atlas-title">Every <em>paper</em>, atom, and idea, indexed.</h1>
+          <p className="atlas-sub">
+            Filter the local literature corpus by field, evidence, method, status, and extracted knowledge atoms.
+          </p>
+        </div>
+        <div className="atlas-actions">
+          {activeTab === "papers" && !papersLoading ? (
+            <ExportMenu
+              paperIds={papers.map((p) => p.paperId)}
+              label={t("explorer.actions.export")}
+              compact
+            />
           ) : null}
-        </div>
-      )}
-
-      {/* Page header */}
-      <div className="paper-panel overflow-hidden p-0">
-        <div className="grid gap-6 border-b border-border/70 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
-          <div className="space-y-3">
-            <p className="section-kicker">{t("explorer.hero.kicker")}</p>
-            <div className="space-y-2">
-              <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
-                {t("explorer.hero.title")}
-              </h2>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
-                {t("explorer.hero.body")}
-              </p>
-            </div>
-          </div>
-          <div className="space-y-3 rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
-            <p className="section-kicker">{t("explorer.hero.roleKicker")}</p>
-            <p className="text-sm leading-6 text-foreground/80">
-              {t("explorer.hero.roleTitle")}
-            </p>
-            <p className="text-sm leading-6 text-muted-foreground">
-              {t("explorer.hero.roleBody")}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm" className="rounded-full">
-              <Link href={researchHref}>
-                <ReturnIcon className="mr-1.5 h-3.5 w-3.5" />
-                {returnLabel}
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="rounded-full">
-              <Link href="/projects">
-                <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
-                {t("explorer.actions.openProjects")}
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
           <Button
             variant="outline"
             size="sm"
@@ -598,88 +552,66 @@ function ExplorerContent() {
             <SlidersHorizontal className="mr-1.5 h-4 w-4" />
             {t("explorer.actions.filters")}
             {activeFilterCount > 0 && (
-              <span className="ml-1.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+              <span className="ml-1.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--ink)] px-1 text-[10px] font-medium text-[var(--paper)]">
                 {activeFilterCount}
               </span>
             )}
           </Button>
         </div>
-      </div>
+      </header>
 
-      <div className="paper-panel px-5 py-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="section-kicker">{t("explorer.workflow.kicker")}</p>
-            <p className="mt-2 text-base font-medium text-foreground">
-              {t("explorer.workflow.title")}
-            </p>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-              {t("explorer.workflow.body")}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm" className="rounded-full">
-              <Link href={researchHref}>
-                <ReturnIcon className="mr-1.5 h-3.5 w-3.5" />
-                {returnLabel}
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="rounded-full">
-              <Link href="/projects">
-                <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
-                {t("explorer.actions.openProjects")}
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
+      {/* Error banner */}
+      {anyError && (
+        <div className="lp-card border-[#da9a80]/80 bg-[#f4dfd5]/80 p-4 text-sm text-[#8a3318] shadow-none">
+          <p className="font-medium">{t("explorer.errorTitle")}</p>
+          {combinedErrorMessage ? (
+            <p className="mt-1 text-xs text-[#8a3318]">{combinedErrorMessage}</p>
+          ) : null}
         </div>
-      </div>
+      )}
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="h-auto gap-1 rounded-full border border-border/70 bg-background/85 p-1 shadow-sm">
-          <TabsTrigger value="papers" className="rounded-full px-5 py-2 text-sm">
-            {t("explorer.tabs.papers")}
-          </TabsTrigger>
-          <TabsTrigger value="atoms" className="rounded-full px-5 py-2 text-sm">
-            {t("explorer.tabs.atoms")}
-          </TabsTrigger>
-          <TabsTrigger value="ideas" className="rounded-full px-5 py-2 text-sm">
-            {t("explorer.tabs.ideas")}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <TabsList className="tabs">
+            <TabsTrigger value="papers" className="tab">
+              {t("explorer.tabs.papers")} <span data-count className="ct">{papersTotal || ""}</span>
+            </TabsTrigger>
+            <TabsTrigger value="atoms" className="tab">
+              {t("explorer.tabs.atoms")} <span data-count className="ct">{atomsTotal || ""}</span>
+            </TabsTrigger>
+            <TabsTrigger value="ideas" className="tab">
+              {t("explorer.tabs.ideas")} <span data-count className="ct">{ideas.length || ""}</span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
       {/* Results count */}
       {activeTab === "papers" && !papersLoading && (
-        <div className="paper-panel flex items-center justify-between px-4 py-3 shadow-none">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        <div className="lp-card flex items-center justify-between px-4 py-3 shadow-none">
+          <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-4)]">
             {t("explorer.counts.showingPapers", { shown: papers.length, total: papersTotal })}
           </p>
-          <ExportMenu
-            paperIds={papers.map((p) => p.paperId)}
-            label={t("explorer.actions.export")}
-            compact
-          />
         </div>
       )}
       {activeTab === "atoms" && !atomsLoading && (
-        <div className="paper-panel px-4 py-3 shadow-none">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        <div className="lp-card px-4 py-3 shadow-none">
+          <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-4)]">
             {t("explorer.counts.showingAtoms", { shown: atoms.length, total: atomsTotal })}
           </p>
         </div>
       )}
       {activeTab === "ideas" && !ideasLoading && (
-        <div className="paper-panel px-4 py-3 shadow-none">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        <div className="lp-card px-4 py-3 shadow-none">
+          <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-4)]">
             {t("explorer.counts.showingIdeas", { count: ideas.length })}
           </p>
         </div>
       )}
 
       {/* Main layout: sidebar + table + detail */}
-      <div className="overflow-hidden rounded-[1.75rem] border border-border/75 bg-background/92 shadow-[0_24px_60px_rgba(44,51,71,0.08)] backdrop-blur-sm">
+      <div className="overflow-hidden rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)] shadow-[var(--shadow-2)] backdrop-blur-sm">
         <div className="flex gap-0">
         {/* Filter sidebar */}
         <FilterPanel
@@ -696,7 +628,7 @@ function ExplorerContent() {
         />
 
         {/* Table area */}
-        <div className="min-w-0 flex-1 [&_tbody_tr]:h-[52px] [&_tbody_tr:nth-child(even)]:bg-muted/30">
+        <div className="min-w-0 flex-1 [&_tbody_tr]:h-[52px] [&_tbody_tr:nth-child(even)]:bg-[var(--paper-2)]">
           {activeTab === "papers" && (
             <PaperTable
               data={papers}
@@ -749,10 +681,10 @@ function ExplorerContent() {
           {/* Empty state when no results after filtering */}
           {isCurrentTabEmpty && (
             <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-              <SearchX className="h-10 w-10 text-muted-foreground/50" />
+              <SearchX className="h-10 w-10 text-[var(--ink-4)]/50" />
               <div className="space-y-1">
-                <p className="text-sm font-medium text-foreground">{t("explorer.empty.title")}</p>
-                <p className="max-w-xs text-xs text-muted-foreground">
+                <p className="text-sm font-medium text-[var(--ink)]">{t("explorer.empty.title")}</p>
+                <p className="max-w-xs text-xs text-[var(--ink-4)]">
                   {t("explorer.empty.body")}
                 </p>
               </div>
@@ -784,21 +716,11 @@ function ExplorerContent() {
 // ---------------------------------------------------------------------------
 
 export default function ExplorerPage() {
-  const { t } = useI18n();
   return (
     <Suspense
       fallback={
         <div className="space-y-5">
-          <div className="paper-panel space-y-3 px-6 py-6">
-            <p className="section-kicker">{t("explorer.hero.kicker")}</p>
-            <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
-              {t("explorer.hero.title")}
-            </h2>
-            <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
-              {t("explorer.loading.fallbackBody")}
-            </p>
-          </div>
-          <div className="paper-panel h-96 animate-pulse bg-muted/40" />
+          <div className="lp-card h-96 animate-pulse bg-[var(--paper-2)]/40" />
         </div>
       }
     >

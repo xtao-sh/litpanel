@@ -1,10 +1,9 @@
 "use client";
 
 import React, { Suspense, useState, useMemo } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@apollo/client/react";
-import { PenSquare, ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 
 import { GET_IDEAS } from "@/lib/queries";
 import type { Idea } from "@/lib/types";
@@ -24,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { IdeaCard } from "@/components/ideas/idea-card";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -36,18 +36,18 @@ interface IdeasQueryResult {
 type SortField = "composite" | "novelty" | "feasibility" | "date";
 type GroupField = "none" | "heuristic" | "score" | "status";
 
-const SORT_OPTIONS: { value: SortField; label: string }[] = [
-  { value: "composite", label: "Composite" },
-  { value: "novelty", label: "Novelty" },
-  { value: "feasibility", label: "Feasibility" },
-  { value: "date", label: "Date" },
+const SORT_OPTIONS: { value: SortField; labelKey: string }[] = [
+  { value: "composite", labelKey: "ideas.sort.composite" },
+  { value: "novelty", labelKey: "ideas.sort.novelty" },
+  { value: "feasibility", labelKey: "ideas.sort.feasibility" },
+  { value: "date", labelKey: "ideas.sort.date" },
 ];
 
-const GROUP_OPTIONS: { value: GroupField; label: string }[] = [
-  { value: "none", label: "No grouping" },
-  { value: "heuristic", label: "Heuristic" },
-  { value: "score", label: "Score range" },
-  { value: "status", label: "Status" },
+const GROUP_OPTIONS: { value: GroupField; labelKey: string }[] = [
+  { value: "none", labelKey: "ideas.group.none" },
+  { value: "heuristic", labelKey: "ideas.group.heuristic" },
+  { value: "score", labelKey: "ideas.group.score" },
+  { value: "status", labelKey: "ideas.group.status" },
 ];
 
 const STATUS_TABS = ["all", "new", "exploring", "developing", "promoted", "killed"] as const;
@@ -57,12 +57,12 @@ const EMPTY_IDEAS: Idea[] = [];
 // Score range helper
 // ---------------------------------------------------------------------------
 
-function scoreRangeLabel(composite: number | null): string {
-  if (composite === null) return "Unscored";
-  if (composite >= 4) return "4-5 (Excellent)";
-  if (composite >= 3) return "3-4 (Good)";
-  if (composite >= 2) return "2-3 (Moderate)";
-  return "1-2 (Low)";
+function scoreRangeLabel(composite: number | null, t: (key: string) => string): string {
+  if (composite === null) return t("ideas.scoreRange.unscored");
+  if (composite >= 4) return t("ideas.scoreRange.excellent");
+  if (composite >= 3) return t("ideas.scoreRange.good");
+  if (composite >= 2) return t("ideas.scoreRange.moderate");
+  return t("ideas.scoreRange.low");
 }
 
 function scoreRangeOrder(label: string): number {
@@ -81,7 +81,7 @@ function IdeasSkeleton() {
   return (
     <div className="space-y-4">
       {[1, 2, 3, 4].map((i) => (
-        <Card key={i} className="paper-panel">
+        <Card key={i} className="lp-card">
           <CardHeader className="space-y-2 pb-3">
             <div className="flex items-center gap-2">
               <Skeleton className="h-4 w-28" />
@@ -94,13 +94,13 @@ function IdeasSkeleton() {
             <Skeleton className="h-4 w-full" />
             <Skeleton className="mt-2 h-4 w-2/3" />
           </CardContent>
-          <div className="flex items-center gap-4 border-t border-border/70 p-6 pt-4">
+          <div className="flex items-center gap-4 border-t border-[var(--line-soft)] p-6 pt-4">
             <div className="flex-1 space-y-2">
               <Skeleton className="h-2 w-full" />
               <Skeleton className="h-2 w-full" />
               <Skeleton className="h-2 w-full" />
             </div>
-            <Skeleton className="h-14 w-14 rounded-lg" />
+            <Skeleton className="h-14 w-14 rounded-[var(--r)]" />
           </div>
         </Card>
       ))}
@@ -123,17 +123,17 @@ function GroupSection({ label, count, children, defaultOpen = true }: GroupSecti
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="paper-panel overflow-hidden p-0 shadow-none">
+    <div className="lp-card overflow-hidden p-0 shadow-none">
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-accent/45"
+        className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--paper-2)]"
       >
         {open ? (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          <ChevronDown className="h-4 w-4 text-[var(--ink-4)]" />
         ) : (
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          <ChevronRight className="h-4 w-4 text-[var(--ink-4)]" />
         )}
-        <span className="font-display text-xl tracking-tight text-foreground">{label}</span>
+        <span className="font-display text-xl tracking-tight text-[var(--ink)]">{label}</span>
         <Badge variant="secondary" className="ml-1 rounded-full text-xs">
           {count}
         </Badge>
@@ -157,6 +157,7 @@ export default function IdeasPage() {
 
 function IdeasPageInner() {
   const searchParams = useSearchParams();
+  const { t } = useI18n();
   const initialSourceFilter = searchParams.get("source");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortField, setSortField] = useState<SortField>("composite");
@@ -246,16 +247,16 @@ function IdeasPageInner() {
       let key: string;
       switch (groupField) {
         case "heuristic":
-          key = idea.heuristic ?? "Unknown";
+          key = idea.heuristic ?? t("ideas.unknown");
           break;
         case "score":
-          key = scoreRangeLabel(idea.composite);
+          key = scoreRangeLabel(idea.composite, t);
           break;
         case "status":
-          key = idea.status ?? "Unknown";
+          key = idea.status ? t(`ideas.status.${idea.status}`) : t("ideas.unknown");
           break;
         default:
-          key = "Other";
+          key = t("ideas.other");
       }
 
       if (!groups.has(key)) groups.set(key, []);
@@ -271,7 +272,7 @@ function IdeasPageInner() {
     }
 
     return entries;
-  }, [processedIdeas, groupField]);
+  }, [processedIdeas, groupField, t]);
 
   const hasActiveFilters = searchQuery.trim() !== "" || minScore !== "any" || heuristicFilter !== "all" || sourceFilter !== null;
 
@@ -285,43 +286,27 @@ function IdeasPageInner() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="lp-card p-6">
         <div className="space-y-3">
-          <p className="section-kicker">Idea Ledger</p>
+          <p className="section-kicker">{t("ideas.header.kicker")}</p>
           <div>
-            <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
-              Research Ideas
+            <h2 className="font-display text-4xl tracking-tight text-[var(--ink)] sm:text-5xl">
+              {t("ideas.header.title")}
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
-              Review generated ideas, sort by novelty or feasibility, and move
-              promising candidates into your working workspace.
-            </p>
           </div>
-        </div>
-        <div className="space-y-3 rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
-          <p className="section-kicker">Next Step</p>
-          <p className="text-sm leading-6 text-foreground/80">
-            Use this page to triage candidates. Use Workspace when an idea is
-            strong enough to turn into a research plan.
-          </p>
-          <Link href="/ideas/workspace">
-            <Button variant="outline" size="sm" className="mt-1 rounded-full">
-              <PenSquare className="mr-1.5 h-4 w-4" /> My Research Ideas
-            </Button>
-          </Link>
         </div>
       </div>
 
       {/* Status tabs + sort + group */}
-      <div className="paper-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+      <div className="lp-card flex flex-wrap items-center justify-between gap-3 px-5 py-4">
         <Tabs
           value={statusFilter}
           onValueChange={(v) => setStatusFilter(v)}
         >
           <TabsList className="h-11 gap-1 p-1">
             {STATUS_TABS.map((tab) => (
-              <TabsTrigger key={tab} value={tab} className="px-4 text-sm capitalize">
-                {tab}
+              <TabsTrigger key={tab} value={tab} className="px-4 text-sm">
+                {t(`ideas.statusTabs.${tab}`)}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -331,30 +316,30 @@ function IdeasPageInner() {
           {/* Group by */}
           <Select value={groupField} onValueChange={(v) => setGroupField(v as GroupField)}>
             <SelectTrigger className="h-8 w-[140px] text-xs">
-              <SelectValue placeholder="Group by..." />
+              <SelectValue placeholder={t("ideas.group.placeholder")} />
             </SelectTrigger>
             <SelectContent>
               {GROUP_OPTIONS.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                  {opt.label}
+                  {t(opt.labelKey)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
           {/* Sort */}
-          <div className="rounded-full border border-border/70 bg-background/85 px-1 py-0.5 shadow-sm">
+          <div className="rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-1 py-0.5 shadow-[var(--shadow-1)]">
             {SORT_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => setSortField(opt.value)}
                 className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                   sortField === opt.value
-                    ? "bg-accent/70 text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-[var(--paper-2)] text-[var(--ink)]"
+                    : "text-[var(--ink-4)] hover:text-[var(--ink)]"
                 }`}
               >
-                {opt.label}
+                {t(opt.labelKey)}
               </button>
             ))}
           </div>
@@ -362,12 +347,12 @@ function IdeasPageInner() {
       </div>
 
       {/* Filter row */}
-      <div className="paper-panel flex flex-wrap items-center gap-2 px-5 py-4">
+      <div className="lp-card flex flex-wrap items-center gap-2 px-5 py-4">
         {/* Search */}
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--ink-4)]" />
           <Input
-            placeholder="Search ideas..."
+            placeholder={t("ideas.filters.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-8 pl-8 text-xs"
@@ -377,13 +362,13 @@ function IdeasPageInner() {
         {/* Score filter */}
         <Select value={minScore} onValueChange={setMinScore}>
           <SelectTrigger className="h-8 w-[130px] text-xs">
-            <SelectValue placeholder="Min score" />
+            <SelectValue placeholder={t("ideas.filters.minScore")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="any" className="text-xs">Any score</SelectItem>
-            <SelectItem value="4" className="text-xs">4+ (Excellent)</SelectItem>
-            <SelectItem value="3" className="text-xs">3+ (Good)</SelectItem>
-            <SelectItem value="2" className="text-xs">2+ (Moderate)</SelectItem>
+            <SelectItem value="any" className="text-xs">{t("ideas.filters.anyScore")}</SelectItem>
+            <SelectItem value="4" className="text-xs">{t("ideas.filters.score4")}</SelectItem>
+            <SelectItem value="3" className="text-xs">{t("ideas.filters.score3")}</SelectItem>
+            <SelectItem value="2" className="text-xs">{t("ideas.filters.score2")}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -391,10 +376,10 @@ function IdeasPageInner() {
         {heuristics.length > 0 && (
           <Select value={heuristicFilter} onValueChange={setHeuristicFilter}>
             <SelectTrigger className="h-8 w-[200px] text-xs">
-              <SelectValue placeholder="Heuristic" />
+              <SelectValue placeholder={t("ideas.filters.heuristic")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all" className="text-xs">All heuristics</SelectItem>
+              <SelectItem value="all" className="text-xs">{t("ideas.filters.allHeuristics")}</SelectItem>
               {heuristics.map((h) => (
                 <SelectItem key={h} value={h} className="text-xs">
                   {h}
@@ -407,8 +392,8 @@ function IdeasPageInner() {
         {/* Source paper filter indicator */}
         {sourceFilter && (
           <Badge variant="secondary" className="gap-1 rounded-full text-xs">
-            Source: {sourceFilter}
-            <button onClick={() => setSourceFilter(null)} className="ml-1 hover:text-foreground">
+            {t("ideas.filters.source", { source: sourceFilter })}
+            <button onClick={() => setSourceFilter(null)} className="ml-1 hover:text-[var(--ink)]">
               <X className="h-3 w-3" />
             </button>
           </Badge>
@@ -419,20 +404,20 @@ function IdeasPageInner() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1 rounded-full px-2 text-xs text-muted-foreground"
+            className="h-8 gap-1 rounded-full px-2 text-xs text-[var(--ink-4)]"
             onClick={clearFilters}
           >
-            <X className="h-3 w-3" /> Clear filters
+            <X className="h-3 w-3" /> {t("ideas.filters.clear")}
           </Button>
         )}
       </div>
 
       {/* Error */}
       {error && (
-        <div className="paper-panel border-red-200/80 bg-red-50/80 p-4 shadow-none">
-          <p className="text-sm font-medium text-red-700">Failed to load ideas.</p>
-          <p className="mt-1 text-xs text-red-700">
-            {collectErrorMessages([error]) || "Please refresh the page."}
+        <div className="lp-card border-[#da9a80]/80 bg-[#f4dfd5]/80 p-4 shadow-none">
+          <p className="text-sm font-medium text-[#8a3318]">{t("ideas.error.title")}</p>
+          <p className="mt-1 text-xs text-[#8a3318]">
+            {collectErrorMessages([error]) || t("ideas.error.body")}
           </p>
         </div>
       )}
@@ -442,17 +427,17 @@ function IdeasPageInner() {
 
       {/* Empty state */}
       {!loading && processedIdeas.length === 0 && !error && (
-        <div className="paper-panel flex flex-col items-center justify-center py-16 text-center">
-          <p className="font-display text-2xl tracking-tight text-foreground">
+        <div className="lp-card flex flex-col items-center justify-center py-16 text-center">
+          <p className="font-display text-2xl tracking-tight text-[var(--ink)]">
             {hasActiveFilters
-              ? "No ideas match your filters."
+              ? t("ideas.empty.filtered")
               : statusFilter === "all"
-                ? "No research ideas found."
-                : `No ideas with status "${statusFilter}".`}
+                ? t("ideas.empty.all")
+                : t("ideas.empty.status", { status: t(`ideas.statusTabs.${statusFilter}`) })}
           </p>
           {hasActiveFilters && (
             <Button variant="link" size="sm" className="mt-2 text-xs" onClick={clearFilters}>
-              Clear all filters
+              {t("ideas.filters.clearAll")}
             </Button>
           )}
         </div>
@@ -461,9 +446,13 @@ function IdeasPageInner() {
       {/* Ideas list */}
       {!loading && processedIdeas.length > 0 && (
         <div className="space-y-4">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            {processedIdeas.length} idea{processedIdeas.length !== 1 ? "s" : ""}
-            {hasActiveFilters && ideaItems.length > 0 ? ` (of ${ideaItems.length} total)` : ""}
+          <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-4)]">
+            {hasActiveFilters && ideaItems.length > 0
+              ? t("ideas.counts.filtered", {
+                  count: processedIdeas.length.toLocaleString(),
+                  total: ideaItems.length.toLocaleString(),
+                })
+              : t("ideas.counts.visible", { count: processedIdeas.length.toLocaleString() })}
           </p>
 
           {/* Grouped or flat list */}

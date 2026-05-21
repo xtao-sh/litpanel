@@ -24,6 +24,7 @@ export const NETWORK_GRAPH_FIELDS = gql`
       fields
       theme
       paperCount
+      visiblePaperCount
       isSeed
     }
     edges {
@@ -141,6 +142,24 @@ export const GET_ATOMS = gql`
         theme
       }
       total
+    }
+  }
+`;
+
+export const GET_TOP_ATOMS = gql`
+  query GetTopAtoms($limit: Int) {
+    topAtoms(limit: $limit) {
+      slug
+      type
+      title
+      description
+      evidenceStrength
+      paperCount
+      theme
+      yearDistribution {
+        year
+        count
+      }
     }
   }
 `;

@@ -7,9 +7,10 @@ type Theme = "light" | "dark" | "system";
 interface ThemeContextValue {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  toggleTheme: () => void;
 }
 
-const STORAGE_KEY = "ui-theme";
+const STORAGE_KEY = "ui-theme-v2";
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function isTheme(value: string | null): value is Theme {
@@ -20,23 +21,19 @@ function systemPrefersDark(): boolean {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
+function getInitialTheme(): Theme {
+  if (typeof window === "undefined") return "light";
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  return isTheme(stored) ? stored : "light";
+}
+
 function applyTheme(theme: Theme) {
   const shouldUseDark = theme === "dark" || (theme === "system" && systemPrefersDark());
   document.documentElement.classList.toggle("dark", shouldUseDark);
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      const initialTheme = isTheme(stored) ? stored : "system";
-      setThemeState(initialTheme);
-      applyTheme(initialTheme);
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
+  const [theme, setThemeState] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {
     applyTheme(theme);
@@ -53,7 +50,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(nextTheme);
   }, []);
 
-  const value = useMemo(() => ({ theme, setTheme }), [theme, setTheme]);
+  const toggleTheme = useCallback(() => {
+    const currentlyDark = document.documentElement.classList.contains("dark");
+    setThemeState(currentlyDark ? "light" : "dark");
+  }, []);
+
+  const value = useMemo(() => ({ theme, setTheme, toggleTheme }), [theme, setTheme, toggleTheme]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

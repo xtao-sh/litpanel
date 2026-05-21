@@ -36,9 +36,9 @@ function parseFeasibilityLevel(feasibility: string): FeasibilityLevel {
 }
 
 const FEASIBILITY_COLORS: Record<FeasibilityLevel, string> = {
-  High: "bg-green-100 text-green-800 border-green-200",
-  Medium: "bg-amber-100 text-amber-800 border-amber-200",
-  Low: "bg-red-100 text-red-800 border-red-200",
+  High: "bg-[var(--forest-soft)] text-[var(--forest-2)] border-[var(--forest)]",
+  Medium: "bg-[#f4ead8] text-[#654814] border-[#d6b678]",
+  Low: "bg-[#f4dfd5] text-[#742b14] border-[#da9a80]",
 };
 
 // ---------------------------------------------------------------------------
@@ -73,8 +73,8 @@ function WhatIsNeeded({ text }: { text: string }) {
   return (
     <ul className="space-y-1.5">
       {items.map((item, i) => (
-        <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
-          <CheckSquare className="h-4 w-4 shrink-0 mt-0.5 text-blue-500" />
+        <li key={i} className="flex items-start gap-2 text-sm text-[var(--ink-3)]">
+          <CheckSquare className="h-4 w-4 shrink-0 mt-0.5 text-[#2c4870]" />
           <span>{item}</span>
         </li>
       ))}
@@ -135,11 +135,11 @@ function SummaryBar({
   return (
     <div className="space-y-3">
       {/* Counts bar */}
-      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        <span className="font-semibold text-foreground">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--ink-4)]">
+        <span className="font-semibold text-[var(--ink)]">
           {t("maps.frontier.counts.total", { count: counts.total })}
         </span>
-        <span className="text-border">|</span>
+        <span className="text-[var(--line-soft)]">|</span>
         <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${FEASIBILITY_COLORS.High}`}>
           {t("maps.frontier.counts.high", { count: counts.high })}
         </span>
@@ -149,7 +149,7 @@ function SummaryBar({
         <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${FEASIBILITY_COLORS.Low}`}>
           {t("maps.frontier.counts.low", { count: counts.low })}
         </span>
-        <span className="text-border">|</span>
+        <span className="text-[var(--line-soft)]">|</span>
         <span className="text-xs italic">
           {t("maps.frontier.summary")}
         </span>
@@ -159,16 +159,16 @@ function SummaryBar({
       <div className="flex flex-wrap items-center gap-3">
         {/* Filter buttons */}
         <div className="flex items-center gap-1.5">
-          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-medium text-muted-foreground mr-1">{t("maps.frontier.filter.label")}</span>
+          <Filter className="h-3.5 w-3.5 text-[var(--ink-4)]" />
+          <span className="text-xs font-medium text-[var(--ink-4)] mr-1">{t("maps.frontier.filter.label")}</span>
           {(["All", "High", "Medium", "Low"] as const).map((level) => (
             <button
               key={level}
               onClick={() => onFilterChange(level)}
               className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${
                 filterLevel === level
-                  ? "bg-indigo-100 text-indigo-800 border-indigo-300"
-                  : "bg-muted/50 text-muted-foreground border-border hover:bg-muted"
+                  ? "bg-[#e9eef6] text-[#1b2e4d] border-[#bccbe0]"
+                  : "bg-[var(--paper-2)]/50 text-[var(--ink-4)] border-[var(--line-soft)] hover:bg-[var(--paper-2)]"
               }`}
             >
               {t(`maps.frontier.filter.${level.toLowerCase()}`)}
@@ -178,11 +178,11 @@ function SummaryBar({
 
         {/* Sort dropdown */}
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">{t("maps.frontier.sort.label")}</span>
+          <span className="text-xs font-medium text-[var(--ink-4)]">{t("maps.frontier.sort.label")}</span>
           <select
             value={sortOption}
             onChange={(e) => onSortChange(e.target.value as SortOption)}
-            className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-300"
+            className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-2 py-1 text-xs text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[#6f86a6]"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -213,15 +213,15 @@ function GapCard({
 }) {
   const { t } = useI18n();
   return (
-    <div className="rounded-xl border border-border bg-background shadow-sm hover:shadow-md transition-shadow">
+    <div className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] shadow-[var(--shadow-1)] hover:shadow-[var(--shadow-2)] transition-shadow">
       {/* Header */}
-      <div className="border-b border-border px-6 py-4">
+      <div className="border-b border-[var(--line-soft)] px-6 py-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700 font-bold text-sm">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--r)] bg-[#e9eef6] text-[#223a5e] font-bold text-sm">
               {index + 1}
             </div>
-            <h3 className="text-lg font-semibold text-foreground leading-snug">
+            <h3 className="text-lg font-semibold text-[var(--ink)] leading-snug">
               {gap.title}
             </h3>
           </div>
@@ -231,20 +231,20 @@ function GapCard({
 
       <div className="px-6 py-5 space-y-5">
         {/* Description */}
-        <p className="text-sm text-foreground/80 leading-relaxed">
+        <p className="text-sm text-[var(--ink-3)] leading-relaxed">
           {gap.description}
         </p>
 
         {/* Why it matters callout */}
         {gap.whyItMatters && (
-          <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
+          <div className="rounded-[var(--r)] bg-[#f4ead8] border border-[#d6b678] px-4 py-3">
             <div className="flex items-center gap-2 mb-1.5">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <span className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+              <AlertTriangle className="h-4 w-4 text-[#7a5a18]" />
+              <span className="text-xs font-semibold uppercase tracking-wide text-[#7a5a18]">
                 {t("maps.frontier.sections.why")}
               </span>
             </div>
-            <p className="text-sm text-amber-900/80 leading-relaxed">
+            <p className="text-sm text-[#50380f]/80 leading-relaxed">
               {gap.whyItMatters}
             </p>
           </div>
@@ -253,7 +253,7 @@ function GapCard({
         {/* What's needed */}
         {gap.whatIsNeeded && (
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
               <FileText className="h-3.5 w-3.5" />
               {t("maps.frontier.sections.needed")}
             </div>
@@ -264,7 +264,7 @@ function GapCard({
         {/* Closest papers -- with title tooltips */}
         {gap.closestPaperIds.length > 0 && (
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
               <Sparkles className="h-3.5 w-3.5" />
               {t("maps.frontier.sections.closestPapers")}
             </div>
@@ -275,7 +275,7 @@ function GapCard({
                   <Link key={id} href={`/paper/${id}`}>
                     <Badge
                       variant="secondary"
-                      className="cursor-pointer font-mono text-xs hover:bg-blue-100 hover:text-blue-800 transition-colors"
+                      className="cursor-pointer font-mono text-xs hover:bg-[#e9eef6] hover:text-[#1b2e4d] transition-colors"
                       title={title ? title : undefined}
                     >
                       {id}
@@ -290,9 +290,9 @@ function GapCard({
 
         {/* Feasibility details */}
         {gap.feasibility && (
-          <div className="rounded-lg bg-muted/50 px-4 py-3">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              <span className="font-semibold text-foreground/70">{t("maps.frontier.sections.feasibility")} </span>
+          <div className="rounded-[var(--r)] bg-[var(--paper-2)]/50 px-4 py-3">
+            <p className="text-xs text-[var(--ink-4)] leading-relaxed">
+              <span className="font-semibold text-[var(--ink-3)]">{t("maps.frontier.sections.feasibility")} </span>
               {gap.feasibility}
             </p>
           </div>
@@ -301,12 +301,12 @@ function GapCard({
         {/* Related gaps */}
         {relatedGaps.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <Link2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="text-xs text-muted-foreground font-medium">{t("maps.frontier.sections.related")}</span>
+            <Link2 className="h-3.5 w-3.5 text-[var(--ink-4)] shrink-0" />
+            <span className="text-xs text-[var(--ink-4)] font-medium">{t("maps.frontier.sections.related")}</span>
             {relatedGaps.map((rg) => (
               <span
                 key={rg.gapIndex}
-                className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700"
+                className="inline-flex items-center gap-1 rounded-full border border-[#bccbe0] bg-[#e9eef6] px-2 py-0.5 text-xs text-[#223a5e]"
                 title={rg.gapTitle}
               >
                 {t("maps.frontier.relatedGap", { index: rg.gapIndex + 1 })}
@@ -349,11 +349,11 @@ function GapsSkeleton() {
   return (
     <div className="space-y-6">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="rounded-xl border border-border p-6 space-y-4">
+        <div key={i} className="rounded-[var(--r)] border border-[var(--line-soft)] p-6 space-y-4">
           <Skeleton className="h-6 w-3/4" />
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-5/6" />
-          <Skeleton className="h-20 w-full rounded-lg" />
+          <Skeleton className="h-20 w-full rounded-[var(--r)]" />
           <div className="flex gap-2">
             <Skeleton className="h-7 w-24 rounded-full" />
             <Skeleton className="h-7 w-24 rounded-full" />
@@ -465,9 +465,9 @@ export function FrontierGapsInteractive() {
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <div className="rounded-[var(--r)] border border-[#da9a80] bg-[#f4dfd5] p-4 text-sm text-[#8a3318]">
         <p className="font-medium">{t("maps.frontier.errors.failedTitle")}</p>
-        <p className="mt-1 text-xs text-red-700">
+        <p className="mt-1 text-xs text-[#8a3318]">
           {collectErrorMessages([error]) || t("maps.frontier.errors.failedBody")}
         </p>
       </div>
@@ -478,7 +478,7 @@ export function FrontierGapsInteractive() {
 
   if (gaps.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground italic">
+      <p className="text-sm text-[var(--ink-4)] italic">
         {t("maps.frontier.empty.noData")}
       </p>
     );
@@ -497,7 +497,7 @@ export function FrontierGapsInteractive() {
 
       {/* Gap cards */}
       {processedGaps.length === 0 ? (
-        <p className="text-sm text-muted-foreground italic">
+        <p className="text-sm text-[var(--ink-4)] italic">
           {t("maps.frontier.empty.noMatches")}
         </p>
       ) : (

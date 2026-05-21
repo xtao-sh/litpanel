@@ -42,14 +42,14 @@ interface ClusterPapersResult {
 // ---------------------------------------------------------------------------
 
 const CLUSTER_COLORS = [
-  { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", dot: "bg-blue-500" },
-  { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", dot: "bg-emerald-500" },
-  { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700", dot: "bg-purple-500" },
-  { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", dot: "bg-amber-500" },
-  { bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-700", dot: "bg-rose-500" },
-  { bg: "bg-cyan-50", border: "border-cyan-200", text: "text-cyan-700", dot: "bg-cyan-500" },
-  { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700", dot: "bg-indigo-500" },
-  { bg: "bg-teal-50", border: "border-teal-200", text: "text-teal-700", dot: "bg-teal-500" },
+  { bg: "bg-[#e9eef6]", border: "border-[#bccbe0]", text: "text-[#223a5e]", dot: "bg-[#2c4870]" },
+  { bg: "bg-[var(--forest-soft)]", border: "border-[var(--forest)]", text: "text-[var(--forest-2)]", dot: "bg-[var(--forest)]" },
+  { bg: "bg-[#e9eef6]", border: "border-[#bccbe0]", text: "text-[#223a5e]", dot: "bg-[#2c4870]" },
+  { bg: "bg-[#f4ead8]", border: "border-[#d6b678]", text: "text-[#7a5a18]", dot: "bg-[#b88a3b]" },
+  { bg: "bg-[#f4dfd5]", border: "border-[#da9a80]", text: "text-[#8a3318]", dot: "bg-[var(--rust)]" },
+  { bg: "bg-[#e9eef6]", border: "border-[#bccbe0]", text: "text-[#223a5e]", dot: "bg-[#2c4870]" },
+  { bg: "bg-[#e9eef6]", border: "border-[#bccbe0]", text: "text-[#223a5e]", dot: "bg-[#2c4870]" },
+  { bg: "bg-[var(--forest-soft)]", border: "border-[var(--forest)]", text: "text-[var(--forest-2)]", dot: "bg-[var(--forest)]" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -97,10 +97,10 @@ export function ClusterView({
   if (allPaperIds.length < 4) {
     return (
       <div className="flex h-full flex-col items-center justify-center px-4 py-12 text-center">
-        <div className="paper-panel rounded-[1.4rem] px-5 py-4">
-          <Layers className="mx-auto mb-2 h-6 w-6 text-primary/60" />
+        <div className="lp-card rounded-[var(--r-md)] px-5 py-4">
+          <Layers className="mx-auto mb-2 h-6 w-6 text-[var(--forest)]" />
           <p className="section-kicker">{t("research.cluster.kicker")}</p>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-2 text-sm text-[var(--ink-4)]">
             {t("research.cluster.tooFew")}
           </p>
         </div>
@@ -115,7 +115,7 @@ export function ClusterView({
         {Array.from({ length: 3 }).map((_, i) => (
           <div
             key={i}
-            className="paper-panel space-y-2 rounded-[1.35rem] p-4"
+            className="lp-card space-y-2 rounded-[var(--r-md)] p-4"
           >
             <Skeleton className="h-5 w-48" />
             <div className="space-y-1">
@@ -132,9 +132,9 @@ export function ClusterView({
   if (clusters.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center px-4 py-12 text-center">
-        <div className="paper-panel rounded-[1.4rem] px-5 py-4">
+        <div className="lp-card rounded-[var(--r-md)] px-5 py-4">
           <p className="section-kicker">{t("research.cluster.kicker")}</p>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-2 text-sm text-[var(--ink-4)]">
             {t("research.cluster.empty")}
           </p>
         </div>
@@ -145,9 +145,9 @@ export function ClusterView({
   return (
     <div className="flex h-full flex-col">
       {/* Summary bar */}
-      <div className="paper-panel mx-2 mb-2 flex items-center gap-2 rounded-[1.15rem] px-3 py-2">
-        <Layers className="h-3.5 w-3.5 text-primary/70" />
-        <span className="text-xs text-muted-foreground">
+      <div className="lp-card mx-2 mb-2 flex items-center gap-2 rounded-[var(--r-md)] px-3 py-2">
+        <Layers className="h-3.5 w-3.5 text-[var(--forest)]" />
+        <span className="text-xs text-[var(--ink-4)]">
           {t("research.cluster.summary", {
             clusters: clusters.length,
             papers: allPaperIds.length,
@@ -166,7 +166,7 @@ export function ClusterView({
             <div
               key={cluster.clusterId}
               className={cn(
-                "paper-panel rounded-[1.35rem] transition-colors",
+                "lp-card rounded-[var(--r-md)] transition-colors",
                 color.border,
                 color.bg
               )}
@@ -231,7 +231,7 @@ export function ClusterView({
                       {getAtomExplorerHref && (
                         <Link
                           href={getAtomExplorerHref(atom.slug)}
-                          className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground"
+                          className="rounded-full p-0.5 text-[var(--ink-4)] transition-colors hover:bg-[var(--paper)] hover:text-[var(--ink)]"
                           title={t("research.cluster.openAtomExplorer")}
                         >
                           <Search className="h-3 w-3" />
@@ -244,14 +244,14 @@ export function ClusterView({
 
               {/* Papers list */}
               {!isCollapsed && (
-                <div className="border-t border-border/30">
+                <div className="border-t border-[var(--line-soft)]/30">
                   {cluster.papers.map((paper) => (
                     <div
                       key={paper.paperId}
                       className={cn(
-                        "flex w-full items-start gap-2 px-3 py-1.5 text-left transition-colors hover:bg-white/60",
-                        selectedPaperId === paper.paperId && "bg-background/85",
-                        showCompare && compareIds.has(paper.paperId) && "bg-[color:oklch(var(--accent)/0.55)]"
+                        "flex w-full items-start gap-2 px-3 py-1.5 text-left transition-colors hover:bg-[var(--paper)]/60",
+                        selectedPaperId === paper.paperId && "bg-[var(--paper)]",
+                        showCompare && compareIds.has(paper.paperId) && "bg-[var(--paper-3)]"
                       )}
                     >
                       {showCompare && onToggleCompare && (
@@ -263,7 +263,7 @@ export function ClusterView({
                             type="checkbox"
                             checked={compareIds.has(paper.paperId)}
                             readOnly
-                            className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            className="h-3.5 w-3.5 rounded border-[var(--line)] text-[#2c4870] focus:ring-[var(--forest)] cursor-pointer"
                           />
                         </div>
                       )}
@@ -271,20 +271,20 @@ export function ClusterView({
                         {paperClickMode === "detail" && getPaperDetailHref ? (
                           <Link
                             href={getPaperDetailHref(paper.paperId)}
-                            className="font-display block line-clamp-1 text-[1rem] text-foreground hover:text-primary"
+                            className="font-display block line-clamp-1 text-[1rem] text-[var(--ink)] hover:text-[var(--forest)]"
                           >
                             {paper.title ?? t("research.cluster.untitled")}
                           </Link>
                         ) : (
                           <button
                             type="button"
-                            className="font-display block text-left text-[1rem] text-foreground hover:text-primary"
+                            className="font-display block text-left text-[1rem] text-[var(--ink)] hover:text-[var(--forest)]"
                             onClick={() => onSelectPaper(paper.paperId)}
                           >
                             {paper.title ?? t("research.cluster.untitled")}
                           </button>
                         )}
-                        <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-[var(--ink-4)]">
                           {paper.year && (
                             <span className="tabular-nums">{paper.year}</span>
                           )}
@@ -299,7 +299,7 @@ export function ClusterView({
                             {getPaperDetailHref && (
                               <Link
                                 href={getPaperDetailHref(paper.paperId)}
-                                className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+                                className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-2 py-1 text-[11px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                               >
                                 {t("research.cluster.detail")}
                               </Link>
@@ -307,7 +307,7 @@ export function ClusterView({
                             {getPaperExplorerHref && (
                               <Link
                                 href={getPaperExplorerHref(paper.paperId)}
-                                className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] font-medium text-sky-700 transition-colors hover:bg-sky-100"
+                                className="inline-flex items-center gap-1 rounded-[var(--r)] border border-[#bccbe0] bg-[#e9eef6] px-2 py-1 text-[11px] font-medium text-[#223a5e] transition-colors hover:bg-[#e9eef6]"
                               >
                                 <Search className="h-3 w-3" />
                                 {t("research.cluster.explorer")}
@@ -318,17 +318,17 @@ export function ClusterView({
                       </div>
                       <div className="flex shrink-0 items-center gap-2 pt-0.5">
                         {paper.hasCard && (
-                          <FileText className="h-3 w-3 shrink-0 text-blue-400" />
+                          <FileText className="h-3 w-3 shrink-0 text-[#4e688d]" />
                         )}
                         {paper.averageScore != null && (
                           <span
                             className={cn(
                               "shrink-0 text-[10px] font-medium tabular-nums",
                               paper.averageScore >= 4
-                                ? "text-green-600"
+                                ? "text-[var(--forest)]"
                                 : paper.averageScore >= 3
-                                  ? "text-yellow-600"
-                                  : "text-gray-400"
+                                  ? "text-[#7a5a18]"
+                                  : "text-[var(--ink-5)]"
                             )}
                           >
                             {paper.averageScore.toFixed(1)}

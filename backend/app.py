@@ -10,6 +10,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path, PurePosixPath
@@ -41,9 +42,12 @@ from auth import verify_api_key
 from database import (
     add_paper_feedback,
     attach_metadata_paper_to_library,
+    add_import_batch_file,
+    create_import_batch,
     create_library,
     delete_library,
     ensure_default_library,
+    finalize_import_batch,
     get_ai_settings,
     get_connection,
     get_library,
@@ -153,6 +157,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+READING_JOBS: dict[str, dict[str, object]] = {}
+READING_JOB_TASKS: dict[str, asyncio.Task] = {}
+
 
 @app.middleware("http")
 async def apply_active_library(request: Request, call_next):
@@ -161,7 +168,7 @@ async def apply_active_library(request: Request, call_next):
     if raw:
         try:
             parsed = int(raw)
-            if parsed > 0:
+            if parsed > 0 and library_exists(parsed):
                 library_id = parsed
         except ValueError:
             library_id = None
@@ -224,12 +231,18 @@ class CreateLibraryRequest(BaseModel):
     name: str
     discipline: str = ""
     description: str = ""
+    papers_dir: str = ""
+    knowledge_base_dir: str = ""
+    agent_db_path: str = ""
 
 
 class UpdateLibraryRequest(BaseModel):
     name: str
     discipline: str = ""
     description: str = ""
+    papers_dir: str = ""
+    knowledge_base_dir: str = ""
+    agent_db_path: str = ""
 
 
 class DoiImportRequest(BaseModel):
@@ -523,6 +536,25 @@ async def library_import_doi_endpoint(library_id: int, body: DoiImportRequest):
         year=metadata["year"] if isinstance(metadata["year"], int) else None,
         source_url=str(metadata["source_url"]),
     )
+    batch_id = create_import_batch(
+        library_id=library_id,
+        source_type="doi",
+        source_label=f"DOI {body.doi.strip()}",
+        total_files=1,
+    )
+    add_import_batch_file(
+        batch_id=batch_id,
+        filename=str(metadata["source_url"] or body.doi.strip()),
+        paper_id=str(metadata["paper_id"]),
+        status="imported",
+        detail=str(metadata["title"]),
+    )
+    finalize_import_batch(
+        batch_id=batch_id,
+        imported_files=1,
+        skipped_files=0,
+        failed_files=0,
+    )
     return {"paper": metadata, "status": "indexed"}
 
 
@@ -553,6 +585,8 @@ async def library_batch_reprocess_endpoint(
                 library_id=library_id,
                 reading_profile=body.reading_profile or None,
                 analysis_focuses=body.analysis_focuses,
+                analysis_focus_prompts=body.analysis_focus_prompts,
+                custom_reading_instructions=body.custom_reading_instructions or None,
             )
             results.append({"paper_id": paper_id, "ok": True, "result": payload})
         except Exception as exc:
@@ -583,6 +617,137 @@ async def paper_processing_endpoint(
     if payload is None:
         raise HTTPException(status_code=404, detail="Paper not found in the selected library.")
     return payload
+
+
+_READING_FOCUS_SECTION_LABELS: dict[str, str] = {
+    "title_abstract": "Title & Abstract",
+    "research_question": "Research Question",
+    "literature_position": "Literature Position",
+    "theory_framework": "Theory Framework",
+    "hypotheses_predictions": "Hypotheses & Predictions",
+    "institutional_context": "Institutional Context",
+    "methods_data": "Methods & Data",
+    "identification": "Identification",
+    "robustness": "Robustness",
+    "findings": "Findings",
+    "mechanisms": "Mechanisms",
+    "external_validity": "External Validity",
+    "policy_implications": "Policy Implications",
+    "welfare_counterfactuals": "Welfare & Counterfactuals",
+    "method_reuse": "Reusable Research Design",
+    "data_reuse": "Reusable Data Assets",
+    "limitations": "Limitations",
+    "future_research": "Future Research",
+    "writing_style": "Writing Style",
+    "argument_logic": "Argument Logic",
+    "figures_tables": "Figures & Tables",
+    "technical_appendix": "Technical Appendix",
+}
+
+_READING_FOCUS_SECTION_ALIASES: dict[str, list[str]] = {
+    "research_question": ["Research Question"],
+    "methods_data": ["Methods & Data", "Methods and Data", "Identification & Method"],
+    "identification": ["Identification", "Identification Strategy", "Identification & Method"],
+    "findings": ["Findings", "Key Findings"],
+    "limitations": ["Limitations", "Limitations & Open Questions"],
+    "method_reuse": ["Reusable Research Design", "Research Reuse & Extensions"],
+    "data_reuse": ["Reusable Data Assets", "Research Reuse & Extensions"],
+    "future_research": ["Future Research", "Research Reuse & Extensions", "Limitations & Open Questions"],
+}
+
+
+def _section_text(section: object, key: str) -> str:
+    if isinstance(section, dict):
+        return str(section.get(key) or "")
+    try:
+        return str(section[key] or "")  # type: ignore[index]
+    except Exception:
+        return ""
+
+
+def _sections_for_reading_focuses(
+    sections: list[object],
+    processing: dict[str, object] | None,
+) -> list[dict[str, str]]:
+    """Align displayed reader output with dimensions selected for the run."""
+    focuses = []
+    if isinstance(processing, dict):
+        raw_focuses = processing.get("analysis_focuses")
+        if isinstance(raw_focuses, list):
+            focuses = [str(item).strip().lower() for item in raw_focuses if str(item).strip()]
+
+    normalized_sections = [
+        {
+            "section": _section_text(section, "section"),
+            "content": _section_text(section, "content"),
+        }
+        for section in sections
+    ]
+    if not focuses:
+        return normalized_sections
+
+    by_heading = {
+        section["section"].strip().lower(): section
+        for section in normalized_sections
+        if section["section"].strip()
+    }
+    aligned: list[dict[str, str]] = []
+    used_headings: set[str] = set()
+    selected_labels = {
+        _READING_FOCUS_SECTION_LABELS.get(
+            focus,
+            re.sub(r"^custom_", "", focus).replace("_", " ").strip().title() or focus,
+        ).strip().lower()
+        for focus in focuses
+    }
+
+    for focus in focuses:
+        label = _READING_FOCUS_SECTION_LABELS.get(
+            focus,
+            re.sub(r"^custom_", "", focus).replace("_", " ").strip().title() or focus,
+        )
+        candidates = [label, *_READING_FOCUS_SECTION_ALIASES.get(focus, [])]
+        match = None
+        for candidate in candidates:
+            key = candidate.strip().lower()
+            if key in by_heading:
+                match = by_heading[key]
+                used_headings.add(key)
+                break
+        if match is not None:
+            aligned.append({"section": label, "content": match["content"]})
+
+    for section in normalized_sections:
+        key = section["section"].strip().lower()
+        if key not in used_headings and key in selected_labels:
+            aligned.append(section)
+
+    return aligned if aligned else normalized_sections
+
+
+@app.get("/api/papers/{paper_id}/reading-output")
+async def paper_reading_output_endpoint(
+    paper_id: str,
+    library_id: int | None = Query(default=None),
+):
+    resolved_library_id = library_id or get_active_library_id() or ensure_default_library()
+    if not library_exists(resolved_library_id):
+        raise HTTPException(status_code=404, detail="Library not found.")
+
+    paper = await resolvers.get_paper(paper_id)
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found.")
+
+    processing = get_paper_processing_state(
+        library_id=resolved_library_id,
+        paper_id=paper_id,
+    )
+    sections = await resolvers.get_card_sections(paper_id)
+    return {
+        "paper": paper,
+        "sections": _sections_for_reading_focuses(sections, processing),
+        "processing": processing,
+    }
 
 
 @app.get("/api/papers/{paper_id}/feedback")
@@ -665,6 +830,8 @@ async def reprocess_paper_endpoint(
             library_id=resolved_library_id,
             reading_profile=body.reading_profile or None,
             analysis_focuses=body.analysis_focuses if body.analysis_focuses else None,
+            analysis_focus_prompts=body.analysis_focus_prompts if body.analysis_focus_prompts else None,
+            custom_reading_instructions=body.custom_reading_instructions or None,
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -738,6 +905,9 @@ async def create_library_endpoint(body: CreateLibraryRequest):
         name=body.name,
         discipline=body.discipline,
         description=body.description,
+        papers_dir=body.papers_dir,
+        knowledge_base_dir=body.knowledge_base_dir,
+        agent_db_path=body.agent_db_path,
     )
     return {"library": library}
 
@@ -753,6 +923,9 @@ async def update_library_endpoint(library_id: int, body: UpdateLibraryRequest):
         name=body.name,
         discipline=body.discipline,
         description=body.description,
+        papers_dir=body.papers_dir,
+        knowledge_base_dir=body.knowledge_base_dir,
+        agent_db_path=body.agent_db_path,
     )
     return {"library": library}
 
@@ -2295,18 +2468,33 @@ class ProcessRequest(BaseModel):
     library_id: Optional[int] = None
     reading_profile: str = "auto"
     analysis_focuses: list[str] = []
+    analysis_focus_prompts: dict[str, str] = {}
+    custom_reading_instructions: str = ""
 
 
 class PaperReprocessRequest(BaseModel):
     library_id: Optional[int] = None
     reading_profile: str = ""
     analysis_focuses: list[str] = []
+    analysis_focus_prompts: dict[str, str] = {}
+    custom_reading_instructions: str = ""
 
 
 class BatchPaperReprocessRequest(BaseModel):
     paper_ids: list[str]
     reading_profile: str = ""
     analysis_focuses: list[str] = []
+    analysis_focus_prompts: dict[str, str] = {}
+    custom_reading_instructions: str = ""
+
+
+class ReadingJobRequest(BaseModel):
+    paper_ids: list[str]
+    library_id: Optional[int] = None
+    reading_profile: str = "auto"
+    analysis_focuses: list[str] = []
+    analysis_focus_prompts: dict[str, str] = {}
+    custom_reading_instructions: str = ""
 
 
 class PaperFeedbackRequest(BaseModel):
@@ -2346,6 +2534,161 @@ def _parse_focuses_field(raw: str) -> list[str]:
     return []
 
 
+def _parse_prompt_map_field(raw: str) -> dict[str, str]:
+    if not raw.strip():
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    return {
+        str(key): str(value)
+        for key, value in parsed.items()
+        if str(key).strip() and str(value).strip()
+    }
+
+
+def _utc_now_iso() -> str:
+    return datetime.utcnow().isoformat(timespec="seconds") + "Z"
+
+
+def _serialize_reading_job(job: dict[str, object]) -> dict[str, object]:
+    return {
+        "id": job["id"],
+        "library_id": job["library_id"],
+        "status": job["status"],
+        "reading_profile": job["reading_profile"],
+        "analysis_focuses": job["analysis_focuses"],
+        "analysis_focus_prompts": job.get("analysis_focus_prompts", {}),
+        "custom_reading_instructions": job.get("custom_reading_instructions", ""),
+        "created_at": job["created_at"],
+        "started_at": job.get("started_at"),
+        "completed_at": job.get("completed_at"),
+        "cancel_requested": job.get("cancel_requested", False),
+        "current_paper_id": job.get("current_paper_id"),
+        "requested": len(job.get("paper_ids", [])),
+        "processed": sum(
+            1 for item in job.get("items", []) if item.get("status") in {"done", "error", "cancelled"}
+        ),
+        "succeeded": sum(1 for item in job.get("items", []) if item.get("status") == "done"),
+        "failed": sum(1 for item in job.get("items", []) if item.get("status") == "error"),
+        "items": job.get("items", []),
+    }
+
+
+async def _run_reading_job(job_id: str) -> None:
+    from pipeline import process_paper, reprocess_existing_paper
+
+    job = READING_JOBS[job_id]
+    job["status"] = "running"
+    job["started_at"] = _utc_now_iso()
+
+    for item in job["items"]:
+        if job.get("cancel_requested"):
+            item["status"] = "cancelled"
+            item["step"] = "已取消"
+            item["completed_at"] = _utc_now_iso()
+            continue
+
+        paper_id = str(item["paper_id"])
+        job["current_paper_id"] = paper_id
+        item["status"] = "running"
+        item["step"] = "调用 AI 读取"
+        item["started_at"] = _utc_now_iso()
+
+        try:
+            body = {
+                "library_id": job["library_id"],
+                "reading_profile": job["reading_profile"],
+                "analysis_focuses": job["analysis_focuses"],
+                "analysis_focus_prompts": job.get("analysis_focus_prompts", {}),
+                "custom_reading_instructions": job.get("custom_reading_instructions", ""),
+            }
+
+            try:
+                result = await asyncio.to_thread(
+                    lambda: asyncio.run(
+                        reprocess_existing_paper(
+                            paper_id,
+                            library_id=body["library_id"],
+                            reading_profile=str(body["reading_profile"]),
+                            analysis_focuses=list(body["analysis_focuses"]),
+                            analysis_focus_prompts=dict(body["analysis_focus_prompts"]),
+                            custom_reading_instructions=str(body["custom_reading_instructions"]),
+                        )
+                    )
+                )
+            except RuntimeError as exc:
+                message = str(exc)
+                if "pdf" not in message.lower() and "not found" not in message.lower():
+                    raise
+                item["step"] = "下载 PDF 并读取"
+                item["message"] = "本地文件不可用，已切换到导入流程。"
+                result = await asyncio.to_thread(
+                    lambda: asyncio.run(
+                        process_paper(
+                            paper_id,
+                            library_id=body["library_id"],
+                            reading_profile=str(body["reading_profile"]),
+                            analysis_focuses=list(body["analysis_focuses"]),
+                            analysis_focus_prompts=dict(body["analysis_focus_prompts"]),
+                            custom_reading_instructions=str(body["custom_reading_instructions"]),
+                        )
+                    )
+                )
+
+            if result.get("error"):
+                raise RuntimeError(str(result["error"]))
+            if result.get("registered") is False:
+                raise RuntimeError("Failed to register paper in agent DB")
+            download_result = result.get("download")
+            if isinstance(download_result, dict) and download_result.get("status") == "error":
+                raise RuntimeError(str(download_result.get("error") or "Failed to download PDF"))
+            for agent_step in ("reader",):
+                agent_result = result.get(agent_step)
+                if isinstance(agent_result, dict) and agent_result.get("success") is False:
+                    raise RuntimeError(
+                        f"{agent_step} failed: {agent_result.get('detail') or 'no detail'}"
+                    )
+
+            item["status"] = "done"
+            if str(body["reading_profile"]) == "metadata_only":
+                item["step"] = "登记完成"
+                item["message"] = "已登记论文，未运行 AI 读取。"
+            else:
+                item["step"] = "读取完成"
+                item["message"] = "已完成 AI 读取"
+            item["completed_at"] = _utc_now_iso()
+            item["result"] = {
+                "reader": result.get("reader"),
+                "refresh": result.get("refresh"),
+            }
+        except asyncio.CancelledError:
+            item["status"] = "cancelled"
+            item["step"] = "已请求中止"
+            item["message"] = "任务已收到取消请求。"
+            item["completed_at"] = _utc_now_iso()
+            job["cancel_requested"] = True
+            raise
+        except Exception as exc:
+            item["status"] = "error"
+            item["step"] = "读取失败"
+            item["message"] = str(exc)
+            item["completed_at"] = _utc_now_iso()
+
+    job["current_paper_id"] = None
+    if job.get("cancel_requested"):
+        job["status"] = "cancelled"
+    elif any(item.get("status") == "error" for item in job["items"]):
+        job["status"] = "error"
+    else:
+        job["status"] = "done"
+    job["completed_at"] = _utc_now_iso()
+    READING_JOB_TASKS.pop(job_id, None)
+
+
 @app.post("/api/pipeline/discover")
 async def discover_papers(limit: int = 20):
     """Discover new papers from the configured remote source."""
@@ -2365,6 +2708,89 @@ async def pipeline_options_endpoint():
     return get_pipeline_options()
 
 
+@app.post("/api/reading-jobs")
+async def create_reading_job_endpoint(request: ReadingJobRequest):
+    resolved_library_id = request.library_id or get_active_library_id() or ensure_default_library()
+    if not library_exists(resolved_library_id):
+        raise HTTPException(status_code=404, detail="Library not found.")
+
+    paper_ids = list(dict.fromkeys(paper_id.strip() for paper_id in request.paper_ids if paper_id.strip()))
+    if not paper_ids:
+        raise HTTPException(status_code=400, detail="paper_ids is required.")
+    if len(paper_ids) > 50:
+        raise HTTPException(status_code=400, detail="Reading jobs are limited to 50 papers.")
+
+    job_id = uuid.uuid4().hex
+    job = {
+        "id": job_id,
+        "library_id": resolved_library_id,
+        "paper_ids": paper_ids,
+        "status": "queued",
+        "reading_profile": request.reading_profile or "auto",
+        "analysis_focuses": request.analysis_focuses,
+        "analysis_focus_prompts": request.analysis_focus_prompts,
+        "custom_reading_instructions": request.custom_reading_instructions,
+        "created_at": _utc_now_iso(),
+        "started_at": None,
+        "completed_at": None,
+        "cancel_requested": False,
+        "current_paper_id": None,
+        "items": [
+            {
+                "paper_id": paper_id,
+                "status": "queued",
+                "step": "等待读取",
+                "message": "",
+                "started_at": None,
+                "completed_at": None,
+            }
+            for paper_id in paper_ids
+        ],
+    }
+    READING_JOBS[job_id] = job
+    READING_JOB_TASKS[job_id] = asyncio.create_task(_run_reading_job(job_id))
+    return {"job": _serialize_reading_job(job)}
+
+
+@app.get("/api/reading-jobs")
+async def list_reading_jobs_endpoint(library_id: Optional[int] = Query(default=None)):
+    resolved_library_id = library_id or get_active_library_id() or ensure_default_library()
+    jobs = [
+        _serialize_reading_job(job)
+        for job in READING_JOBS.values()
+        if int(job.get("library_id") or 0) == resolved_library_id
+    ]
+    jobs.sort(key=lambda item: str(item["created_at"]), reverse=True)
+    return {"jobs": jobs[:20]}
+
+
+@app.get("/api/reading-jobs/{job_id}")
+async def get_reading_job_endpoint(job_id: str):
+    job = READING_JOBS.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Reading job not found.")
+    return {"job": _serialize_reading_job(job)}
+
+
+@app.post("/api/reading-jobs/{job_id}/cancel")
+async def cancel_reading_job_endpoint(job_id: str):
+    job = READING_JOBS.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Reading job not found.")
+
+    job["cancel_requested"] = True
+    if job.get("status") == "queued":
+        job["status"] = "cancelled"
+        job["completed_at"] = _utc_now_iso()
+    for item in job.get("items", []):
+        if item.get("status") == "queued":
+            item["status"] = "cancelled"
+            item["step"] = "已取消"
+            item["completed_at"] = _utc_now_iso()
+
+    return {"job": _serialize_reading_job(job)}
+
+
 @app.post("/api/pipeline/process")
 async def process_paper_endpoint(request: ProcessRequest):
     """Download and process a specific paper from the configured remote source."""
@@ -2378,6 +2804,8 @@ async def process_paper_endpoint(request: ProcessRequest):
             library_id=request.library_id,
             reading_profile=request.reading_profile,
             analysis_focuses=request.analysis_focuses,
+            analysis_focus_prompts=request.analysis_focus_prompts,
+            custom_reading_instructions=request.custom_reading_instructions,
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -2391,6 +2819,8 @@ async def upload_paper(
     library_id: int = Form(default=1),
     reading_profile: str = Form(default="auto"),
     analysis_focuses: str = Form(default="[]"),
+    analysis_focus_prompts: str = Form(default="{}"),
+    custom_reading_instructions: str = Form(default=""),
 ):
     """Upload a PDF for processing (max 50 MB)."""
     from pipeline import import_uploaded_file, MAX_UPLOAD_BYTES
@@ -2413,6 +2843,8 @@ async def upload_paper(
         filename=file.filename or "",
         reading_profile=reading_profile,
         analysis_focuses=_parse_focuses_field(analysis_focuses),
+        analysis_focus_prompts=_parse_prompt_map_field(analysis_focus_prompts),
+        custom_reading_instructions=custom_reading_instructions,
     )
     return result
 
@@ -2423,6 +2855,8 @@ async def upload_paper_batch(
     library_id: int = Form(default=1),
     reading_profile: str = Form(default="auto"),
     analysis_focuses: str = Form(default="[]"),
+    analysis_focus_prompts: str = Form(default="{}"),
+    custom_reading_instructions: str = Form(default=""),
 ):
     """Upload multiple PDFs or a selected folder worth of PDFs."""
     from pipeline import import_uploaded_batch
@@ -2440,12 +2874,14 @@ async def upload_paper_batch(
         library_id=library_id,
         reading_profile=reading_profile,
         analysis_focuses=_parse_focuses_field(analysis_focuses),
+        analysis_focus_prompts=_parse_prompt_map_field(analysis_focus_prompts),
+        custom_reading_instructions=custom_reading_instructions,
     )
 
 
 @app.post("/api/pipeline/run")
 async def run_pipeline_endpoint(request: PipelineRunRequest):
-    """Run the agent pipeline (scout, reader, linker, etc.)."""
+    """Run a named agent pipeline step."""
     from pipeline import run_agent_pipeline
 
     runtime = None

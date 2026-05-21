@@ -122,12 +122,12 @@ export function TocSidebar({ content }: TocSidebarProps) {
   if (headings.length === 0) return null;
 
   return (
-    <nav className="paper-panel sticky top-6 max-h-[calc(100vh-6rem)] p-5">
+    <nav className="lp-card sticky top-6 max-h-[calc(100vh-6rem)] p-5">
       <p className="section-kicker mb-4">
         On this page
       </p>
       <div className="relative">
-        <div className="pointer-events-none absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-background/80 to-transparent z-10" />
+        <div className="pointer-events-none absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-[var(--paper)]/80 to-transparent z-10" />
         <ul className="space-y-1 overflow-y-auto max-h-[calc(100vh-12rem)] pr-1">
           {headings.map((h) => {
             const isActive = activeId === h.id;
@@ -136,12 +136,12 @@ export function TocSidebar({ content }: TocSidebarProps) {
                 <a
                   href={`#${h.id}`}
                   onClick={(e) => handleClick(e, h.id)}
-                  className={`block rounded-2xl border px-3 py-2 text-sm leading-snug transition-all duration-200 ${
-                    h.level === 3 ? "ml-3 text-muted-foreground" : ""
+                  className={`block rounded-[var(--r)] border px-3 py-2 text-sm leading-snug transition-all duration-200 ${
+                    h.level === 3 ? "ml-3 text-[var(--ink-4)]" : ""
                   } ${
                     isActive
-                      ? "border-primary/30 bg-primary/10 font-medium text-primary shadow-sm"
-                      : "border-transparent text-muted-foreground hover:border-border/70 hover:bg-accent/45 hover:text-foreground"
+                      ? "border-[var(--forest)] bg-[var(--forest-soft)] font-medium text-[var(--forest)] shadow-[var(--shadow-1)]"
+                      : "border-transparent text-[var(--ink-4)] hover:border-[var(--line-soft)] hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
                   }`}
                 >
                   {h.text}
@@ -150,7 +150,7 @@ export function TocSidebar({ content }: TocSidebarProps) {
             );
           })}
         </ul>
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-background/80 to-transparent z-10" />
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-[var(--paper)]/80 to-transparent z-10" />
       </div>
     </nav>
   );

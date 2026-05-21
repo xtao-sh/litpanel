@@ -114,7 +114,7 @@ export default function ProjectDetailPage({ params }: ProjectPageProps) {
       {(project) => (
         <>
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_320px]">
-            <Card className="rounded-xl shadow-sm">
+            <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Project Narrative</CardTitle>
               </CardHeader>
@@ -124,7 +124,7 @@ export default function ProjectDetailPage({ params }: ProjectPageProps) {
                     <MarkdownRenderer content={project.overviewContent} />
                   </div>
                 ) : (
-                  <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+                  <div className="space-y-3 text-sm leading-relaxed text-[var(--ink-4)]">
                     {buildProjectNarrativeFallback(project).map((paragraph) => (
                       <p key={paragraph}>{paragraph}</p>
                     ))}
@@ -134,111 +134,111 @@ export default function ProjectDetailPage({ params }: ProjectPageProps) {
             </Card>
 
             <div className="space-y-4">
-              <Card className="rounded-xl shadow-sm">
+              <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">At A Glance</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Primary field</span>
-                    <span className="text-right font-medium text-foreground">
+                    <span className="text-[var(--ink-4)]">Primary field</span>
+                    <span className="text-right font-medium text-[var(--ink)]">
                       {project.landscape?.fieldDistribution[0]?.field ?? "Not classified"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Time span</span>
-                    <span className="text-right font-medium text-foreground">
+                    <span className="text-[var(--ink-4)]">Time span</span>
+                    <span className="text-right font-medium text-[var(--ink)]">
                       {formatYearSpan(project)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Top method</span>
-                    <span className="text-right font-medium text-foreground">
+                    <span className="text-[var(--ink-4)]">Top method</span>
+                    <span className="text-right font-medium text-[var(--ink)]">
                       {project.landscape?.methods[0]?.title ?? "Not mapped"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Gap signals</span>
-                    <span className="text-right font-medium text-foreground">
+                    <span className="text-[var(--ink-4)]">Gap signals</span>
+                    <span className="text-right font-medium text-[var(--ink)]">
                       {gapSignalCount(project)}
                     </span>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="rounded-xl shadow-sm">
+              <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Start Here</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <Link
                     href={`/projects/${project.slug}/dossier`}
-                    className="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2 transition-colors hover:bg-accent/40"
+                    className="flex items-start justify-between gap-3 rounded-[var(--r)] border border-[var(--line-soft)] px-3 py-2 transition-colors hover:bg-[var(--paper-2)]"
                   >
                     <div>
-                      <p className="font-medium text-foreground">Dossier</p>
-                      <p className="text-muted-foreground">Read the topic anchor, maturity signal, chronology, and synthesis in one place.</p>
+                      <p className="font-medium text-[var(--ink)]">Dossier</p>
+                      <p className="text-[var(--ink-4)]">Read the topic anchor, maturity signal, chronology, and synthesis in one place.</p>
                     </div>
-                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ink-4)]" />
                   </Link>
                   <Link
                     href={`/projects/${project.slug}/chronology`}
-                    className="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2 transition-colors hover:bg-accent/40"
+                    className="flex items-start justify-between gap-3 rounded-[var(--r)] border border-[var(--line-soft)] px-3 py-2 transition-colors hover:bg-[var(--paper-2)]"
                   >
                     <div>
-                      <p className="font-medium text-foreground">Chronology</p>
-                      <p className="text-muted-foreground">Trace the publication arc and representative papers over time.</p>
+                      <p className="font-medium text-[var(--ink)]">Chronology</p>
+                      <p className="text-[var(--ink-4)]">Trace the publication arc and representative papers over time.</p>
                     </div>
-                    <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ink-4)]" />
                   </Link>
                   <Link
                     href={`/projects/${project.slug}/themes`}
-                    className="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2 transition-colors hover:bg-accent/40"
+                    className="flex items-start justify-between gap-3 rounded-[var(--r)] border border-[var(--line-soft)] px-3 py-2 transition-colors hover:bg-[var(--paper-2)]"
                   >
                     <div>
-                      <p className="font-medium text-foreground">Themes</p>
-                      <p className="text-muted-foreground">See the main topic groupings and cluster structure.</p>
+                      <p className="font-medium text-[var(--ink)]">Themes</p>
+                      <p className="text-[var(--ink-4)]">See the main topic groupings and cluster structure.</p>
                     </div>
-                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ink-4)]" />
                   </Link>
                   <Link
                     href={`/projects/${project.slug}/methods`}
-                    className="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2 transition-colors hover:bg-accent/40"
+                    className="flex items-start justify-between gap-3 rounded-[var(--r)] border border-[var(--line-soft)] px-3 py-2 transition-colors hover:bg-[var(--paper-2)]"
                   >
                     <div>
-                      <p className="font-medium text-foreground">Methods</p>
-                      <p className="text-muted-foreground">Inspect the empirical strategies, data, and mechanisms.</p>
+                      <p className="font-medium text-[var(--ink)]">Methods</p>
+                      <p className="text-[var(--ink-4)]">Inspect the empirical strategies, data, and mechanisms.</p>
                     </div>
-                    <FlaskConical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <FlaskConical className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ink-4)]" />
                   </Link>
                   <Link
                     href={`/projects/${project.slug}/gaps`}
-                    className="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2 transition-colors hover:bg-accent/40"
+                    className="flex items-start justify-between gap-3 rounded-[var(--r)] border border-[var(--line-soft)] px-3 py-2 transition-colors hover:bg-[var(--paper-2)]"
                   >
                     <div>
-                      <p className="font-medium text-foreground">Gaps</p>
-                      <p className="text-muted-foreground">Review limitations, open questions, and missing methods or datasets.</p>
+                      <p className="font-medium text-[var(--ink)]">Gaps</p>
+                      <p className="text-[var(--ink-4)]">Review limitations, open questions, and missing methods or datasets.</p>
                     </div>
-                    <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ink-4)]" />
                   </Link>
                   <Link
                     href={`/projects/${project.slug}/matrix`}
-                    className="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2 transition-colors hover:bg-accent/40"
+                    className="flex items-start justify-between gap-3 rounded-[var(--r)] border border-[var(--line-soft)] px-3 py-2 transition-colors hover:bg-[var(--paper-2)]"
                   >
                     <div>
-                      <p className="font-medium text-foreground">Matrix</p>
-                      <p className="text-muted-foreground">Compare the included papers side by side.</p>
+                      <p className="font-medium text-[var(--ink)]">Matrix</p>
+                      <p className="text-[var(--ink-4)]">Compare the included papers side by side.</p>
                     </div>
-                    <GitBranchPlus className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <GitBranchPlus className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ink-4)]" />
                   </Link>
                 </CardContent>
               </Card>
 
-              <Card className="rounded-xl shadow-sm">
+              <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Corpus Access</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3 text-sm text-muted-foreground">
+                <CardContent className="space-y-3 text-sm text-[var(--ink-4)]">
                   <p>Use Explorer for row-level filtering, or jump straight to the comparison matrix for cross-paper reading.</p>
                   <div className="flex flex-wrap gap-2">
                     <Link
@@ -246,7 +246,7 @@ export default function ProjectDetailPage({ params }: ProjectPageProps) {
                         query: project.originQuery ?? "",
                         returnTo: `/projects/${project.slug}`,
                       })}
-                      className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 transition-colors hover:bg-sky-100"
+                      className="inline-flex items-center gap-1 rounded-[var(--r)] border border-[#bccbe0] bg-[#e9eef6] px-3 py-2 text-sm font-medium text-[#223a5e] transition-colors hover:bg-[#e9eef6]"
                     >
                       <Search className="h-3.5 w-3.5" />
                       Open in Explorer
@@ -257,14 +257,14 @@ export default function ProjectDetailPage({ params }: ProjectPageProps) {
                         projectSlug: project.slug,
                         projectTitle: project.title,
                       })}
-                      className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                      className="inline-flex items-center gap-1 rounded-[var(--r)] border border-[#bccbe0] bg-[#e9eef6] px-3 py-2 text-sm font-medium text-[#223a5e] transition-colors hover:bg-[#e9eef6]"
                     >
                       <GitBranch className="h-3.5 w-3.5" />
                       Project Graph
                     </Link>
                     <Link
                       href={`/projects/${project.slug}/matrix`}
-                      className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                      className="inline-flex items-center gap-1 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                     >
                       Compare in Matrix
                     </Link>
@@ -287,12 +287,12 @@ export default function ProjectDetailPage({ params }: ProjectPageProps) {
 
           <ProjectChronologyPanel project={project} compact />
 
-          <Card className="rounded-xl shadow-sm">
+          <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <CardTitle className="text-base">Included Papers</CardTitle>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  <p className="mt-1 text-sm text-[var(--ink-4)]">
                     Overview keeps this to a preview so the page stays readable. Use Explorer or Matrix for the full working set.
                   </p>
                 </div>
@@ -302,7 +302,7 @@ export default function ProjectDetailPage({ params }: ProjectPageProps) {
                       query: project.originQuery ?? "",
                       returnTo: `/projects/${project.slug}`,
                     })}
-                    className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 transition-colors hover:bg-sky-100"
+                    className="inline-flex items-center gap-1 rounded-[var(--r)] border border-[#bccbe0] bg-[#e9eef6] px-3 py-2 text-sm font-medium text-[#223a5e] transition-colors hover:bg-[#e9eef6]"
                   >
                     <Search className="h-3.5 w-3.5" />
                     Full set in Explorer
@@ -313,14 +313,14 @@ export default function ProjectDetailPage({ params }: ProjectPageProps) {
                       projectSlug: project.slug,
                       projectTitle: project.title,
                     })}
-                    className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                    className="inline-flex items-center gap-1 rounded-[var(--r)] border border-[#bccbe0] bg-[#e9eef6] px-3 py-2 text-sm font-medium text-[#223a5e] transition-colors hover:bg-[#e9eef6]"
                   >
                     <GitBranch className="h-3.5 w-3.5" />
                     Open Graph
                   </Link>
                   <Link
                     href={`/projects/${project.slug}/matrix`}
-                    className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                    className="inline-flex items-center gap-1 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                   >
                     Open Matrix
                   </Link>
@@ -333,9 +333,9 @@ export default function ProjectDetailPage({ params }: ProjectPageProps) {
                   {project.papers.slice(0, 8).map((paper) => (
                     <div
                       key={paper.paperId}
-                      className="flex items-start gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent/40"
+                      className="flex items-start gap-3 rounded-[var(--r)] border border-[var(--line-soft)] p-3 transition-colors hover:bg-[var(--paper-2)]"
                     >
-                      <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      <FileText className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ink-4)]" />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <Link
@@ -343,18 +343,18 @@ export default function ProjectDetailPage({ params }: ProjectPageProps) {
                               paperId: paper.paperId,
                               returnTo: `/projects/${project.slug}`,
                             })}
-                            className="text-sm font-medium text-foreground hover:text-primary"
+                            className="text-sm font-medium text-[var(--ink)] hover:text-[var(--forest)]"
                           >
                             {paper.title || paper.paperId}
                           </Link>
-                          <span className="font-mono text-[11px] text-muted-foreground">
+                          <span className="font-mono text-[11px] text-[var(--ink-4)]">
                             {paper.paperId}
                           </span>
                         </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--ink-4)]">
                           {paper.year && <span>{paper.year}</span>}
                           {paper.fields.slice(0, 3).map((field) => (
-                            <span key={field} className="rounded bg-muted px-1.5 py-0.5">
+                            <span key={field} className="rounded bg-[var(--paper-2)] px-1.5 py-0.5">
                               {field}
                             </span>
                           ))}
@@ -365,7 +365,7 @@ export default function ProjectDetailPage({ params }: ProjectPageProps) {
                               paperId: paper.paperId,
                               returnTo: `/projects/${project.slug}`,
                             })}
-                            className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+                            className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-2 py-1 text-[11px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                           >
                             Detail
                           </Link>
@@ -374,7 +374,7 @@ export default function ProjectDetailPage({ params }: ProjectPageProps) {
                               query: paper.paperId,
                               returnTo: `/projects/${project.slug}`,
                             })}
-                            className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] font-medium text-sky-700 transition-colors hover:bg-sky-100"
+                            className="inline-flex items-center gap-1 rounded-[var(--r)] border border-[#bccbe0] bg-[#e9eef6] px-2 py-1 text-[11px] font-medium text-[#223a5e] transition-colors hover:bg-[#e9eef6]"
                           >
                             <Search className="h-3 w-3" />
                             Explorer
@@ -385,13 +385,13 @@ export default function ProjectDetailPage({ params }: ProjectPageProps) {
                   ))}
 
                   {project.papers.length > 8 && (
-                    <div className="rounded-lg border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">
+                    <div className="rounded-[var(--r)] border border-dashed border-[var(--line-soft)] px-3 py-3 text-sm text-[var(--ink-4)]">
                       Showing 8 of {project.papers.length} papers in the overview. Use Explorer or Matrix for the full set.
                     </div>
                   )}
                 </>
               ) : (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-[var(--ink-4)]">
                   No papers listed in this project yet.
                 </p>
               )}

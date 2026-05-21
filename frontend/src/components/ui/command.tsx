@@ -14,7 +14,7 @@ const Command = React.forwardRef<
   <CommandPrimitive
     ref={ref}
     className={cn(
-      "paper-panel flex h-full w-full flex-col overflow-hidden rounded-[1.45rem] bg-background/96 text-foreground",
+      "lp-card flex h-full w-full flex-col overflow-hidden rounded-[var(--r-md)] bg-[var(--paper)]/96 text-[var(--ink)]",
       className
     )}
     {...props}
@@ -25,9 +25,9 @@ Command.displayName = CommandPrimitive.displayName
 function CommandDialog({ children, ...props }: DialogProps) {
   return (
     <Dialog {...props}>
-      <DialogContent className="max-w-2xl overflow-hidden rounded-[1.9rem] border border-border/75 bg-background/96 p-0 shadow-[0_30px_90px_rgba(44,51,71,0.22)]">
+      <DialogContent className="max-w-2xl overflow-hidden rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)]/96 p-0 shadow-[var(--shadow-2)]">
         <DialogTitle className="sr-only">Search</DialogTitle>
-        <Command className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[0.68rem] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.2em] [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-14 [&_[cmdk-item]]:min-h-14 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-4 [&_[cmdk-item]_svg]:w-4">
+        <Command className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[0.68rem] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.2em] [&_[cmdk-group-heading]]:text-[var(--ink-4)] [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-14 [&_[cmdk-item]]:min-h-14 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-4 [&_[cmdk-item]_svg]:w-4">
           {children}
         </Command>
       </DialogContent>
@@ -40,14 +40,14 @@ const CommandInput = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
 >(({ className, ...props }, ref) => (
   <div
-    className="flex items-center border-b border-border/75 bg-[color:oklch(var(--accent)/0.28)] px-4"
+    className="flex items-center border-b border-[var(--line-soft)] bg-[var(--paper-2)] px-4"
     cmdk-input-wrapper=""
   >
-    <Search className="mr-3 h-4 w-4 shrink-0 text-primary/60" />
+    <Search className="mr-3 h-4 w-4 shrink-0 text-[var(--forest)]" />
     <CommandPrimitive.Input
       ref={ref}
       className={cn(
-        "flex h-14 w-full rounded-md bg-transparent py-4 text-[15px] outline-none placeholder:text-muted-foreground/90 disabled:cursor-not-allowed disabled:opacity-50",
+        "flex h-14 w-full rounded-[var(--r)] bg-transparent py-4 text-[15px] outline-none placeholder:text-[var(--ink-4)]/90 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       {...props}
@@ -74,7 +74,7 @@ const CommandEmpty = React.forwardRef<
 >((props, ref) => (
   <CommandPrimitive.Empty
     ref={ref}
-    className="py-10 text-center text-sm text-muted-foreground"
+    className="py-10 text-center text-sm text-[var(--ink-4)]"
     {...props}
   />
 ))
@@ -87,7 +87,7 @@ const CommandGroup = React.forwardRef<
   <CommandPrimitive.Group
     ref={ref}
     className={cn(
-      "overflow-hidden p-1 text-foreground",
+      "overflow-hidden p-1 text-[var(--ink)]",
       className
     )}
     {...props}
@@ -101,7 +101,7 @@ const CommandSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <CommandPrimitive.Separator
     ref={ref}
-    className={cn("mx-2 my-2 h-px bg-border/70", className)}
+    className={cn("mx-2 my-2 h-px bg-[var(--line-soft)]/70", className)}
     {...props}
   />
 ))
@@ -114,7 +114,7 @@ const CommandItem = React.forwardRef<
   <CommandPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-default gap-2.5 select-none items-center rounded-[1rem] px-3 py-3 text-sm outline-none data-[selected=true]:bg-[color:oklch(var(--accent)/0.58)] data-[selected=true]:text-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+      "relative flex cursor-default gap-2.5 select-none items-center rounded-[var(--r-md)] px-3 py-3 text-sm outline-none data-[selected=true]:bg-[var(--paper-3)] data-[selected=true]:text-[var(--ink)] data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
       className
     )}
     {...props}
@@ -129,7 +129,7 @@ function CommandShortcut({
   return (
     <span
       className={cn(
-        "ml-auto text-xs tracking-[0.16em] text-muted-foreground",
+        "ml-auto text-xs tracking-[0.16em] text-[var(--ink-4)]",
         className
       )}
       {...props}

@@ -11,14 +11,14 @@ import { useI18n } from "@/lib/i18n/locale-context";
 
 function fieldBadgeClass(field: string): string {
   const colors = [
-    "bg-blue-100 text-blue-800",
-    "bg-emerald-100 text-emerald-800",
-    "bg-purple-100 text-purple-800",
-    "bg-amber-100 text-amber-800",
-    "bg-rose-100 text-rose-800",
-    "bg-cyan-100 text-cyan-800",
-    "bg-indigo-100 text-indigo-800",
-    "bg-teal-100 text-teal-800",
+    "bg-[#e9eef6] text-[#1b2e4d]",
+    "bg-[var(--forest-soft)] text-[var(--forest-2)]",
+    "bg-[#e9eef6] text-[#1b2e4d]",
+    "bg-[#f4ead8] text-[#654814]",
+    "bg-[#f4dfd5] text-[#742b14]",
+    "bg-[#e9eef6] text-[#1b2e4d]",
+    "bg-[#e9eef6] text-[#1b2e4d]",
+    "bg-[var(--forest-soft)] text-[var(--forest-2)]",
   ];
   let hash = 0;
   for (let i = 0; i < field.length; i++) {
@@ -37,7 +37,7 @@ export function WhatsNewCard() {
 
   if (loading) {
     return (
-      <Card className="paper-panel relative overflow-hidden">
+      <Card className="lp-card relative overflow-hidden">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <Skeleton className="h-5 w-5 rounded" />
@@ -61,16 +61,16 @@ export function WhatsNewCard() {
 
   if (!whatsNew || whatsNew.latestPapers.length === 0) {
     return (
-      <Card className="paper-panel rounded-[1.5rem] border-border/75 shadow-none">
+      <Card className="lp-card rounded-[var(--r-md)] border-[var(--line-soft)] shadow-none">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Newspaper className="h-4 w-4 text-primary" /> {t("dashboard.whatsNew.title")}
+            <Newspaper className="h-4 w-4 text-[var(--forest)]" /> {t("dashboard.whatsNew.title")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center py-6 text-center">
-            <FileText className="h-8 w-8 text-muted-foreground/40 mb-2" />
-            <p className="text-sm text-muted-foreground">{t("dashboard.whatsNew.empty")}</p>
+            <FileText className="h-8 w-8 text-[var(--ink-4)]/40 mb-2" />
+            <p className="text-sm text-[var(--ink-4)]">{t("dashboard.whatsNew.empty")}</p>
           </div>
         </CardContent>
       </Card>
@@ -78,14 +78,14 @@ export function WhatsNewCard() {
   }
 
   return (
-    <Card className="paper-panel relative overflow-hidden">
+    <Card className="lp-card relative overflow-hidden">
       <CardHeader className="relative pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
-            <Sparkles className="h-4.5 w-4.5 text-primary" />
+          <CardTitle className="flex items-center gap-2 text-base font-semibold text-[var(--ink)]">
+            <Sparkles className="h-4.5 w-4.5 text-[var(--forest)]" />
             {t("dashboard.whatsNew.title")}
           </CardTitle>
-          <span className="text-xs text-muted-foreground tabular-nums">
+          <span className="text-xs text-[var(--ink-4)] tabular-nums">
             {t("dashboard.whatsNew.totalPapers", { count: whatsNew.totalPapers.toLocaleString() })}
           </span>
         </div>
@@ -95,19 +95,19 @@ export function WhatsNewCard() {
           <Link
             key={paper.paperId}
             href={`/paper/${paper.paperId}`}
-            className="group flex items-start gap-3 rounded-2xl border border-transparent px-2.5 py-2.5 transition-colors hover:border-border hover:bg-[color:oklch(var(--accent)/0.42)]"
+            className="group flex items-start gap-3 rounded-[var(--r)] border border-transparent px-2.5 py-2.5 transition-colors hover:border-[var(--line-soft)] hover:bg-[var(--paper-2)]"
           >
-            <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/70 group-hover:text-primary" />
+            <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--forest)] group-hover:text-[var(--forest)]" />
             <div className="min-w-0 flex-1">
-              <p className="line-clamp-1 text-sm font-medium text-foreground group-hover:text-primary">
+              <p className="line-clamp-1 text-sm font-medium text-[var(--ink)] group-hover:text-[var(--forest)]">
                 {paper.title || paper.paperId}
               </p>
               <div className="mt-0.5 flex items-center gap-1.5">
-                <span className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+                <span className="inline-flex items-center rounded-full bg-[var(--paper-2)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--ink-4)]">
                   {paper.paperId.length > 10 ? paper.paperId.slice(0, 10) : paper.paperId}
                 </span>
                 {paper.year && (
-                  <span className="text-[11px] tabular-nums text-muted-foreground">
+                  <span className="text-[11px] tabular-nums text-[var(--ink-4)]">
                     {paper.year}
                   </span>
                 )}
@@ -121,12 +121,12 @@ export function WhatsNewCard() {
                   </span>
                 ))}
                 {paper.fields.length > 2 && (
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-[10px] text-[var(--ink-4)]">
                     +{paper.fields.length - 2}
                   </span>
                 )}
                 {paper.hasCard && (
-                  <span className="ml-auto text-[10px] font-medium text-primary">
+                  <span className="ml-auto text-[10px] font-medium text-[var(--forest)]">
                     {t("dashboard.whatsNew.deepRead")}
                   </span>
                 )}
@@ -136,18 +136,18 @@ export function WhatsNewCard() {
         ))}
 
         {/* Footer link */}
-        <div className="mt-1 flex items-center justify-between border-t border-border pt-2">
+        <div className="mt-1 flex items-center justify-between border-t border-[var(--line-soft)] pt-2">
           {whatsNew.recentIdeasCount > 0 && (
             <Link
               href="/ideas"
-              className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              className="text-xs text-[var(--ink-4)] hover:text-[var(--forest)] transition-colors"
             >
               {t("dashboard.whatsNew.newIdeasThisMonth", { count: whatsNew.recentIdeasCount })}
             </Link>
           )}
           <Link
             href="/latest"
-            className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+            className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-[var(--forest)] transition-colors hover:text-[var(--forest)]/80"
           >
             {t("dashboard.actions.openLatestResearch")}
             <ArrowRight className="h-3 w-3" />

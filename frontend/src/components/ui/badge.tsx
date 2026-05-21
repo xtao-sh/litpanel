@@ -3,19 +3,19 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--forest)] focus:ring-offset-2",
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground",
-        secondary: "border-transparent bg-secondary text-secondary-foreground",
-        destructive: "border-transparent bg-destructive text-destructive-foreground",
-        outline: "text-foreground border-border",
-        paper: "bg-blue-50 text-blue-700 border-blue-200",
-        mechanism: "bg-orange-50 text-orange-700 border-orange-200",
-        method: "bg-emerald-50 text-emerald-700 border-emerald-200",
-        dataset: "bg-purple-50 text-purple-700 border-purple-200",
-        puzzle: "bg-rose-50 text-rose-700 border-rose-200",
+        default: "border-transparent bg-[var(--ink)] text-[var(--paper)]",
+        secondary: "border-transparent bg-[var(--paper-2)] text-[var(--ink-3)]",
+        destructive: "border-transparent bg-[var(--rust)] text-[var(--paper)]",
+        outline: "text-[var(--ink)] border-[var(--line-soft)]",
+        paper: "bg-[var(--paper-2)] text-[var(--ink-3)] border-[var(--line-soft)]",
+        mechanism: "bg-[#f4ead8] text-[#7a5a18] border-transparent",
+        method: "bg-[var(--forest-soft)] text-[var(--forest-2)] border-transparent",
+        dataset: "bg-[#e9eef6] text-[#2c4870] border-transparent",
+        puzzle: "bg-[#f4dfd5] text-[#8a3318] border-transparent",
       },
     },
     defaultVariants: {

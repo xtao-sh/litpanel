@@ -51,13 +51,13 @@ function atomTypeVariant(
 function evidenceBadgeClass(strength: string | null): string {
   switch (strength) {
     case "strong":
-      return "bg-green-100 text-green-800";
+      return "bg-[var(--forest-soft)] text-[var(--forest-2)]";
     case "moderate":
-      return "bg-yellow-100 text-yellow-800";
+      return "bg-[#f4ead8] text-[#654814]";
     case "weak":
-      return "bg-red-100 text-red-800";
+      return "bg-[#f4dfd5] text-[#742b14]";
     default:
-      return "bg-gray-100 text-gray-600";
+      return "bg-[var(--paper-2)] text-[var(--ink-3)]";
   }
 }
 
@@ -67,9 +67,9 @@ function evidenceBadgeClass(strength: string | null): string {
 
 function SortIcon({ column }: { column: { getIsSorted: () => false | "asc" | "desc" } }) {
   const sorted = column.getIsSorted();
-  if (sorted === "asc") return <ArrowUp className="ml-1 inline h-3 w-3 text-foreground" />;
-  if (sorted === "desc") return <ArrowDown className="ml-1 inline h-3 w-3 text-foreground" />;
-  return <ArrowUpDown className="ml-1 inline h-3 w-3 text-muted-foreground/40" />;
+  if (sorted === "asc") return <ArrowUp className="ml-1 inline h-3 w-3 text-[var(--ink)]" />;
+  if (sorted === "desc") return <ArrowDown className="ml-1 inline h-3 w-3 text-[var(--ink)]" />;
+  return <ArrowUpDown className="ml-1 inline h-3 w-3 text-[var(--ink-4)]/40" />;
 }
 
 // ---------------------------------------------------------------------------
@@ -92,7 +92,7 @@ function createColumns(t: (key: string, vars?: Record<string, string | number>) 
     cell: ({ row }) => (
       <Link
         href={`/atom/${row.original.slug}`}
-        className="text-sm text-blue-600 hover:underline"
+        className="text-sm text-[#2c4870] hover:underline"
       >
         {row.original.title}
       </Link>
@@ -129,7 +129,7 @@ function createColumns(t: (key: string, vars?: Record<string, string | number>) 
         return (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="cursor-default text-sm text-gray-600">
+              <span className="cursor-default text-sm text-[var(--ink-3)]">
                 {truncated}
               </span>
             </TooltipTrigger>
@@ -140,7 +140,7 @@ function createColumns(t: (key: string, vars?: Record<string, string | number>) 
         );
       }
       return (
-        <span className="text-sm text-gray-600">{truncated || "-"}</span>
+        <span className="text-sm text-[var(--ink-3)]">{truncated || "-"}</span>
       );
     },
     enableSorting: false,
@@ -159,7 +159,7 @@ function createColumns(t: (key: string, vars?: Record<string, string | number>) 
     ),
     cell: ({ row }) => {
       const strength = row.original.evidenceStrength;
-      if (!strength) return <span className="text-gray-400 text-sm">-</span>;
+      if (!strength) return <span className="text-[var(--ink-5)] text-sm">-</span>;
       return (
         <span
           className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${evidenceBadgeClass(strength)}`}
@@ -237,7 +237,7 @@ export function AtomTable({
 
   if (data.length === 0) {
     return (
-      <div className="flex h-64 flex-col items-center justify-center text-gray-500">
+      <div className="flex h-64 flex-col items-center justify-center text-[var(--ink-4)]">
         <p className="text-sm">{t("explorer.empty.atoms")}</p>
       </div>
     );
@@ -252,12 +252,12 @@ export function AtomTable({
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr
                   key={headerGroup.id}
-                  className="border-b border-border bg-muted/50"
+                  className="border-b border-[var(--line-soft)] bg-[var(--paper-2)]/50"
                 >
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
-                      className="h-10 px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                      className="h-10 px-4 text-xs font-medium uppercase tracking-wide text-[var(--ink-4)]"
                       style={{ width: header.getSize() }}
                     >
                       {header.isPlaceholder
@@ -275,9 +275,9 @@ export function AtomTable({
               {table.getRowModel().rows.map((row) => (
                 <tr
                   key={row.id}
-                  className={`h-11 cursor-pointer border-b border-border transition-colors hover:bg-accent/50 ${
+                  className={`h-11 cursor-pointer border-b border-[var(--line-soft)] transition-colors hover:bg-[var(--paper-2)] ${
                     row.original.slug === selectedSlug
-                      ? "bg-primary/5 border-l-2 border-l-primary"
+                      ? "bg-[var(--ink)]/5 border-l-2 border-l-[var(--forest)]"
                       : ""
                   }`}
                   onClick={() => onRowClick(row.original)}
@@ -330,15 +330,15 @@ function Pagination({
   const to = Math.min(page * pageSize, total);
 
   return (
-    <div className="flex items-center justify-between border-t border-border px-4 py-3">
-      <p className="text-sm text-muted-foreground">
+    <div className="flex items-center justify-between border-t border-[var(--line-soft)] px-4 py-3">
+      <p className="text-sm text-[var(--ink-4)]">
         {total > 0
           ? t("explorer.counts.rangeOfTotal", { start: from, end: to, total: total.toLocaleString() })
           : t("explorer.counts.noResults")}
       </p>
       <div className="flex items-center gap-1">
         <button
-          className="rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
+          className="rounded-[var(--r)] px-3 py-1.5 text-sm font-medium text-[var(--ink-4)] transition-colors hover:bg-[var(--paper-2)] disabled:opacity-40 disabled:cursor-not-allowed"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
         >
@@ -346,16 +346,16 @@ function Pagination({
         </button>
         {generatePageNumbers(page, totalPages).map((p, i) =>
           p === "..." ? (
-            <span key={`ellipsis-${i}`} className="px-1.5 text-sm text-muted-foreground">
+            <span key={`ellipsis-${i}`} className="px-1.5 text-sm text-[var(--ink-4)]">
               ...
             </span>
           ) : (
             <button
               key={p}
-              className={`min-w-[32px] rounded-lg px-2 py-1.5 text-sm font-medium transition-colors ${
+              className={`min-w-[32px] rounded-[var(--r)] px-2 py-1.5 text-sm font-medium transition-colors ${
                 p === page
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-accent"
+                  ? "bg-[var(--ink)] text-[var(--paper)] shadow-[var(--shadow-1)]"
+                  : "text-[var(--ink-4)] hover:bg-[var(--paper-2)]"
               }`}
               onClick={() => onPageChange(p as number)}
             >
@@ -364,7 +364,7 @@ function Pagination({
           )
         )}
         <button
-          className="rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
+          className="rounded-[var(--r)] px-3 py-1.5 text-sm font-medium text-[var(--ink-4)] transition-colors hover:bg-[var(--paper-2)] disabled:opacity-40 disabled:cursor-not-allowed"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
         >
@@ -401,7 +401,7 @@ function generatePageNumbers(
 function TableSkeleton({ rows, cols }: { rows: number; cols: number }) {
   return (
     <div className="space-y-0">
-      <div className="flex gap-3 border-b border-gray-200 bg-gray-50/50 px-3 py-3">
+      <div className="flex gap-3 border-b border-[var(--line-soft)] bg-[var(--paper-2)]/50 px-3 py-3">
         {Array.from({ length: cols }).map((_, i) => (
           <Skeleton key={i} className="h-4 flex-1" />
         ))}
@@ -409,7 +409,7 @@ function TableSkeleton({ rows, cols }: { rows: number; cols: number }) {
       {Array.from({ length: rows }).map((_, r) => (
         <div
           key={r}
-          className="flex gap-3 border-b border-gray-100 px-3 py-3"
+          className="flex gap-3 border-b border-[var(--line-soft)] px-3 py-3"
         >
           {Array.from({ length: cols }).map((_, c) => (
             <Skeleton key={c} className="h-4 flex-1" />

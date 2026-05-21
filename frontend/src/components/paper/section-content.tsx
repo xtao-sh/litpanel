@@ -55,7 +55,7 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
         <Link
           key={`${keyPrefix}-${match.index}`}
           href={`/paper/${paperId}`}
-          className="inline-flex items-baseline gap-0.5 rounded-full border border-border/70 bg-accent/55 px-1.5 py-0.5 font-mono text-sm font-medium text-primary no-underline hover:bg-accent/80"
+          className="inline-flex items-baseline gap-0.5 rounded-full border border-[var(--line-soft)] bg-[var(--paper-2)] px-1.5 py-0.5 font-mono text-sm font-medium text-[var(--forest)] no-underline hover:bg-[var(--paper-2)]"
         >
           {display}
         </Link>
@@ -63,7 +63,7 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
     } else if (match[3]) {
       // **bold text** (non paper-id)
       nodes.push(
-        <strong key={`${keyPrefix}-${match.index}`} className="font-semibold text-foreground">
+        <strong key={`${keyPrefix}-${match.index}`} className="font-semibold text-[var(--ink)]">
           {match[4]}
         </strong>
       );
@@ -79,7 +79,7 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
         <Link
           key={`${keyPrefix}-${match.index}`}
           href={`/paper/${paperId}`}
-          className="inline-flex items-baseline gap-0.5 rounded-full border border-border/70 bg-accent/55 px-1.5 py-0.5 font-mono text-sm font-medium text-primary no-underline hover:bg-accent/80"
+          className="inline-flex items-baseline gap-0.5 rounded-full border border-[var(--line-soft)] bg-[var(--paper-2)] px-1.5 py-0.5 font-mono text-sm font-medium text-[var(--forest)] no-underline hover:bg-[var(--paper-2)]"
         >
           {paperId}
         </Link>
@@ -121,7 +121,7 @@ function renderBlock(block: string, blockIndex: number): React.ReactNode {
     return (
       <ul
         key={`ul-${blockIndex}`}
-        className="my-2 list-disc pl-5 space-y-1"
+        className="my-3 list-disc space-y-1.5 pl-5"
       >
         {items.map((item, i) => {
           const text = item.trimStart().replace(BULLET_RE, "");
@@ -144,7 +144,7 @@ function renderBlock(block: string, blockIndex: number): React.ReactNode {
     return (
       <ol
         key={`ol-${blockIndex}`}
-        className="my-2 list-decimal pl-5 space-y-1"
+        className="my-3 list-decimal space-y-1.5 pl-5"
       >
         {items.map((item, i) => {
           const text = item.trimStart().replace(NUMBERED_RE, "");
@@ -222,7 +222,7 @@ function renderBlock(block: string, blockIndex: number): React.ReactNode {
       flushBullets();
       flushNumbered();
       parts.push(
-        <p key={`p-${blockIndex}-${parts.length}`} className="my-1.5 leading-relaxed">
+          <p key={`p-${blockIndex}-${parts.length}`} className="my-2 leading-relaxed">
           {renderInlineText(stripped, `p-${blockIndex}-${parts.length}`)}
         </p>
       );
@@ -249,7 +249,7 @@ export function SectionContent({ content }: SectionContentProps) {
   }, [content]);
 
   return (
-    <div className="text-sm leading-relaxed text-foreground/90">
+    <div className="lit-serif-body">
       {rendered}
     </div>
   );

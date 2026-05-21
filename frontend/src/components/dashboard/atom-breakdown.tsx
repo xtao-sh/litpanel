@@ -20,29 +20,29 @@ const atomTypes = [
     key: "totalMechanisms" as const,
     labelKey: "dashboard.atomBreakdown.mechanisms",
     icon: Cog,
-    color: "text-orange-500",
-    bg: "bg-orange-50",
+    color: "text-[#8a6d3b]",
+    bg: "bg-[#f4ead8]",
   },
   {
     key: "totalMethods" as const,
     labelKey: "dashboard.atomBreakdown.methods",
     icon: FlaskConical,
-    color: "text-green-500",
-    bg: "bg-green-50",
+    color: "text-[var(--forest)]",
+    bg: "bg-[var(--forest-soft)]",
   },
   {
     key: "totalDatasets" as const,
     labelKey: "dashboard.atomBreakdown.datasets",
     icon: Database,
-    color: "text-purple-500",
-    bg: "bg-purple-50",
+    color: "text-[#2c4870]",
+    bg: "bg-[#e9eef6]",
   },
   {
     key: "totalPuzzles" as const,
     labelKey: "dashboard.atomBreakdown.puzzles",
     icon: HelpCircle,
-    color: "text-red-500",
-    bg: "bg-red-50",
+    color: "text-[var(--rust)]",
+    bg: "bg-[#f4dfd5]",
   },
 ];
 
@@ -61,7 +61,7 @@ export function AtomBreakdown({ stats, loading }: AtomBreakdownProps) {
           {atomTypes.map((at) => (
             <div
               key={at.key}
-              className={`flex flex-col items-center justify-center rounded-lg ${at.bg} p-4`}
+              className={`flex flex-col items-center justify-center rounded-[var(--r)] ${at.bg} p-4`}
             >
               {loading || !stats ? (
                 <>
@@ -72,10 +72,10 @@ export function AtomBreakdown({ stats, loading }: AtomBreakdownProps) {
               ) : (
                 <>
                   <at.icon className={`h-5 w-5 ${at.color} mb-2`} />
-                  <span className="text-xl font-bold text-gray-900">
+                  <span className="text-xl font-bold text-[var(--ink)]">
                     {formatNumber(stats[at.key])}
                   </span>
-                  <span className="text-xs text-gray-500 mt-0.5">
+                  <span className="text-xs text-[var(--ink-4)] mt-0.5">
                     {t(at.labelKey)}
                   </span>
                 </>

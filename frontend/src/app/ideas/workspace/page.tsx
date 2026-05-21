@@ -65,17 +65,17 @@ const STATUS_OPTIONS = ["draft", "exploring", "developing", "proposal", "archive
 function statusStyle(status: string) {
   switch (status) {
     case "draft":
-      return "bg-gray-100 text-gray-700 border-border";
+      return "bg-[var(--paper-2)] text-[var(--ink-3)] border-[var(--line-soft)]";
     case "exploring":
-      return "bg-blue-100 text-blue-700 border-blue-200";
+      return "bg-[#e9eef6] text-[#223a5e] border-[#bccbe0]";
     case "developing":
-      return "bg-yellow-100 text-yellow-700 border-yellow-200";
+      return "bg-[#f4ead8] text-[#7a5a18] border-[#d6b678]";
     case "proposal":
-      return "bg-green-100 text-green-700 border-green-200";
+      return "bg-[var(--forest-soft)] text-[var(--forest-2)] border-[var(--forest)]";
     case "archived":
-      return "bg-red-100 text-red-600 border-red-200";
+      return "bg-[#f4dfd5] text-[#8a3318] border-[#da9a80]";
     default:
-      return "bg-gray-100 text-gray-600 border-border";
+      return "bg-[var(--paper-2)] text-[var(--ink-3)] border-[var(--line-soft)]";
   }
 }
 
@@ -110,9 +110,9 @@ function CreateIdeaDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Title *</label>
+            <label className="text-sm font-medium text-[var(--ink-4)]">Title *</label>
             <input
-              className="mt-1 w-full rounded-2xl border border-border/70 bg-background/85 px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              className="mt-1 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm focus:border-[var(--forest)] focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
               placeholder="e.g., Impact of AI on Chinese manufacturing"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -120,9 +120,9 @@ function CreateIdeaDialog({
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Description</label>
+            <label className="text-sm font-medium text-[var(--ink-4)]">Description</label>
             <textarea
-              className="mt-1 w-full rounded-2xl border border-border/70 bg-background/85 px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              className="mt-1 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm focus:border-[var(--forest)] focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
               rows={3}
               placeholder="Brief description of the idea..."
               value={description}
@@ -172,17 +172,17 @@ function IdeaListCard({
 
   return (
     <Card
-      className="cursor-pointer transition-all hover:shadow-md hover:-translate-y-px"
+      className="cursor-pointer transition-all hover:shadow-[var(--shadow-2)] hover:-translate-y-px"
       onClick={onSelect}
     >
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h4 className="text-sm font-semibold text-foreground truncate">
+            <h4 className="text-sm font-semibold text-[var(--ink)] truncate">
               {idea.title}
             </h4>
             {idea.description && (
-              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+              <p className="mt-1 text-xs text-[var(--ink-4)] line-clamp-2">
                 {idea.description}
               </p>
             )}
@@ -190,14 +190,14 @@ function IdeaListCard({
               <Badge className={`text-[10px] ${statusStyle(idea.status)}`}>
                 {idea.status}
               </Badge>
-              {date && <span className="text-[10px] text-muted-foreground">{date}</span>}
+              {date && <span className="text-[10px] text-[var(--ink-4)]">{date}</span>}
               {idea.relatedPaperIds.length > 0 && (
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-[10px] text-[var(--ink-4)]">
                   {idea.relatedPaperIds.length} paper{idea.relatedPaperIds.length !== 1 ? "s" : ""}
                 </span>
               )}
               {(idea.relatedIdeaIds?.length ?? 0) > 0 && (
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-[10px] text-[var(--ink-4)]">
                   <Link2 className="inline h-2.5 w-2.5 mr-0.5" />
                   {idea.relatedIdeaIds.length} linked
                 </span>
@@ -207,7 +207,7 @@ function IdeaListCard({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 w-7 p-0 shrink-0 text-muted-foreground hover:text-red-500"
+            className="h-7 w-7 p-0 shrink-0 text-[var(--ink-4)] hover:text-[var(--rust)]"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
@@ -241,22 +241,22 @@ function IdeaKanbanCard({
 
   return (
     <Card
-      className="cursor-pointer transition-all hover:shadow-md hover:-translate-y-px mb-2"
+      className="cursor-pointer transition-all hover:shadow-[var(--shadow-2)] hover:-translate-y-px mb-2"
       onClick={onClick}
     >
       <CardContent className="p-3">
-        <h4 className="text-xs font-semibold text-foreground line-clamp-2">
+        <h4 className="text-xs font-semibold text-[var(--ink)] line-clamp-2">
           {idea.title}
         </h4>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          {date && <span className="text-[10px] text-muted-foreground">{date}</span>}
+          {date && <span className="text-[10px] text-[var(--ink-4)]">{date}</span>}
           {idea.relatedPaperIds.length > 0 && (
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-[10px] text-[var(--ink-4)]">
               {idea.relatedPaperIds.length} paper{idea.relatedPaperIds.length !== 1 ? "s" : ""}
             </span>
           )}
           {(idea.relatedIdeaIds?.length ?? 0) > 0 && (
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-[10px] text-[var(--ink-4)]">
               <Link2 className="inline h-2.5 w-2.5 mr-0.5" />
               {idea.relatedIdeaIds.length}
             </span>
@@ -307,7 +307,7 @@ function LinkIdeaPicker({
         </DialogHeader>
         <div className="space-y-3">
           <input
-            className="w-full rounded-2xl border border-border/70 bg-background/85 px-3 py-1.5 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5 text-sm focus:border-[var(--forest)] focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
             placeholder="Search ideas..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -315,18 +315,18 @@ function LinkIdeaPicker({
           />
           <div className="max-h-60 overflow-y-auto space-y-1">
             {filtered.length === 0 && (
-              <p className="text-xs text-muted-foreground py-2 text-center">No ideas available to link.</p>
+              <p className="text-xs text-[var(--ink-4)] py-2 text-center">No ideas available to link.</p>
             )}
             {filtered.map((idea) => (
               <button
                 key={idea.id}
-                className="w-full rounded-xl px-3 py-2 text-left text-xs transition-colors hover:bg-accent/45"
+                className="w-full rounded-[var(--r)] px-3 py-2 text-left text-xs transition-colors hover:bg-[var(--paper-2)]"
                 onClick={() => {
                   onLink(idea.id);
                   onClose();
                 }}
               >
-                <span className="font-medium text-foreground">{idea.title}</span>
+                <span className="font-medium text-[var(--ink)]">{idea.title}</span>
                 <Badge className={`ml-2 text-[9px] ${statusStyle(idea.status)}`}>
                   {idea.status}
                 </Badge>
@@ -428,19 +428,19 @@ function IdeaDevelopmentView({
   return (
     <div className="space-y-4">
       {/* Back button */}
-      <Button variant="ghost" size="sm" onClick={onBack} className="rounded-full text-muted-foreground">
+      <Button variant="ghost" size="sm" onClick={onBack} className="rounded-full text-[var(--ink-4)]">
         <ChevronLeft className="mr-1 h-4 w-4" /> Back to list
       </Button>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         {/* Left column: editable form (3/5) */}
         <div className="xl:col-span-3 space-y-4">
-          <div className="paper-panel p-5">
+          <div className="lp-card p-5">
           {/* Title */}
           <div>
             <p className="section-kicker mb-2">Idea Draft</p>
             <input
-              className="w-full border-0 border-b border-transparent bg-transparent pb-1 font-display text-4xl tracking-tight text-foreground focus:border-ring focus:outline-none"
+              className="w-full border-0 border-b border-transparent bg-transparent pb-1 font-display text-4xl tracking-tight text-[var(--ink)] focus:border-[var(--forest)] focus:outline-none"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onBlur={() => saveField("title", title)}
@@ -457,7 +457,7 @@ function IdeaDevelopmentView({
                   className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
                     status === s
                       ? statusStyle(s) + " border"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-[var(--ink-4)] hover:text-[var(--ink)]"
                   }`}
                   onClick={() => {
                     setStatus(s);
@@ -474,11 +474,11 @@ function IdeaDevelopmentView({
           {/* Textarea fields */}
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <label className="text-xs font-medium text-[var(--ink-4)] uppercase tracking-wide">
                 Research Question
               </label>
               <textarea
-                className="mt-1 w-full rounded-2xl border border-border/70 bg-background/85 px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                className="mt-1 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm focus:border-[var(--forest)] focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
                 rows={3}
                 placeholder="What question does this idea try to answer?"
                 value={researchQuestion}
@@ -487,11 +487,11 @@ function IdeaDevelopmentView({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <label className="text-xs font-medium text-[var(--ink-4)] uppercase tracking-wide">
                 Proposed Method
               </label>
               <textarea
-                className="mt-1 w-full rounded-2xl border border-border/70 bg-background/85 px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                className="mt-1 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm focus:border-[var(--forest)] focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
                 rows={3}
                 placeholder="How would you investigate this?"
                 value={proposedMethod}
@@ -500,11 +500,11 @@ function IdeaDevelopmentView({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <label className="text-xs font-medium text-[var(--ink-4)] uppercase tracking-wide">
                 Data Needed
               </label>
               <textarea
-                className="mt-1 w-full rounded-2xl border border-border/70 bg-background/85 px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                className="mt-1 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm focus:border-[var(--forest)] focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
                 rows={2}
                 placeholder="What data sources would you need?"
                 value={dataNeeded}
@@ -513,11 +513,11 @@ function IdeaDevelopmentView({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <label className="text-xs font-medium text-[var(--ink-4)] uppercase tracking-wide">
                 Notes
               </label>
               <textarea
-                className="mt-1 w-full rounded-2xl border border-border/70 bg-background/85 px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                className="mt-1 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm focus:border-[var(--forest)] focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
                 rows={3}
                 placeholder="Any additional thoughts..."
                 value={notes}
@@ -529,20 +529,20 @@ function IdeaDevelopmentView({
 
           {/* Related papers */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <label className="text-xs font-medium text-[var(--ink-4)] uppercase tracking-wide">
               Related Papers
             </label>
             <div className="mt-1 flex flex-wrap gap-1.5">
               {relatedPapers.map((pid) => (
                 <span
                   key={pid}
-                  className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-accent/55 px-2 py-0.5 text-xs font-mono text-primary"
+                  className="inline-flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper-2)] px-2 py-0.5 text-xs font-mono text-[var(--forest)]"
                 >
                   <Link href={`/paper/${pid}`} className="hover:underline">
                     {pid}
                   </Link>
                   <button
-                    className="text-primary/60 hover:text-red-500"
+                    className="text-[var(--forest)] hover:text-[var(--rust)]"
                     onClick={() => handleRemovePaper(pid)}
                   >
                     <X className="h-3 w-3" />
@@ -564,7 +564,7 @@ function IdeaDevelopmentView({
 
           {/* Linked Ideas (6.5) */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <label className="text-xs font-medium text-[var(--ink-4)] uppercase tracking-wide">
               Linked Ideas
             </label>
             {linkedIdeas.length > 0 && (
@@ -572,11 +572,11 @@ function IdeaDevelopmentView({
                 {linkedIdeas.map((li) => (
                   <div
                     key={li.id}
-                    className="group flex items-center gap-2 rounded-2xl border border-border/70 bg-background/80 px-3 py-1.5"
+                    className="group flex items-center gap-2 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5"
                   >
-                    <Link2 className="h-3 w-3 shrink-0 text-primary/60" />
+                    <Link2 className="h-3 w-3 shrink-0 text-[var(--forest)]" />
                     <button
-                      className="min-w-0 flex-1 truncate text-left text-xs font-medium text-foreground hover:underline"
+                      className="min-w-0 flex-1 truncate text-left text-xs font-medium text-[var(--ink)] hover:underline"
                       onClick={() => onSelectIdea(li.id)}
                     >
                       {li.title}
@@ -585,7 +585,7 @@ function IdeaDevelopmentView({
                       {li.status}
                     </Badge>
                     <button
-                      className="shrink-0 text-primary/40 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-500"
+                      className="shrink-0 text-[var(--forest)] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[var(--rust)]"
                       title="Unlink"
                       onClick={() => handleUnlinkIdea(li.id)}
                     >
@@ -598,7 +598,7 @@ function IdeaDevelopmentView({
             <Button
               variant="outline"
               size="sm"
-              className="mt-2 rounded-full text-xs text-primary"
+              className="mt-2 rounded-full text-xs text-[var(--forest)]"
               onClick={() => setLinkPickerOpen(true)}
             >
               <Link2 className="mr-1.5 h-3 w-3" />
@@ -614,12 +614,12 @@ function IdeaDevelopmentView({
           </h3>
 
           {/* Launch Debate */}
-          <Card className="paper-panel">
+          <Card className="lp-card">
             <CardContent className="p-4">
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full justify-start rounded-full text-xs text-primary"
+                className="w-full justify-start rounded-full text-xs text-[var(--forest)]"
                 disabled={!ideaText.trim()}
                 onClick={() => {
                   setDebateExpanded(false);
@@ -629,7 +629,7 @@ function IdeaDevelopmentView({
                 <Scale className="mr-2 h-3.5 w-3.5" />
                 {debateOpen ? "Show Debate Panel" : "Launch Debate"}
               </Button>
-              <p className="mt-2 text-[10px] text-muted-foreground">
+              <p className="mt-2 text-[10px] text-[var(--ink-4)]">
                 Multi-agent debate: Advocate, Skeptic, Methodologist + Moderator verdict
               </p>
             </CardContent>
@@ -652,7 +652,7 @@ function IdeaDevelopmentView({
           )}
 
           {/* Check Novelty */}
-          <Card className="paper-panel">
+          <Card className="lp-card">
             <CardContent className="p-4">
               <Button
                 variant="outline"
@@ -672,15 +672,15 @@ function IdeaDevelopmentView({
                   <div className="flex items-center gap-2">
                     {novelty.isNovel ? (
                       <>
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="text-xs font-medium text-green-700">
+                        <CheckCircle className="h-4 w-4 text-[var(--forest)]" />
+                        <span className="text-xs font-medium text-[var(--forest-2)]">
                           Appears novel
                         </span>
                       </>
                     ) : (
                       <>
-                        <AlertCircle className="h-4 w-4 text-yellow-500" />
-                        <span className="text-xs font-medium text-yellow-700">
+                        <AlertCircle className="h-4 w-4 text-[#8a6d3b]" />
+                        <span className="text-xs font-medium text-[#7a5a18]">
                           Similar work exists
                         </span>
                       </>
@@ -688,18 +688,18 @@ function IdeaDevelopmentView({
                   </div>
                   {novelty.similarPapers.length > 0 && (
                     <div>
-                      <p className="text-[10px] font-medium text-muted-foreground uppercase mt-2">
+                      <p className="text-[10px] font-medium text-[var(--ink-4)] uppercase mt-2">
                         Similar Papers
                       </p>
                       {novelty.similarPapers.slice(0, 5).map((p) => (
-                        <div key={p.paperId} className="py-1.5 border-b border-border last:border-0">
+                        <div key={p.paperId} className="py-1.5 border-b border-[var(--line-soft)] last:border-0">
                           <Link
                             href={`/paper/${p.paperId}`}
-                            className="text-xs text-primary hover:underline"
+                            className="text-xs text-[var(--forest)] hover:underline"
                           >
                             {p.title || p.paperId}
                           </Link>
-                          <span className="ml-2 text-[10px] text-muted-foreground">
+                          <span className="ml-2 text-[10px] text-[var(--ink-4)]">
                             {(p.similarityScore * 100).toFixed(0)}% match
                           </span>
                         </div>
@@ -708,14 +708,14 @@ function IdeaDevelopmentView({
                   )}
                   {novelty.similarIdeas.length > 0 && (
                     <div>
-                      <p className="text-[10px] font-medium text-muted-foreground uppercase mt-2">
+                      <p className="text-[10px] font-medium text-[var(--ink-4)] uppercase mt-2">
                         Similar Ideas
                       </p>
                       {novelty.similarIdeas.slice(0, 3).map((i) => (
-                        <div key={i.id} className="py-1.5 border-b border-border last:border-0">
-                          <span className="text-xs text-muted-foreground">{i.title}</span>
+                        <div key={i.id} className="py-1.5 border-b border-[var(--line-soft)] last:border-0">
+                          <span className="text-xs text-[var(--ink-4)]">{i.title}</span>
                           {i.composite !== null && (
-                            <span className="ml-2 text-[10px] text-muted-foreground">
+                            <span className="ml-2 text-[10px] text-[var(--ink-4)]">
                               Score: {i.composite.toFixed(1)}
                             </span>
                           )}
@@ -729,7 +729,7 @@ function IdeaDevelopmentView({
           </Card>
 
           {/* Suggest Methods (5.2 - with "Use" buttons) */}
-          <Card className="paper-panel">
+          <Card className="lp-card">
             <CardContent className="p-4">
               <Button
                 variant="outline"
@@ -747,23 +747,23 @@ function IdeaDevelopmentView({
               {methods && methods.length > 0 && (
                 <div className="mt-3 space-y-1">
                   {methods.map((m) => (
-                    <div key={m.slug} className="py-1.5 border-b border-border last:border-0">
+                    <div key={m.slug} className="py-1.5 border-b border-[var(--line-soft)] last:border-0">
                       <div className="flex items-center justify-between gap-1">
                         <div className="min-w-0 flex-1">
                           <Link
                             href={`/atom/${m.slug}`}
-                            className="text-xs font-medium text-foreground hover:text-primary"
+                            className="text-xs font-medium text-[var(--ink)] hover:text-[var(--forest)]"
                           >
                             {m.title}
                           </Link>
-                          <span className="ml-2 text-[10px] text-muted-foreground">
+                          <span className="ml-2 text-[10px] text-[var(--ink-4)]">
                             {(m.relevanceScore * 100).toFixed(0)}%
                           </span>
                         </div>
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-5 shrink-0 px-1.5 text-[10px] text-primary hover:bg-accent/50"
+                          className="h-5 shrink-0 px-1.5 text-[10px] text-[var(--forest)] hover:bg-[var(--paper-2)]"
                           
                           onClick={() => {
                             setProposedMethod((prev) =>
@@ -775,7 +775,7 @@ function IdeaDevelopmentView({
                         </Button>
                       </div>
                       {m.whenToUse && (
-                        <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
+                        <p className="text-[10px] text-[var(--ink-4)] mt-0.5 line-clamp-2">
                           {m.whenToUse}
                         </p>
                       )}
@@ -787,7 +787,7 @@ function IdeaDevelopmentView({
           </Card>
 
           {/* Find Data (5.2 - with "Use" buttons) */}
-          <Card className="paper-panel">
+          <Card className="lp-card">
             <CardContent className="p-4">
               <Button
                 variant="outline"
@@ -805,12 +805,12 @@ function IdeaDevelopmentView({
               {datasets && datasets.length > 0 && (
                 <div className="mt-3 space-y-1">
                   {datasets.map((d) => (
-                    <div key={d.slug} className="py-1.5 border-b border-border last:border-0">
+                    <div key={d.slug} className="py-1.5 border-b border-[var(--line-soft)] last:border-0">
                       <div className="flex items-center justify-between gap-1">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <Link
                             href={`/atom/${d.slug}`}
-                            className="text-xs font-medium text-foreground hover:text-primary"
+                            className="text-xs font-medium text-[var(--ink)] hover:text-[var(--forest)]"
                           >
                             {d.title}
                           </Link>
@@ -819,8 +819,8 @@ function IdeaDevelopmentView({
                               variant="outline"
                               className={`text-[9px] py-0 ${
                                 d.access.toLowerCase().includes("public")
-                                  ? "border-green-300 text-green-700"
-                                  : "border-border text-muted-foreground"
+                                  ? "border-[var(--forest)] text-[var(--forest-2)]"
+                                  : "border-[var(--line-soft)] text-[var(--ink-4)]"
                               }`}
                             >
                               {d.access}
@@ -830,7 +830,7 @@ function IdeaDevelopmentView({
                         <Button
                           size="sm"
                           variant="ghost"
-                            className="h-5 shrink-0 px-1.5 text-[10px] text-primary hover:bg-accent/50"
+                            className="h-5 shrink-0 px-1.5 text-[10px] text-[var(--forest)] hover:bg-[var(--paper-2)]"
                           onClick={() => {
                             setDataNeeded((prev) =>
                               prev + (prev ? "\n" : "") + `${d.title} (${d.access || "unknown access"})`
@@ -841,7 +841,7 @@ function IdeaDevelopmentView({
                         </Button>
                       </div>
                       {d.description && (
-                        <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
+                        <p className="text-[10px] text-[var(--ink-4)] mt-0.5 line-clamp-2">
                           {d.description}
                         </p>
                       )}
@@ -893,11 +893,11 @@ function KanbanView({
             <Badge className={`text-[10px] capitalize ${statusStyle(status)}`}>
               {status}
             </Badge>
-            <span className="text-xs text-muted-foreground">({colIdeas.length})</span>
+            <span className="text-xs text-[var(--ink-4)]">({colIdeas.length})</span>
           </div>
-          <div className="space-y-0 rounded-lg bg-muted/50 p-2 min-h-[120px]">
+          <div className="space-y-0 rounded-[var(--r)] bg-[var(--paper-2)]/50 p-2 min-h-[120px]">
             {colIdeas.length === 0 && (
-              <p className="text-[10px] text-muted-foreground text-center py-6">No ideas</p>
+              <p className="text-[10px] text-[var(--ink-4)] text-center py-6">No ideas</p>
             )}
             {colIdeas.map((idea) => (
               <IdeaKanbanCard
@@ -921,7 +921,7 @@ function WorkspaceSkeleton() {
   return (
     <div className="space-y-4">
       {[1, 2, 3].map((i) => (
-        <Skeleton key={i} className="h-24 rounded-[1.5rem]" />
+        <Skeleton key={i} className="h-24 rounded-[var(--r-md)]" />
       ))}
     </div>
   );
@@ -938,18 +938,18 @@ export default function IdeaWorkspacePage() {
     <Suspense
       fallback={
         <div className="space-y-5">
-          <div className="paper-panel space-y-3 px-6 py-6">
+          <div className="lp-card space-y-3 px-6 py-6">
             <p className="section-kicker">Working Studio</p>
-            <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+            <h2 className="font-display text-4xl tracking-tight text-[var(--ink)] sm:text-5xl">
               My Research Ideas
             </h2>
-            <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+            <p className="max-w-2xl text-sm leading-6 text-[var(--ink-4)] sm:text-[15px]">
               Develop and refine your own research ideas with system-assisted tools.
             </p>
           </div>
-          <Skeleton className="h-24 rounded-[1.5rem]" />
-          <Skeleton className="h-24 rounded-[1.5rem]" />
-          <Skeleton className="h-24 rounded-[1.5rem]" />
+          <Skeleton className="h-24 rounded-[var(--r-md)]" />
+          <Skeleton className="h-24 rounded-[var(--r-md)]" />
+          <Skeleton className="h-24 rounded-[var(--r-md)]" />
         </div>
       }
     >
@@ -1019,22 +1019,22 @@ function IdeaWorkspaceContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="paper-panel grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="lp-card grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="space-y-3">
           <p className="section-kicker">Working Studio</p>
           <div>
-            <h2 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
+            <h2 className="font-display text-4xl tracking-tight text-[var(--ink)] sm:text-5xl">
               My Research Ideas
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--ink-4)] sm:text-[15px]">
               Develop, link, evaluate, and pressure-test your own ideas with
               novelty, methods, data, and debate tools.
             </p>
           </div>
         </div>
-        <div className="space-y-3 rounded-[1.5rem] border border-border/70 bg-background/80 p-4">
+        <div className="space-y-3 rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)] p-4">
           <p className="section-kicker">Create</p>
-          <p className="text-sm leading-6 text-foreground/80">
+          <p className="text-sm leading-6 text-[var(--ink-3)]">
             Start from a question, attach related papers, then use the assistant
             panel to test novelty and feasibility.
           </p>
@@ -1045,12 +1045,12 @@ function IdeaWorkspaceContent() {
       </div>
 
       {/* Sub-header: back link + view toggle */}
-      <div className="paper-panel flex items-center justify-between px-5 py-4">
+      <div className="lp-card flex items-center justify-between px-5 py-4">
         <div className="space-y-1">
           <p className="section-kicker">Reference stream</p>
           <Link
             href="/ideas"
-            className="text-sm text-muted-foreground transition-colors hover:text-primary"
+            className="text-sm text-[var(--ink-4)] transition-colors hover:text-[var(--forest)]"
           >
             Browse AI-generated ideas for adjacent questions and prior suggestions
           </Link>
@@ -1058,12 +1058,12 @@ function IdeaWorkspaceContent() {
 
         {/* View mode toggle (6.6) */}
         {ideas.length > 0 && (
-          <div className="flex items-center gap-1 rounded-full border border-border/70 bg-background/85 p-0.5 shadow-sm">
+          <div className="flex items-center gap-1 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] p-0.5 shadow-[var(--shadow-1)]">
             <button
               className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
                 viewMode === "list"
-                  ? "bg-accent/70 text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-[var(--paper-2)] text-[var(--ink)]"
+                  : "text-[var(--ink-4)] hover:text-[var(--ink)]"
               }`}
               onClick={() => setViewMode("list")}
             >
@@ -1073,8 +1073,8 @@ function IdeaWorkspaceContent() {
             <button
               className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
                 viewMode === "kanban"
-                  ? "bg-accent/70 text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-[var(--paper-2)] text-[var(--ink)]"
+                  : "text-[var(--ink-4)] hover:text-[var(--ink)]"
               }`}
               onClick={() => setViewMode("kanban")}
             >
@@ -1086,9 +1086,9 @@ function IdeaWorkspaceContent() {
       </div>
 
       {error && (
-        <div className="paper-panel border-red-200/80 bg-red-50/80 p-4 shadow-none">
-          <p className="text-sm font-medium text-red-700">Failed to load ideas.</p>
-          <p className="mt-1 text-xs text-red-700">
+        <div className="lp-card border-[#da9a80]/80 bg-[#f4dfd5]/80 p-4 shadow-none">
+          <p className="text-sm font-medium text-[#8a3318]">Failed to load ideas.</p>
+          <p className="mt-1 text-xs text-[#8a3318]">
             {collectErrorMessages([error]) || "Please refresh the page."}
           </p>
         </div>
@@ -1098,11 +1098,11 @@ function IdeaWorkspaceContent() {
 
       {/* Ideas list */}
       {!loading && ideas.length === 0 && !error && (
-        <div className="paper-panel flex flex-col items-center justify-center py-16 text-center">
-          <p className="font-display text-2xl tracking-tight text-foreground">
+        <div className="lp-card flex flex-col items-center justify-center py-16 text-center">
+          <p className="font-display text-2xl tracking-tight text-[var(--ink)]">
             No research ideas yet.
           </p>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+          <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--ink-4)]">
             Start with a question, attach a few anchor papers, and use novelty,
             method, and debate tools to pressure-test the idea.
           </p>
@@ -1120,7 +1120,7 @@ function IdeaWorkspaceContent() {
 
       {!loading && ideas.length > 0 && viewMode === "list" && (
         <div className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="text-xs uppercase tracking-[0.18em] text-[var(--ink-4)]">
             {ideas.length} idea{ideas.length !== 1 ? "s" : ""}
           </p>
           {ideas.map((idea) => (
@@ -1136,7 +1136,7 @@ function IdeaWorkspaceContent() {
 
       {!loading && ideas.length > 0 && viewMode === "kanban" && (
         <div>
-          <p className="mb-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="mb-3 text-xs uppercase tracking-[0.18em] text-[var(--ink-4)]">
             {ideas.length} idea{ideas.length !== 1 ? "s" : ""} across {STATUS_OPTIONS.length} stages
           </p>
           <KanbanView ideas={ideas} onSelectIdea={(id) => setSelectedId(id)} />

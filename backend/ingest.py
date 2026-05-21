@@ -109,15 +109,16 @@ def _parse_scores(body: str) -> tuple[list[tuple[str, int]], float | None]:
     return scores, average
 
 
-# Known card sections to store
-CARD_SECTIONS = {
-    "Research Question",
-    "Identification & Method",
-    "Key Findings",
-    "What Makes This Paper Good",
-    "Limitations & Open Questions",
-    "China Applicability",
-}
+def _should_store_card_section(heading: str, body: str) -> bool:
+    """Store dynamic reader sections while excluding metadata and score blocks."""
+    if not body.strip():
+        return False
+    normalized = heading.strip().lower()
+    if normalized == "meta":
+        return False
+    if normalized.startswith("scores"):
+        return False
+    return True
 
 
 def stage1_parse_cards(conn: sqlite3.Connection) -> int:
@@ -171,6 +172,11 @@ def stage1_parse_cards(conn: sqlite3.Connection) -> int:
             ),
         )
 
+        # Re-reading a paper should replace stale structured sections/scores
+        # from previous templates instead of accumulating them.
+        conn.execute("DELETE FROM paper_scores WHERE paper_id = ?", (paper_id,))
+        conn.execute("DELETE FROM card_sections WHERE paper_id = ?", (paper_id,))
+
         # Insert scores
         for dim, score in score_pairs:
             conn.execute(
@@ -180,7 +186,7 @@ def stage1_parse_cards(conn: sqlite3.Connection) -> int:
 
         # Insert card sections
         for heading, body in sections:
-            if heading in CARD_SECTIONS and body:
+            if _should_store_card_section(heading, body):
                 conn.execute(
                     "INSERT OR REPLACE INTO card_sections (paper_id, section, content) VALUES (?, ?, ?)",
                     (paper_id, heading, body),

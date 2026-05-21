@@ -21,9 +21,9 @@ export interface Message {
  * Lightweight inline-markdown renderer.
  *
  * Handles:
- *  - **bold**
- *  - Paper-id references like w31161 -> clickable link
- *  - Preserves numbered lists and bullet points via whitespace
+ * - **bold**
+ * - Paper-id references like w31161 -> clickable link
+ * - Preserves numbered lists and bullet points via whitespace
  */
 function renderContent(text: string) {
   // First split by lines to preserve structure
@@ -53,7 +53,7 @@ function renderContent(text: string) {
           <Link
             key={`p-${lineIdx}-${match.index}`}
             href={`/paper/${match[4]}`}
-            className="inline-flex items-baseline rounded-full bg-primary/10 px-2 py-0.5 font-mono text-sm font-medium text-primary no-underline hover:bg-primary/15"
+            className="inline-flex items-baseline rounded-full bg-[var(--forest-soft)] px-2 py-0.5 font-mono text-sm font-medium text-[var(--forest)] no-underline hover:bg-[var(--forest-soft)]"
           >
             {match[4]}
           </Link>
@@ -109,16 +109,16 @@ export function ChatMessage({ message, userQuestion, defaultContextExpanded }: C
       <div
         className={cn(
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-          isUser ? "bg-blue-100" : message.error ? "bg-red-100" : "bg-gray-100"
+          isUser ? "bg-[#e9eef6]" : message.error ? "bg-[#f4dfd5]" : "bg-[var(--paper-2)]"
         )}
       >
         {isUser ? (
-          <User className="h-4 w-4 text-blue-600" />
+          <User className="h-4 w-4 text-[#2c4870]" />
         ) : (
           <Bot
             className={cn(
               "h-4 w-4",
-              message.error ? "text-red-600" : "text-gray-600"
+              message.error ? "text-[#8a3318]" : "text-[var(--ink-3)]"
             )}
           />
         )}
@@ -127,24 +127,24 @@ export function ChatMessage({ message, userQuestion, defaultContextExpanded }: C
       {/* Bubble */}
       <div
         className={cn(
-          "relative group max-w-[85%] px-4 py-3 shadow-sm",
+          "relative group max-w-[85%] px-4 py-3 shadow-[var(--shadow-1)]",
           isUser
-            ? "rounded-[1.35rem] rounded-br-sm bg-foreground text-background"
+            ? "rounded-[var(--r-md)] rounded-br-sm bg-[var(--ink)] text-[var(--paper)]"
             : message.error
-              ? "rounded-[1.35rem] rounded-bl-sm border border-red-200 bg-red-50 text-red-800"
-              : "paper-panel rounded-[1.35rem] rounded-bl-sm text-foreground"
+              ? "rounded-[var(--r-md)] rounded-bl-sm border border-[#da9a80] bg-[#f4dfd5] text-[#742b14]"
+              : "lp-card rounded-[var(--r-md)] rounded-bl-sm text-[var(--ink)]"
         )}
       >
         {/* Copy button for assistant messages */}
         {!isUser && !message.isStreaming && message.content && (
           <button
             onClick={handleCopy}
-            className="absolute top-2 right-2 rounded-full p-1 opacity-0 text-muted-foreground transition-all group-hover:opacity-100 hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
+            className="absolute top-2 right-2 rounded-full p-1 opacity-0 text-[var(--ink-4)] transition-all group-hover:opacity-100 hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
             title="Copy as text"
             aria-label="Copy message"
           >
             {copied ? (
-              <Check className="h-3.5 w-3.5 text-green-600" />
+              <Check className="h-3.5 w-3.5 text-[var(--forest)]" />
             ) : (
               <Copy className="h-3.5 w-3.5" />
             )}
@@ -161,9 +161,9 @@ export function ChatMessage({ message, userQuestion, defaultContextExpanded }: C
           {isUser ? message.content : renderContent(message.content)}
           {message.isStreaming && !message.content && (
             <div className="flex gap-1 py-2">
-              <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{animationDelay: '0ms'}} />
-              <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{animationDelay: '150ms'}} />
-              <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{animationDelay: '300ms'}} />
+              <span className="h-2 w-2 rounded-full bg-[var(--ink-5)] animate-bounce" style={{animationDelay: '0ms'}} />
+              <span className="h-2 w-2 rounded-full bg-[var(--ink-5)] animate-bounce" style={{animationDelay: '150ms'}} />
+              <span className="h-2 w-2 rounded-full bg-[var(--ink-5)] animate-bounce" style={{animationDelay: '300ms'}} />
             </div>
           )}
           {message.isStreaming && message.content && (
@@ -174,17 +174,17 @@ export function ChatMessage({ message, userQuestion, defaultContextExpanded }: C
         {/* Citations */}
         {!isUser && !message.isStreaming && message.citations && message.citations.length > 0 && (
           <>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-2 mb-1">Sources referenced:</p>
+            <p className="text-[10px] text-[var(--ink-4)] uppercase tracking-wider mt-2 mb-1">Sources referenced:</p>
             <CitationBadges citations={message.citations} />
           </>
         )}
 
         {/* Explore further actions */}
         {!isUser && !message.isStreaming && !message.error && message.citations && message.citations.length > 0 && userQuestion && (
-          <div className="mt-2 flex flex-wrap gap-2 border-t border-border/70 pt-2">
+          <div className="mt-2 flex flex-wrap gap-2 border-t border-[var(--line-soft)] pt-2">
             <Link
               href={`/research?q=${encodeURIComponent(userQuestion)}`}
-              className="inline-flex items-center gap-1.5 rounded-full border border-foreground/10 bg-background/85 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-[color:oklch(var(--accent)/0.45)] hover:text-foreground"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1 text-xs font-medium text-[var(--ink-4)] transition-colors hover:bg-[var(--paper-2)] hover:text-[var(--ink)]"
             >
               <Microscope className="h-3 w-3" />
               Explore in Research Mode
@@ -195,7 +195,7 @@ export function ChatMessage({ message, userQuestion, defaultContextExpanded }: C
                 source: "ask",
                 label: userQuestion,
               })}
-              className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--forest)] bg-[var(--forest-soft)] px-3 py-1 text-xs font-medium text-[var(--forest)] transition-colors hover:bg-[var(--forest-soft)]"
             >
               <GitBranch className="h-3 w-3" />
               View on Graph

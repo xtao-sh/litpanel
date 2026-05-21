@@ -87,9 +87,9 @@ export function PaperSearchPicker({
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--ink-5)]" />
         <input
-          className="w-full rounded-md border border-gray-200 py-1.5 pl-8 pr-3 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full rounded-[var(--r)] border border-[var(--line-soft)] py-1.5 pl-8 pr-3 text-xs focus:border-[#2c4870] focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
           placeholder={placeholder}
           value={query}
           onChange={(e) => {
@@ -101,21 +101,21 @@ export function PaperSearchPicker({
           }}
         />
         {loading && (
-          <Loader2 className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-gray-400" />
+          <Loader2 className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-[var(--ink-5)]" />
         )}
       </div>
 
       {/* Dropdown results */}
       {open && query.trim().length >= 2 && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg">
+        <div className="absolute z-50 mt-1 w-full rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] shadow-[var(--shadow-2)]">
           {loading && hits.length === 0 && (
-            <div className="flex items-center gap-2 px-3 py-3 text-xs text-gray-400">
+            <div className="flex items-center gap-2 px-3 py-3 text-xs text-[var(--ink-5)]">
               <Loader2 className="h-3 w-3 animate-spin" />
               Searching...
             </div>
           )}
           {!loading && hits.length === 0 && (
-            <div className="px-3 py-3 text-xs text-gray-400">
+            <div className="px-3 py-3 text-xs text-[var(--ink-5)]">
               No papers found
             </div>
           )}
@@ -125,15 +125,15 @@ export function PaperSearchPicker({
                 <li key={hit.entityId}>
                   <button
                     type="button"
-                    className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-blue-50 transition-colors"
+                    className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-[#e9eef6] transition-colors"
                     onClick={() => handleSelect(hit)}
                   >
-                    <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
+                    <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--ink-5)]" />
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-medium text-gray-800 line-clamp-2">
+                      <div className="text-xs font-medium text-[var(--ink-2)] line-clamp-2">
                         {hit.title}
                       </div>
-                      <span className="text-[10px] font-mono text-gray-400">
+                      <span className="text-[10px] font-mono text-[var(--ink-5)]">
                         {hit.entityId}
                       </span>
                     </div>

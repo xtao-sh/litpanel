@@ -27,21 +27,21 @@ export function LandscapeMethodsCard({
   if (sorted.length === 0) return null;
 
   return (
-    <Card className="rounded-xl shadow-sm">
+    <Card className="rounded-[var(--r)] shadow-[var(--shadow-1)]">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <FlaskConical className="h-4 w-4 text-emerald-500" />
+          <FlaskConical className="h-4 w-4 text-[var(--forest)]" />
           Methods in this literature
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-1">
         {sorted.map((method) => (
-          <div key={method.slug} className="rounded-lg transition-colors hover:bg-accent/40">
+          <div key={method.slug} className="rounded-[var(--r)] transition-colors hover:bg-[var(--paper-2)]">
             <div className="flex items-start gap-2 px-2 py-1.5">
               <div className="min-w-0 flex-1">
                 <button
                   type="button"
-                  className="text-left text-sm font-medium text-foreground transition-colors hover:text-primary"
+                  className="text-left text-sm font-medium text-[var(--ink)] transition-colors hover:text-[var(--forest)]"
                   onClick={() => onAtomClick(method.slug)}
                 >
                   {method.title}
@@ -51,7 +51,7 @@ export function LandscapeMethodsCard({
                     <button
                       type="button"
                       onClick={() => onAtomClick(method.slug)}
-                      className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+                      className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-2 py-1 text-[11px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                     >
                       Detail
                     </button>
@@ -61,7 +61,7 @@ export function LandscapeMethodsCard({
                           ? getExplorerHref(method.slug)
                           : `/explorer?tab=papers&atomSlug=${encodeURIComponent(method.slug)}`
                       }
-                      className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+                      className="inline-flex items-center gap-1 rounded-[var(--r)] border border-[var(--forest)] bg-[var(--forest-soft)] px-2 py-1 text-[11px] font-medium text-[var(--forest-2)] transition-colors hover:bg-[var(--forest-soft)]"
                     >
                       <Filter className="h-3 w-3" />
                       Explorer
@@ -76,7 +76,7 @@ export function LandscapeMethodsCard({
                       ? getExplorerHref(method.slug)
                       : `/explorer?tab=papers&atomSlug=${encodeURIComponent(method.slug)}`
                   }
-                  className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:text-emerald-600"
+                  className="shrink-0 rounded p-0.5 text-[var(--ink-4)] transition-colors hover:text-[var(--forest)]"
                   title="Filter papers by this method in Explorer"
                 >
                   <Filter className="h-3 w-3" />
@@ -90,10 +90,10 @@ export function LandscapeMethodsCard({
                   className={cn(
                     "shrink-0 rounded-full px-1.5 py-0 text-[10px] font-medium",
                     method.evidenceStrength === "strong"
-                      ? "bg-green-100 text-green-700"
+                      ? "bg-[var(--forest-soft)] text-[var(--forest-2)]"
                       : method.evidenceStrength === "moderate"
-                        ? "bg-yellow-100 text-yellow-700"
-                        : "bg-gray-100 text-gray-600"
+                        ? "bg-[#f4ead8] text-[#7a5a18]"
+                        : "bg-[var(--paper-2)] text-[var(--ink-3)]"
                   )}
                 >
                   {method.evidenceStrength}
@@ -102,7 +102,7 @@ export function LandscapeMethodsCard({
               {method.description && (
                 <button
                   type="button"
-                  className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  className="shrink-0 rounded p-0.5 text-[var(--ink-4)] hover:text-[var(--ink)]"
                   onClick={() =>
                     setExpandedSlug(expandedSlug === method.slug ? null : method.slug)
                   }
@@ -117,7 +117,7 @@ export function LandscapeMethodsCard({
               )}
             </div>
             {expandedSlug === method.slug && method.description && (
-              <p className="px-2 pb-2 text-xs leading-relaxed text-muted-foreground">
+              <p className="px-2 pb-2 text-xs leading-relaxed text-[var(--ink-4)]">
                 {method.description}
               </p>
             )}

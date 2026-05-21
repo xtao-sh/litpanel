@@ -13,17 +13,17 @@ interface ScoreBarProps {
 }
 
 function scoreColor(value: number): string {
-  if (value >= 4) return "bg-gradient-to-r from-gray-200 to-green-500";
-  if (value >= 3) return "bg-gradient-to-r from-gray-200 to-blue-500";
-  if (value >= 2) return "bg-gradient-to-r from-gray-200 to-yellow-500";
-  return "bg-gradient-to-r from-gray-200 to-gray-400";
+  if (value >= 4) return "bg-gradient-to-r from-[var(--paper-3)] to-[var(--forest)]";
+  if (value >= 3) return "bg-gradient-to-r from-[var(--paper-3)] to-[#2c4870]";
+  if (value >= 2) return "bg-gradient-to-r from-[var(--paper-3)] to-[#b88a3b]";
+  return "bg-gradient-to-r from-[var(--paper-3)] to-[var(--ink-5)]";
 }
 
 function scoreTextColor(value: number): string {
-  if (value >= 4) return "text-green-700";
-  if (value >= 3) return "text-blue-700";
-  if (value >= 2) return "text-yellow-700";
-  return "text-gray-500";
+  if (value >= 4) return "text-[var(--forest-2)]";
+  if (value >= 3) return "text-[#223a5e]";
+  if (value >= 2) return "text-[#7a5a18]";
+  return "text-[var(--ink-4)]";
 }
 
 export function ScoreBar({ label, value, max = 5 }: ScoreBarProps) {
@@ -32,17 +32,17 @@ export function ScoreBar({ label, value, max = 5 }: ScoreBarProps) {
 
   return (
     <div className="flex items-center gap-3">
-      <span className="w-20 shrink-0 text-xs font-medium text-muted-foreground">
+      <span className="w-20 shrink-0 text-xs font-medium text-[var(--ink-4)]">
         {label}
       </span>
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100/80">
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--paper-2)]/80">
         <div
-          className={`h-full rounded-full transition-all ${value !== null ? scoreColor(value) : "bg-gray-300"}`}
+          className={`h-full rounded-full transition-all ${value !== null ? scoreColor(value) : "bg-[var(--line)]"}`}
           style={{ width: `${percentage}%` }}
         />
       </div>
       <span
-        className={`w-8 text-right text-xs font-semibold ${value !== null ? scoreTextColor(value) : "text-gray-400"}`}
+        className={`w-8 text-right text-xs font-semibold ${value !== null ? scoreTextColor(value) : "text-[var(--ink-5)]"}`}
       >
         {value !== null ? value.toFixed(1) : "--"}
       </span>

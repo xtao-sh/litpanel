@@ -37,8 +37,8 @@ PROVIDER_PRESETS: list[ProviderPreset] = [
         label="Kimi Coding",
         api_style="anthropic",
         default_base_url="https://api.kimi.com/coding/",
-        default_model="kimi-k2.5",
-        description="Kimi Coding / Moonshot-compatible endpoint for literature processing.",
+        default_model="kimi-for-coding",
+        description="Kimi Coding Anthropic-compatible endpoint for literature processing.",
     ),
     ProviderPreset(
         key="deepseek",
@@ -155,6 +155,8 @@ def _normalize_endpoint(base_url: str, api_style: str) -> str:
         return normalized + "/chat/completions"
     if lower.endswith("/messages"):
         return normalized
+    if "api.kimi.com/coding" in lower and not lower.endswith("/v1"):
+        return normalized + "/v1/messages"
     return normalized + "/messages"
 
 

@@ -39,12 +39,12 @@ function GapSection({
       >
         <ChevronDown
           className={cn(
-            "h-3.5 w-3.5 shrink-0 text-amber-600 transition-transform",
+            "h-3.5 w-3.5 shrink-0 text-[#7a5a18] transition-transform",
             !expanded && "-rotate-90"
           )}
         />
-        <h4 className="text-sm font-semibold text-foreground">{title}</h4>
-        <span className="rounded-full bg-amber-100 px-1.5 py-0 text-[10px] font-medium text-amber-700">
+        <h4 className="text-sm font-semibold text-[var(--ink)]">{title}</h4>
+        <span className="rounded-full bg-[#f4ead8] px-1.5 py-0 text-[10px] font-medium text-[#7a5a18]">
           {count}
         </span>
       </button>
@@ -70,12 +70,12 @@ export function LandscapeGapsCard({
   if (totalGaps === 0) return null;
 
   return (
-    <Card className="rounded-xl border-amber-200 shadow-sm ring-1 ring-amber-100">
+    <Card className="rounded-[var(--r)] border-[#d6b678] shadow-[var(--shadow-1)] ring-1 ring-[#f4ead8]">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <AlertTriangle className="h-4 w-4 text-amber-500" />
+          <AlertTriangle className="h-4 w-4 text-[#8a6d3b]" />
           {t("research.gaps.title")}
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+          <span className="rounded-full bg-[#f4ead8] px-2 py-0.5 text-xs font-medium text-[#7a5a18]">
             {t("research.gaps.identified", { count: totalGaps })}
           </span>
         </CardTitle>
@@ -86,17 +86,17 @@ export function LandscapeGapsCard({
           {gaps.unusedMethods.map((method) => (
             <div
               key={method.slug}
-              className="flex items-start gap-2 rounded-md px-1 py-1 hover:bg-accent/30"
+              className="flex items-start gap-2 rounded-[var(--r)] px-1 py-1 hover:bg-[var(--paper-2)]"
             >
               <div className="min-w-0 flex-1">
                 <button
                   type="button"
-                  className="text-left text-xs font-medium text-foreground hover:text-primary"
+                  className="text-left text-xs font-medium text-[var(--ink)] hover:text-[var(--forest)]"
                   onClick={() => onAtomClick(method.slug)}
                 >
                   {method.title}
                   {method.description && (
-                    <span className="ml-1 font-normal text-muted-foreground">
+                    <span className="ml-1 font-normal text-[var(--ink-4)]">
                       -- {method.description.length > 80 ? method.description.slice(0, 80) + "..." : method.description}
                     </span>
                   )}
@@ -106,14 +106,14 @@ export function LandscapeGapsCard({
                     <button
                       type="button"
                       onClick={() => onAtomClick(method.slug)}
-                      className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+                      className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-2 py-1 text-[11px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                     >
                         {t("common.actions.details")}
                     </button>
                     {getExplorerHref && (
                       <Link
                         href={getExplorerHref(method.slug)}
-                        className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 transition-colors hover:bg-amber-100"
+                        className="inline-flex items-center gap-1 rounded-[var(--r)] border border-[#d6b678] bg-[#f4ead8] px-2 py-1 text-[11px] font-medium text-[#7a5a18] transition-colors hover:bg-[#f4ead8]"
                       >
                         <Filter className="h-3 w-3" />
                         {t("research.gaps.openExplorer")}
@@ -125,7 +125,7 @@ export function LandscapeGapsCard({
               {actionMode === "compact" && getExplorerHref && (
                 <Link
                   href={getExplorerHref(method.slug)}
-                  className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-amber-700 transition-colors"
+                  className="shrink-0 rounded p-0.5 text-[var(--ink-4)] hover:text-[#7a5a18] transition-colors"
                   title="Open this gap in Explorer"
                 >
                   <Filter className="h-3 w-3" />
@@ -143,17 +143,17 @@ export function LandscapeGapsCard({
           {gaps.unusedDatasets.map((dataset) => (
             <div
               key={dataset.slug}
-              className="flex items-start gap-2 rounded-md px-1 py-1 hover:bg-accent/30"
+              className="flex items-start gap-2 rounded-[var(--r)] px-1 py-1 hover:bg-[var(--paper-2)]"
             >
               <div className="min-w-0 flex-1">
                 <button
                   type="button"
-                  className="text-left text-xs font-medium text-foreground hover:text-primary"
+                  className="text-left text-xs font-medium text-[var(--ink)] hover:text-[var(--forest)]"
                   onClick={() => onAtomClick(dataset.slug)}
                 >
                   {dataset.title}
                   {dataset.description && (
-                    <span className="ml-1 font-normal text-muted-foreground">
+                    <span className="ml-1 font-normal text-[var(--ink-4)]">
                       -- {dataset.description.length > 80 ? dataset.description.slice(0, 80) + "..." : dataset.description}
                     </span>
                   )}
@@ -163,14 +163,14 @@ export function LandscapeGapsCard({
                     <button
                       type="button"
                       onClick={() => onAtomClick(dataset.slug)}
-                      className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+                      className="rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-2 py-1 text-[11px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                     >
                         {t("common.actions.details")}
                     </button>
                     {getExplorerHref && (
                       <Link
                         href={getExplorerHref(dataset.slug)}
-                        className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 transition-colors hover:bg-amber-100"
+                        className="inline-flex items-center gap-1 rounded-[var(--r)] border border-[#d6b678] bg-[#f4ead8] px-2 py-1 text-[11px] font-medium text-[#7a5a18] transition-colors hover:bg-[#f4ead8]"
                       >
                         <Filter className="h-3 w-3" />
                         {t("research.gaps.openExplorer")}
@@ -182,7 +182,7 @@ export function LandscapeGapsCard({
               {actionMode === "compact" && getExplorerHref && (
                 <Link
                   href={getExplorerHref(dataset.slug)}
-                  className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-amber-700 transition-colors"
+                  className="shrink-0 rounded p-0.5 text-[var(--ink-4)] hover:text-[#7a5a18] transition-colors"
                   title="Open this gap in Explorer"
                 >
                   <Filter className="h-3 w-3" />
@@ -193,8 +193,8 @@ export function LandscapeGapsCard({
                   className={cn(
                     "shrink-0 rounded-full px-1.5 py-0 text-[10px] font-medium",
                     dataset.access === "public"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-yellow-100 text-yellow-700"
+                      ? "bg-[var(--forest-soft)] text-[var(--forest-2)]"
+                      : "bg-[#f4ead8] text-[#7a5a18]"
                   )}
                 >
                   {dataset.access}
@@ -209,20 +209,20 @@ export function LandscapeGapsCard({
           {gaps.openQuestions.map((q, idx) => (
             <div
               key={`oq-${idx}`}
-              className="rounded-md px-1 py-1 text-xs leading-relaxed text-muted-foreground hover:bg-accent/30"
+              className="rounded-[var(--r)] px-1 py-1 text-xs leading-relaxed text-[var(--ink-4)] hover:bg-[var(--paper-2)]"
             >
-              <span className="text-foreground">{q.text}</span>
+              <span className="text-[var(--ink)]">{q.text}</span>
               {actionMode === "buttons" ? (
                 <Link
                   href={getPaperHref ? getPaperHref(q.paperId) : `/paper/${q.paperId}`}
-                  className="ml-2 inline-flex rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+                  className="ml-2 inline-flex rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-2 py-1 text-[11px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                 >
                   {t("research.gaps.openPaper")}
                 </Link>
               ) : (
                 <Link
                   href={getPaperHref ? getPaperHref(q.paperId) : `/paper/${q.paperId}`}
-                  className="ml-1 font-mono text-[10px] text-blue-600 hover:underline"
+                  className="ml-1 font-mono text-[10px] text-[#2c4870] hover:underline"
                 >
                   {q.paperId}
                 </Link>
@@ -236,20 +236,20 @@ export function LandscapeGapsCard({
           {gaps.limitations.map((lim, idx) => (
             <div
               key={`lim-${idx}`}
-              className="rounded-md px-1 py-1 text-xs leading-relaxed text-muted-foreground hover:bg-accent/30"
+              className="rounded-[var(--r)] px-1 py-1 text-xs leading-relaxed text-[var(--ink-4)] hover:bg-[var(--paper-2)]"
             >
-              <span className="text-foreground">{lim.text}</span>
+              <span className="text-[var(--ink)]">{lim.text}</span>
               {actionMode === "buttons" ? (
                 <Link
                   href={getPaperHref ? getPaperHref(lim.paperId) : `/paper/${lim.paperId}`}
-                  className="ml-2 inline-flex rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+                  className="ml-2 inline-flex rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-2 py-1 text-[11px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                 >
                   {t("research.gaps.openPaper")}
                 </Link>
               ) : (
                 <Link
                   href={getPaperHref ? getPaperHref(lim.paperId) : `/paper/${lim.paperId}`}
-                  className="ml-1 font-mono text-[10px] text-blue-600 hover:underline"
+                  className="ml-1 font-mono text-[10px] text-[#2c4870] hover:underline"
                 >
                   {lim.paperId}
                 </Link>

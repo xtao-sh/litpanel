@@ -40,32 +40,32 @@ const AGENT_CONFIG: Record<
   { color: string; borderColor: string; bgColor: string; icon: React.ElementType; badgeClass: string }
 > = {
   advocate: {
-    color: "text-green-600",
-    borderColor: "border-l-green-600",
-    bgColor: "bg-green-600",
+    color: "text-[var(--forest)]",
+    borderColor: "border-l-[var(--forest)]",
+    bgColor: "bg-[var(--forest)]",
     icon: ThumbsUp,
-    badgeClass: "bg-green-100 text-green-700 border-green-200",
+    badgeClass: "bg-[var(--forest-soft)] text-[var(--forest-2)] border-[var(--forest)]",
   },
   skeptic: {
-    color: "text-red-600",
-    borderColor: "border-l-red-600",
-    bgColor: "bg-red-600",
+    color: "text-[#8a3318]",
+    borderColor: "border-l-[var(--rust)]",
+    bgColor: "bg-[var(--rust)]",
     icon: ShieldAlert,
-    badgeClass: "bg-red-100 text-red-700 border-red-200",
+    badgeClass: "bg-[#f4dfd5] text-[#8a3318] border-[#da9a80]",
   },
   methodologist: {
-    color: "text-blue-600",
-    borderColor: "border-l-sky-600",
-    bgColor: "bg-sky-600",
+    color: "text-[#2c4870]",
+    borderColor: "border-l-[#2c4870]",
+    bgColor: "bg-[#2c4870]",
     icon: FlaskConical,
-    badgeClass: "border-sky-200 bg-sky-50 text-sky-700",
+    badgeClass: "border-[#bccbe0] bg-[#e9eef6] text-[#223a5e]",
   },
   moderator: {
-    color: "text-purple-600",
-    borderColor: "border-l-violet-600",
-    bgColor: "bg-violet-600",
+    color: "text-[#2c4870]",
+    borderColor: "border-l-[#2c4870]",
+    bgColor: "bg-[#2c4870]",
     icon: Scale,
-    badgeClass: "border-violet-200 bg-violet-50 text-violet-700",
+    badgeClass: "border-[#bccbe0] bg-[#e9eef6] text-[#223a5e]",
   },
 };
 
@@ -109,7 +109,7 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
         <Link
           key={`${keyPrefix}-paper-bold-${match.index}`}
           href={`/paper/${paperId}`}
-          className="inline rounded-full border border-border/70 bg-accent/55 px-1.5 py-0.5 font-mono text-xs font-semibold text-primary hover:bg-accent/80"
+          className="inline rounded-full border border-[var(--line-soft)] bg-[var(--paper-2)] px-1.5 py-0.5 font-mono text-xs font-semibold text-[var(--forest)] hover:bg-[var(--paper-2)]"
         >
           {display}
         </Link>
@@ -123,7 +123,7 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
         <Link
           key={`${keyPrefix}-paper-${match.index}`}
           href={`/paper/${match[5]}`}
-          className="inline rounded-full border border-border/70 bg-accent/55 px-1.5 py-0.5 font-mono text-xs font-semibold text-primary hover:bg-accent/80"
+          className="inline rounded-full border border-[var(--line-soft)] bg-[var(--paper-2)] px-1.5 py-0.5 font-mono text-xs font-semibold text-[var(--forest)] hover:bg-[var(--paper-2)]"
         >
           {match[5]}
         </Link>
@@ -148,7 +148,7 @@ function renderMarkdownBlock(block: string, blockIndex: number): React.ReactNode
 
   if (trimmed.startsWith("## ")) {
     return (
-      <h3 key={`h3-${blockIndex}`} className="text-sm font-bold text-foreground">
+      <h3 key={`h3-${blockIndex}`} className="text-sm font-bold text-[var(--ink)]">
         {renderInlineText(trimmed.slice(3), `h3-${blockIndex}`)}
       </h3>
     );
@@ -156,7 +156,7 @@ function renderMarkdownBlock(block: string, blockIndex: number): React.ReactNode
 
   if (trimmed.startsWith("### ")) {
     return (
-      <h4 key={`h4-${blockIndex}`} className="text-sm font-semibold text-foreground">
+      <h4 key={`h4-${blockIndex}`} className="text-sm font-semibold text-[var(--ink)]">
         {renderInlineText(trimmed.slice(4), `h4-${blockIndex}`)}
       </h4>
     );
@@ -171,7 +171,7 @@ function renderMarkdownBlock(block: string, blockIndex: number): React.ReactNode
     if (bulletItems.length > 0) {
       const items = [...bulletItems];
       parts.push(
-        <ul key={`ul-${blockIndex}-${parts.length}`} className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+        <ul key={`ul-${blockIndex}-${parts.length}`} className="list-disc space-y-1 pl-5 text-sm text-[var(--ink-4)]">
           {items.map((item, index) => (
             <li key={`uli-${blockIndex}-${index}`} className="leading-relaxed">
               {renderInlineText(item, `ul-${blockIndex}-${index}`)}
@@ -185,7 +185,7 @@ function renderMarkdownBlock(block: string, blockIndex: number): React.ReactNode
     if (orderedItems.length > 0) {
       const items = [...orderedItems];
       parts.push(
-        <ol key={`ol-${blockIndex}-${parts.length}`} className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+        <ol key={`ol-${blockIndex}-${parts.length}`} className="list-decimal space-y-1 pl-5 text-sm text-[var(--ink-4)]">
           {items.map((item, index) => (
             <li key={`oli-${blockIndex}-${index}`} className="leading-relaxed">
               {renderInlineText(item, `ol-${blockIndex}-${index}`)}
@@ -223,7 +223,7 @@ function renderMarkdownBlock(block: string, blockIndex: number): React.ReactNode
 
     flushLists();
     parts.push(
-      <p key={`p-${blockIndex}-${parts.length}`} className="text-sm leading-relaxed text-muted-foreground">
+      <p key={`p-${blockIndex}-${parts.length}`} className="text-sm leading-relaxed text-[var(--ink-4)]">
         {renderInlineText(stripped, `p-${blockIndex}-${parts.length}`)}
       </p>
     );
@@ -264,25 +264,25 @@ const AgentMessageCard = memo(function AgentMessageCard({
   const Icon = cfg.icon;
 
   return (
-    <div className={`paper-panel rounded-[1.35rem] border-l-[3px] ${cfg.borderColor} bg-background/85 p-4 shadow-none`}>
+    <div className={`lp-card rounded-[var(--r-md)] border-l-[3px] ${cfg.borderColor} bg-[var(--paper)] p-4 shadow-none`}>
       <div className="mb-2 flex items-center gap-2">
         <div
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${cfg.bgColor}`}
         >
-          <Icon className="h-4 w-4 text-white" />
+          <Icon className="h-4 w-4 text-[var(--paper)]" />
         </div>
-        <span className="text-sm font-semibold text-foreground">{message.label}</span>
+        <span className="text-sm font-semibold text-[var(--ink)]">{message.label}</span>
         <Badge variant="outline" className={`text-[10px] ${cfg.badgeClass}`}>
           {message.role}
         </Badge>
         {message.round > 0 && (
-          <span className="text-[10px] text-muted-foreground">Round {message.round}</span>
+          <span className="text-[10px] text-[var(--ink-4)]">Round {message.round}</span>
         )}
       </div>
       <div className="pl-10">
         <DebateMarkdown content={message.text} />
         {message.isStreaming && (
-          <span className="inline-block h-4 w-1.5 animate-pulse rounded-sm bg-muted-foreground align-middle" />
+          <span className="inline-block h-4 w-1.5 animate-pulse rounded-sm bg-[var(--ink-4)] align-middle" />
         )}
       </div>
     </div>
@@ -304,17 +304,17 @@ function VerdictCard({
 
   const recColor =
     verdict.recommendation === "pursue"
-      ? "border-green-400 bg-green-50"
+      ? "border-[var(--forest)] bg-[var(--forest-soft)]"
       : verdict.recommendation === "modify"
-        ? "border-yellow-400 bg-yellow-50"
-        : "border-red-400 bg-red-50";
+        ? "border-[#8a6d3b] bg-[#f4ead8]"
+        : "border-[var(--rust)] bg-[#f4dfd5]";
 
   const recBadgeClass =
     verdict.recommendation === "pursue"
-      ? "bg-green-500 text-white"
+      ? "bg-[var(--forest)] text-[var(--paper)]"
       : verdict.recommendation === "modify"
-        ? "bg-yellow-500 text-white"
-        : "bg-red-500 text-white";
+        ? "bg-[#b88a3b] text-[var(--paper)]"
+        : "bg-[var(--rust)] text-[var(--paper)]";
 
   function handleCopy() {
     const text = [
@@ -322,7 +322,7 @@ function VerdictCard({
       `Summary: ${verdict.summary}`,
       `Scores: Overall ${verdict.overallStrength}/5, Novelty ${verdict.novelty}/5, Feasibility ${verdict.feasibility}/5`,
       `Next Steps:`,
-      ...verdict.nextSteps.map((s, i) => `  ${i + 1}. ${s}`),
+      ...verdict.nextSteps.map((s, i) => ` ${i + 1}. ${s}`),
     ].join("\n");
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(text).catch(() => {
@@ -335,11 +335,11 @@ function VerdictCard({
   }
 
   return (
-    <div className={`paper-panel rounded-[1.5rem] border-2 ${recColor} p-5 shadow-none`}>
+    <div className={`lp-card rounded-[var(--r-md)] border-2 ${recColor} p-5 shadow-none`}>
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Scale className="h-5 w-5 text-violet-600" />
-          <span className="text-base font-bold text-foreground">Verdict</span>
+          <Scale className="h-5 w-5 text-[#2c4870]" />
+          <span className="text-base font-bold text-[var(--ink)]">Verdict</span>
           <Badge className={`text-xs uppercase ${recBadgeClass}`}>
             {verdict.recommendation}
           </Badge>
@@ -357,7 +357,7 @@ function VerdictCard({
         </Button>
       </div>
 
-      <p className="mb-4 text-sm text-muted-foreground">{verdict.summary}</p>
+      <p className="mb-4 text-sm text-[var(--ink-4)]">{verdict.summary}</p>
 
       <div className="mb-4 space-y-1.5">
         <ScoreBar label="Overall" value={verdict.overallStrength} />
@@ -367,13 +367,13 @@ function VerdictCard({
 
       {verdict.nextSteps.length > 0 && (
         <div>
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--ink-4)]">
             Next Steps
           </p>
           <ol className="space-y-1">
             {verdict.nextSteps.map((step, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
+              <li key={i} className="flex items-start gap-2 text-sm text-[var(--ink-4)]">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--paper-2)] text-[10px] font-bold text-[var(--ink-4)]">
                   {i + 1}
                 </span>
                 {step}
@@ -393,11 +393,11 @@ function VerdictCard({
 function RoundDivider({ round }: { round: number }) {
   return (
     <div className="flex items-center gap-3 py-3">
-      <div className="h-px flex-1 bg-border" />
-      <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+      <div className="h-px flex-1 bg-[var(--line-soft)]" />
+      <span className="rounded-full bg-[var(--paper-2)] px-3 py-1 text-xs font-medium text-[var(--ink-4)]">
         Round {round}
       </span>
-      <div className="h-px flex-1 bg-border" />
+      <div className="h-px flex-1 bg-[var(--line-soft)]" />
     </div>
   );
 }
@@ -669,29 +669,29 @@ export function DebateModal({
     <div
       className={
         isInline
-          ? "paper-panel relative flex min-h-[420px] w-full flex-col overflow-hidden rounded-[1.75rem] border border-border/75 bg-background/92 shadow-[0_24px_60px_rgba(44,51,71,0.10)]"
-          : "paper-panel relative mx-4 flex h-[90vh] w-full max-w-[800px] flex-col overflow-hidden rounded-[1.9rem] border border-border/75 bg-background/94 shadow-[0_28px_80px_rgba(44,51,71,0.18)]"
+          ? "lp-card relative flex min-h-[420px] w-full flex-col overflow-hidden rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)] shadow-[var(--shadow-2)]"
+          : "lp-card relative mx-4 flex h-[90vh] w-full max-w-[800px] flex-col overflow-hidden rounded-[var(--r-md)] border border-[var(--line-soft)] bg-[var(--paper)] shadow-[var(--shadow-2)]"
       }
     >
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-border/70 bg-background/80 px-6 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-[var(--line-soft)] bg-[var(--paper)] px-6 py-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <Scale className="h-5 w-5 shrink-0 text-violet-600" />
-              <h2 className="truncate text-lg font-bold text-foreground">
+              <Scale className="h-5 w-5 shrink-0 text-[#2c4870]" />
+              <h2 className="truncate text-lg font-bold text-[var(--ink)]">
                 {ideaTitle}
               </h2>
-              <Badge className="shrink-0 border-violet-200 bg-violet-50 text-[10px] text-violet-700">
+              <Badge className="shrink-0 border-[#bccbe0] bg-[#e9eef6] text-[10px] text-[#223a5e]">
                 Research Debate
               </Badge>
             </div>
             {status === "debating" && currentRound > 0 && (
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-xs text-[var(--ink-4)]">
                 Round {currentRound} in progress...
               </p>
             )}
             {status === "done" && (
-              <p className="mt-1 text-xs font-medium text-emerald-600">Debate complete</p>
+              <p className="mt-1 text-xs font-medium text-[var(--forest)]">Debate complete</p>
             )}
           </div>
           <div className="ml-4 flex items-center gap-2">
@@ -730,13 +730,13 @@ export function DebateModal({
           {/* Idle state: start button */}
           {status === "idle" && (
             <div className="flex flex-col items-center justify-center py-16">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-border/70 bg-accent/55">
-                <Scale className="h-8 w-8 text-violet-600" />
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[var(--line-soft)] bg-[var(--paper-2)]">
+                <Scale className="h-8 w-8 text-[#2c4870]" />
               </div>
-              <h3 className="mb-2 text-lg font-semibold text-foreground">
+              <h3 className="mb-2 text-lg font-semibold text-[var(--ink)]">
                 Multi-Agent Research Debate
               </h3>
-              <p className="mb-6 max-w-md text-center text-sm text-muted-foreground">
+              <p className="mb-6 max-w-md text-center text-sm text-[var(--ink-4)]">
                 Three AI agents will debate this research idea from different perspectives:
                 an Advocate, a Skeptic, and a Methodologist. A Moderator will then
                 synthesize the discussion and deliver a verdict.
@@ -751,9 +751,9 @@ export function DebateModal({
                         <div
                           className={`flex h-10 w-10 items-center justify-center rounded-full ${cfg.bgColor}`}
                         >
-                          <Icon className="h-5 w-5 text-white" />
+                          <Icon className="h-5 w-5 text-[var(--paper)]" />
                         </div>
-                        <span className="text-[10px] capitalize text-muted-foreground">{role}</span>
+                        <span className="text-[10px] capitalize text-[var(--ink-4)]">{role}</span>
                       </div>
                     );
                   }
@@ -768,9 +768,9 @@ export function DebateModal({
 
           {/* Context banner */}
           {contextItems.length > 0 && status !== "idle" && (
-            <div className="mb-4 flex items-center gap-2 rounded-2xl border border-border/70 bg-accent/45 px-4 py-2.5">
-              <BookOpen className="h-4 w-4 shrink-0 text-primary" />
-              <span className="text-xs text-primary">
+            <div className="mb-4 flex items-center gap-2 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper-2)] px-4 py-2.5">
+              <BookOpen className="h-4 w-4 shrink-0 text-[var(--forest)]" />
+              <span className="text-xs text-[var(--forest)]">
                 Analyzing with {contextItems.length} paper{contextItems.length !== 1 ? "s" : ""}
               </span>
               <div className="flex flex-wrap gap-1">
@@ -778,13 +778,13 @@ export function DebateModal({
                   <Link
                     key={item.entity_id}
                     href={`/paper/${item.entity_id}`}
-                    className="rounded-full border border-border/70 bg-background/85 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary hover:bg-accent/50"
+                    className="rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--forest)] hover:bg-[var(--paper-2)]"
                   >
                     {item.entity_id}
                   </Link>
                 ))}
                 {contextItems.length > 8 && (
-                  <span className="text-[10px] text-primary/70">
+                  <span className="text-[10px] text-[var(--forest)]">
                     +{contextItems.length - 8} more
                   </span>
                 )}
@@ -813,11 +813,11 @@ export function DebateModal({
                   if (isFirstMod) {
                     elements.push(
                       <div key="synthesis-divider" className="flex items-center gap-3 py-3">
-                        <div className="h-px flex-1 bg-border" />
-                        <span className="rounded-full border border-border/70 bg-accent/55 px-3 py-1 text-xs font-medium text-violet-700">
+                        <div className="h-px flex-1 bg-[var(--line-soft)]" />
+                        <span className="rounded-full border border-[var(--line-soft)] bg-[var(--paper-2)] px-3 py-1 text-xs font-medium text-[#223a5e]">
                           Moderator Synthesis
                         </span>
-                        <div className="h-px flex-1 bg-border" />
+                        <div className="h-px flex-1 bg-[var(--line-soft)]" />
                       </div>
                     );
                   }
@@ -839,8 +839,8 @@ export function DebateModal({
 
               {/* Error */}
               {status === "error" && errorMessage && (
-                <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
-                  <p className="text-sm text-red-700">{errorMessage}</p>
+                <div className="rounded-[var(--r)] border border-[#da9a80] bg-[#f4dfd5] p-4">
+                  <p className="text-sm text-[#8a3318]">{errorMessage}</p>
                 </div>
               )}
             </div>
@@ -848,21 +848,21 @@ export function DebateModal({
         </div>
 
         {/* Footer */}
-        <div className="flex shrink-0 items-center justify-between border-t border-border/70 bg-background/80 px-6 py-3">
+        <div className="flex shrink-0 items-center justify-between border-t border-[var(--line-soft)] bg-[var(--paper)] px-6 py-3">
           <div className="flex items-center gap-2">
             {status === "debating" && (
               <>
-                <Loader2 className="h-4 w-4 animate-spin text-violet-600" />
-                <span className="text-xs text-muted-foreground">Debate in progress...</span>
+                <Loader2 className="h-4 w-4 animate-spin text-[#2c4870]" />
+                <span className="text-xs text-[var(--ink-4)]">Debate in progress...</span>
               </>
             )}
             {status === "done" && (
-              <span className="text-xs font-medium text-green-600">
+              <span className="text-xs font-medium text-[var(--forest)]">
                 Debate complete
               </span>
             )}
             {status === "error" && (
-              <span className="text-xs font-medium text-red-600">
+              <span className="text-xs font-medium text-[#8a3318]">
                 Debate failed
               </span>
             )}
@@ -886,7 +886,7 @@ export function DebateModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--ink)]/60 backdrop-blur-sm">
       {shell}
     </div>
   );
