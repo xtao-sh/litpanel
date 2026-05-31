@@ -237,6 +237,7 @@ function pickAtomForSlot(
 export default function HomePage() {
   const { locale } = useI18n();
   const c = copy[locale];
+  const isZh = locale === "zh-CN";
   const { data: statsData } = useQuery<{ stats: Stats }>(GET_STATS);
   const { data: papersData, loading: papersLoading } = useQuery<{ papers: { items: Paper[]; total: number } }>(GET_PAPERS, {
     variables: { filter: { hasCard: true }, sort: "SCORE_DESC", limit: 6 },
@@ -383,6 +384,57 @@ export default function HomePage() {
 
   return (
     <div className="lp-home">
+      {stats && stats.totalPapers === 0 && (
+        <section
+          aria-label={isZh ? "开始上手" : "getting started"}
+          className="mb-6 rounded-2xl border border-[var(--line-soft)] bg-[var(--paper)] p-6"
+        >
+          <h2 className="text-lg font-semibold text-[var(--ink)]">
+            {isZh ? "欢迎使用 Lit Panel" : "Welcome to Lit Panel"}
+          </h2>
+          <p className="mt-1 text-sm text-[var(--ink-4)]">
+            {isZh
+              ? "你的文献库还是空的。两步即可开始:"
+              : "Your library is empty. Two steps to get started:"}
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <Link
+              href="/setup"
+              className="group flex items-start gap-3 rounded-xl border border-[var(--line-soft)] bg-[var(--paper-2)] p-4 transition hover:border-[var(--forest)]"
+            >
+              <span className="text-base font-semibold text-[var(--ink-3)]">1</span>
+              <span>
+                <span className="flex items-center gap-1 font-medium text-[var(--ink)]">
+                  {isZh ? "配置 AI 密钥" : "Add your AI key"}
+                  <ArrowRight className="h-3.5 w-3.5 opacity-0 transition group-hover:opacity-100" />
+                </span>
+                <span className="mt-0.5 block text-xs text-[var(--ink-4)]">
+                  {isZh
+                    ? "在 Setup 选择服务商并填入 API key。"
+                    : "Pick a provider and paste your API key in Setup."}
+                </span>
+              </span>
+            </Link>
+            <Link
+              href="/pipeline"
+              className="group flex items-start gap-3 rounded-xl border border-[var(--line-soft)] bg-[var(--paper-2)] p-4 transition hover:border-[var(--forest)]"
+            >
+              <span className="text-base font-semibold text-[var(--ink-3)]">2</span>
+              <span>
+                <span className="flex items-center gap-1 font-medium text-[var(--ink)]">
+                  {isZh ? "添加第一篇论文" : "Add your first paper"}
+                  <ArrowRight className="h-3.5 w-3.5 opacity-0 transition group-hover:opacity-100" />
+                </span>
+                <span className="mt-0.5 block text-xs text-[var(--ink-4)]">
+                  {isZh
+                    ? "上传 PDF 或输入 NBER 编号,然后开始 AI 读取。"
+                    : "Upload a PDF or enter an NBER id, then run the AI read."}
+                </span>
+              </span>
+            </Link>
+          </div>
+        </section>
+      )}
       <section className="lp-home-hero">
         <div className="lp-home-stats">
           {statsRows.map(([top, delta, label, bottom, bottomLabel]) => (
