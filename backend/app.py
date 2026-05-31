@@ -140,6 +140,18 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             pass
 
+    # Cancel any in-flight reading jobs so they stop writing to the shared DBs
+    # mid-operation on shutdown, instead of being silently orphaned.
+    reading_tasks = [t for t in READING_JOB_TASKS.values() if not t.done()]
+    for task in reading_tasks:
+        task.cancel()
+    for task in reading_tasks:
+        try:
+            await task
+        except (asyncio.CancelledError, Exception):
+            pass
+    READING_JOB_TASKS.clear()
+
     logger.info("Shutting down")
     await resolvers._close_db()
 
@@ -159,6 +171,18 @@ app = FastAPI(
 
 READING_JOBS: dict[str, dict[str, object]] = {}
 READING_JOB_TASKS: dict[str, asyncio.Task] = {}
+# Per-library lock so two reading jobs (or a job + manual refresh) on the same
+# library can't interleave a purge against another run's in-progress index
+# writes, which would leave a partial/empty search index and embeddings.
+READING_JOB_LIBRARY_LOCKS: dict[int, asyncio.Lock] = {}
+
+
+def _library_job_lock(library_id: int) -> asyncio.Lock:
+    lock = READING_JOB_LIBRARY_LOCKS.get(library_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        READING_JOB_LIBRARY_LOCKS[library_id] = lock
+    return lock
 
 
 @app.middleware("http")
@@ -580,13 +604,18 @@ async def library_batch_reprocess_endpoint(
     results: list[dict[str, object]] = []
     for paper_id in paper_ids:
         try:
-            payload = await reprocess_existing_paper(
-                paper_id=paper_id,
-                library_id=library_id,
-                reading_profile=body.reading_profile or None,
-                analysis_focuses=body.analysis_focuses,
-                analysis_focus_prompts=body.analysis_focus_prompts,
-                custom_reading_instructions=body.custom_reading_instructions or None,
+            safe_pid = _validate_paper_id(paper_id)
+            payload = await asyncio.to_thread(
+                lambda pid=safe_pid: asyncio.run(
+                    reprocess_existing_paper(
+                        paper_id=pid,
+                        library_id=library_id,
+                        reading_profile=body.reading_profile or None,
+                        analysis_focuses=body.analysis_focuses,
+                        analysis_focus_prompts=body.analysis_focus_prompts,
+                        custom_reading_instructions=body.custom_reading_instructions or None,
+                    )
+                )
             )
             results.append({"paper_id": paper_id, "ok": True, "result": payload})
         except Exception as exc:
@@ -821,17 +850,22 @@ async def reprocess_paper_endpoint(
 ):
     from pipeline import reprocess_existing_paper
 
+    safe_paper_id = _validate_paper_id(paper_id)
     resolved_library_id = body.library_id or get_active_library_id() or ensure_default_library()
     if not library_exists(resolved_library_id):
         raise HTTPException(status_code=404, detail="Library not found.")
     try:
-        result = await reprocess_existing_paper(
-            paper_id,
-            library_id=resolved_library_id,
-            reading_profile=body.reading_profile or None,
-            analysis_focuses=body.analysis_focuses if body.analysis_focuses else None,
-            analysis_focus_prompts=body.analysis_focus_prompts if body.analysis_focus_prompts else None,
-            custom_reading_instructions=body.custom_reading_instructions or None,
+        result = await asyncio.to_thread(
+            lambda: asyncio.run(
+                reprocess_existing_paper(
+                    safe_paper_id,
+                    library_id=resolved_library_id,
+                    reading_profile=body.reading_profile or None,
+                    analysis_focuses=body.analysis_focuses if body.analysis_focuses else None,
+                    analysis_focus_prompts=body.analysis_focus_prompts if body.analysis_focus_prompts else None,
+                    custom_reading_instructions=body.custom_reading_instructions or None,
+                )
+            )
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -1355,21 +1389,22 @@ async def export_ris(ids: str = Query(..., description="Comma-separated paper ID
                                  headers={"Content-Disposition": f'attachment; filename="{EXPORT_BASENAME}.ris"'})
 
     entries = []
-    try:
-        db = await resolvers._get_db()
-        placeholders = ",".join("?" for _ in paper_ids)
-        cursor = await db.execute(
-            f"SELECT paper_id, title, authors, year FROM papers WHERE paper_id IN ({placeholders})",
-            paper_ids,
-        )
-        rows = await cursor.fetchall()
-        row_map = {r["paper_id"]: r for r in rows}
-        for pid in paper_ids:
-            row = row_map.get(pid)
-            if row:
-                entries.append(_paper_to_ris(row["paper_id"], row["title"], row["authors"], row["year"]))
-    except Exception:
-        logger.exception("export_ris failed")
+    if os.path.isfile(KB_DB_PATH):
+        try:
+            db = await resolvers._get_db()
+            placeholders = ",".join("?" for _ in paper_ids)
+            cursor = await db.execute(
+                f"SELECT paper_id, title, authors, year FROM papers WHERE paper_id IN ({placeholders})",
+                paper_ids,
+            )
+            rows = await cursor.fetchall()
+            row_map = {r["paper_id"]: r for r in rows}
+            for pid in paper_ids:
+                row = row_map.get(pid)
+                if row:
+                    entries.append(_paper_to_ris(row["paper_id"], row["title"], row["authors"], row["year"]))
+        except Exception:
+            logger.exception("export_ris failed")
 
     content = "\n\n".join(entries)
     return PlainTextResponse(
@@ -1530,61 +1565,65 @@ async def export_annotated_bibliography(
     if not paper_ids:
         return PlainTextResponse("", media_type="text/markdown")
 
-    db = await resolvers._get_db()
-    placeholders = ",".join("?" for _ in paper_ids)
-
-    # Fetch papers
-    cursor = await db.execute(
-        f"SELECT paper_id, title, authors, year, fields, average_score FROM papers WHERE paper_id IN ({placeholders})",
-        paper_ids,
-    )
-    rows = await cursor.fetchall()
-
-    # Fetch card sections
-    sec_cursor = await db.execute(
-        f"SELECT paper_id, section, content FROM card_sections WHERE paper_id IN ({placeholders})",
-        paper_ids,
-    )
-    sec_rows = await sec_cursor.fetchall()
-    sections_by_paper = {}
-    for sr in sec_rows:
-        sections_by_paper.setdefault(sr["paper_id"], {})[sr["section"]] = sr["content"]
-
     # Build annotated entries
     entries = []
-    for row in rows:
-        pid = row["paper_id"]
-        authors = _parse_authors_bibtex(row["authors"])
-        sections = sections_by_paper.get(pid, {})
-
-        # Build annotation: research question + key finding (first 2 sentences each)
-        rq = sections.get("Research Question", "")
-        kf = sections.get("Key Findings", "")
-        method = sections.get("Identification & Method", "")
-
-        annotation = ""
-        if rq:
-            annotation += rq.split(".")[0].strip() + ". "
-        if method:
-            first_sent = method.split(".")[0].strip()
-            annotation += f"Uses {first_sent.lower() if not first_sent[0:1].isupper() else first_sent}. "
-        if kf:
-            annotation += kf.split(".")[0].strip() + "."
-
-        fields = []
+    if os.path.isfile(KB_DB_PATH):
         try:
-            fields = json.loads(row["fields"]) if row["fields"] else []
-        except (json.JSONDecodeError, TypeError):
-            pass
+            db = await resolvers._get_db()
+            placeholders = ",".join("?" for _ in paper_ids)
 
-        entries.append({
-            "paper_id": pid,
-            "title": row["title"] or pid,
-            "authors": authors,
-            "year": row["year"],
-            "fields": fields,
-            "annotation": annotation[:500],
-        })
+            # Fetch papers
+            cursor = await db.execute(
+                f"SELECT paper_id, title, authors, year, fields, average_score FROM papers WHERE paper_id IN ({placeholders})",
+                paper_ids,
+            )
+            rows = await cursor.fetchall()
+
+            # Fetch card sections
+            sec_cursor = await db.execute(
+                f"SELECT paper_id, section, content FROM card_sections WHERE paper_id IN ({placeholders})",
+                paper_ids,
+            )
+            sec_rows = await sec_cursor.fetchall()
+            sections_by_paper = {}
+            for sr in sec_rows:
+                sections_by_paper.setdefault(sr["paper_id"], {})[sr["section"]] = sr["content"]
+
+            for row in rows:
+                pid = row["paper_id"]
+                authors = _parse_authors_bibtex(row["authors"])
+                sections = sections_by_paper.get(pid, {})
+
+                # Build annotation: research question + key finding (first 2 sentences each)
+                rq = sections.get("Research Question", "")
+                kf = sections.get("Key Findings", "")
+                method = sections.get("Identification & Method", "")
+
+                annotation = ""
+                if rq:
+                    annotation += rq.split(".")[0].strip() + ". "
+                if method:
+                    first_sent = method.split(".")[0].strip()
+                    annotation += f"Uses {first_sent.lower() if not first_sent[0:1].isupper() else first_sent}. "
+                if kf:
+                    annotation += kf.split(".")[0].strip() + "."
+
+                fields = []
+                try:
+                    fields = json.loads(row["fields"]) if row["fields"] else []
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+                entries.append({
+                    "paper_id": pid,
+                    "title": row["title"] or pid,
+                    "authors": authors,
+                    "year": row["year"],
+                    "fields": fields,
+                    "annotation": annotation[:500],
+                })
+        except Exception:
+            logger.exception("export_annotated_bibliography failed")
 
     # Group entries
     lines = ["# Annotated Bibliography\n"]
@@ -2470,6 +2509,9 @@ class ProcessRequest(BaseModel):
     analysis_focuses: list[str] = []
     analysis_focus_prompts: dict[str, str] = {}
     custom_reading_instructions: str = ""
+    update_graph: bool = False
+    update_ideas: bool = False
+    update_graph_and_ideas: bool = False
 
 
 class PaperReprocessRequest(BaseModel):
@@ -2495,6 +2537,9 @@ class ReadingJobRequest(BaseModel):
     analysis_focuses: list[str] = []
     analysis_focus_prompts: dict[str, str] = {}
     custom_reading_instructions: str = ""
+    update_graph: bool = False
+    update_ideas: bool = False
+    update_graph_and_ideas: bool = False
 
 
 class PaperFeedbackRequest(BaseModel):
@@ -2520,6 +2565,29 @@ class BuildRelationsRequest(BaseModel):
     library_id: Optional[int] = None
     force_rebuild: bool = True
     paper_ids: list[str] = []
+
+
+_SAFE_PAPER_ID_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def _validate_paper_id(paper_id: str, *, allow_empty: bool = False) -> str:
+    """Reject paper_ids that could escape the library directory.
+
+    paper_id is interpolated into filesystem paths (``papers_dir / f"{id}.pdf"``)
+    and written to, so an id like ``../../etc/foo`` would write outside the
+    library. Allow only a safe charset and forbid parent-dir traversal.
+    """
+    pid = (paper_id or "").strip()
+    if not pid:
+        if allow_empty:
+            return ""
+        raise HTTPException(status_code=400, detail="paper_id is required.")
+    if ".." in pid or not _SAFE_PAPER_ID_RE.match(pid):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid paper_id: only letters, digits, '.', '_' and '-' are allowed.",
+        )
+    return pid
 
 
 def _parse_focuses_field(raw: str) -> list[str]:
@@ -2555,6 +2623,8 @@ def _utc_now_iso() -> str:
 
 
 def _serialize_reading_job(job: dict[str, object]) -> dict[str, object]:
+    update_graph = bool(job.get("update_graph") or job.get("update_graph_and_ideas"))
+    update_ideas = bool(job.get("update_ideas") or job.get("update_graph_and_ideas"))
     return {
         "id": job["id"],
         "library_id": job["library_id"],
@@ -2563,6 +2633,10 @@ def _serialize_reading_job(job: dict[str, object]) -> dict[str, object]:
         "analysis_focuses": job["analysis_focuses"],
         "analysis_focus_prompts": job.get("analysis_focus_prompts", {}),
         "custom_reading_instructions": job.get("custom_reading_instructions", ""),
+        "update_graph": update_graph,
+        "update_ideas": update_ideas,
+        "update_graph_and_ideas": bool(update_graph and update_ideas),
+        "post_reading_update": job.get("post_reading_update"),
         "created_at": job["created_at"],
         "started_at": job.get("started_at"),
         "completed_at": job.get("completed_at"),
@@ -2579,11 +2653,12 @@ def _serialize_reading_job(job: dict[str, object]) -> dict[str, object]:
 
 
 async def _run_reading_job(job_id: str) -> None:
-    from pipeline import process_paper, reprocess_existing_paper
+    from pipeline import process_paper, reprocess_existing_paper, update_graph_and_ideas_after_reading
 
     job = READING_JOBS[job_id]
     job["status"] = "running"
     job["started_at"] = _utc_now_iso()
+    post_update_failed = False
 
     for item in job["items"]:
         if job.get("cancel_requested"):
@@ -2679,14 +2754,109 @@ async def _run_reading_job(job_id: str) -> None:
             item["completed_at"] = _utc_now_iso()
 
     job["current_paper_id"] = None
+    successful_reads = sum(1 for item in job.get("items", []) if item.get("status") == "done")
+    should_update_graph = bool(job.get("update_graph") or job.get("update_graph_and_ideas"))
+    should_update_ideas = bool(job.get("update_ideas") or job.get("update_graph_and_ideas"))
+    should_update_after_reading = (
+        (should_update_graph or should_update_ideas)
+        and not job.get("cancel_requested")
+        and successful_reads > 0
+        and str(job.get("reading_profile") or "") != "metadata_only"
+    )
+    post_update_targets = " 和 ".join(
+        target for target, enabled in (("Graph", should_update_graph), ("Ideas", should_update_ideas)) if enabled
+    ) or "Graph / Ideas"
+    if should_update_after_reading:
+        job["post_reading_update"] = {
+            "status": "running",
+            "step": f"更新 {post_update_targets}",
+            "message": "正在运行 Linker、Thinker 和 Critic。" if should_update_ideas else "正在运行 Linker。",
+            "started_at": _utc_now_iso(),
+            "completed_at": None,
+            "result": None,
+        }
+        try:
+            result = await asyncio.to_thread(
+                update_graph_and_ideas_after_reading,
+                int(job["library_id"]),
+                update_graph=should_update_graph,
+                update_ideas=should_update_ideas,
+            )
+            has_error = bool(result.get("error"))
+            job["post_reading_update"] = {
+                "status": "error" if has_error else "done",
+                "step": f"{post_update_targets} 更新失败" if has_error else f"{post_update_targets} 已更新",
+                "message": str(
+                    result.get("error")
+                    or (
+                        "已完成 Linker、Thinker、Critic 和索引刷新。"
+                        if should_update_ideas
+                        else "已完成 Linker 和索引刷新。"
+                    )
+                ),
+                "started_at": job["post_reading_update"]["started_at"],
+                "completed_at": _utc_now_iso(),
+                "result": result,
+            }
+            post_update_failed = has_error
+        except Exception as exc:
+            post_update_failed = True
+            job["post_reading_update"] = {
+                "status": "error",
+                "step": f"{post_update_targets} 更新失败",
+                "message": str(exc),
+                "started_at": job["post_reading_update"]["started_at"],
+                "completed_at": _utc_now_iso(),
+                "result": None,
+            }
+    elif should_update_graph or should_update_ideas:
+        job["post_reading_update"] = {
+            "status": "skipped",
+            "step": f"跳过 {post_update_targets}",
+            "message": "没有成功完成的 AI 读取，或任务已取消/仅元数据模式。",
+            "started_at": None,
+            "completed_at": _utc_now_iso(),
+            "result": None,
+        }
+
     if job.get("cancel_requested"):
         job["status"] = "cancelled"
-    elif any(item.get("status") == "error" for item in job["items"]):
+    elif post_update_failed or any(item.get("status") == "error" for item in job["items"]):
         job["status"] = "error"
     else:
         job["status"] = "done"
     job["completed_at"] = _utc_now_iso()
     READING_JOB_TASKS.pop(job_id, None)
+
+
+async def _run_reading_job_guarded(job_id: str) -> None:
+    """Run a reading job under the per-library lock with guaranteed finalization.
+
+    Wrapping _run_reading_job (instead of editing its long body) guarantees that
+    the job never gets stuck in 'running' and its task entry is always cleared,
+    even when the job is cancelled mid-paper (task.cancel) or an unexpected error
+    escapes. Concurrent jobs for the same library are serialized by the lock.
+    """
+    job = READING_JOBS.get(job_id)
+    library_id = int(job["library_id"]) if job and job.get("library_id") is not None else 0
+    async with _library_job_lock(library_id):
+        try:
+            await _run_reading_job(job_id)
+        except asyncio.CancelledError:
+            if job is not None:
+                job["cancel_requested"] = True
+                for item in job.get("items", []):
+                    if item.get("status") in ("running", "queued"):
+                        item["status"] = "cancelled"
+                        item["step"] = "已取消"
+                        item["completed_at"] = _utc_now_iso()
+        except Exception:
+            logger.exception("Reading job %s failed unexpectedly", job_id)
+        finally:
+            if job is not None and job.get("status") == "running":
+                job["status"] = "cancelled" if job.get("cancel_requested") else "error"
+                job["completed_at"] = _utc_now_iso()
+            READING_JOB_TASKS.pop(job_id, None)
 
 
 @app.post("/api/pipeline/discover")
@@ -2719,7 +2889,13 @@ async def create_reading_job_endpoint(request: ReadingJobRequest):
         raise HTTPException(status_code=400, detail="paper_ids is required.")
     if len(paper_ids) > 50:
         raise HTTPException(status_code=400, detail="Reading jobs are limited to 50 papers.")
+    # Reading-job paper_ids reach reprocess_existing_paper / process_paper (which
+    # build filesystem paths) without going through the per-endpoint validators,
+    # so validate them here too.
+    paper_ids = [_validate_paper_id(pid) for pid in paper_ids]
 
+    update_graph = bool(request.update_graph or request.update_graph_and_ideas)
+    update_ideas = bool(request.update_ideas or request.update_graph_and_ideas)
     job_id = uuid.uuid4().hex
     job = {
         "id": job_id,
@@ -2730,6 +2906,10 @@ async def create_reading_job_endpoint(request: ReadingJobRequest):
         "analysis_focuses": request.analysis_focuses,
         "analysis_focus_prompts": request.analysis_focus_prompts,
         "custom_reading_instructions": request.custom_reading_instructions,
+        "update_graph": update_graph,
+        "update_ideas": update_ideas,
+        "update_graph_and_ideas": bool(update_graph and update_ideas),
+        "post_reading_update": None,
         "created_at": _utc_now_iso(),
         "started_at": None,
         "completed_at": None,
@@ -2748,7 +2928,7 @@ async def create_reading_job_endpoint(request: ReadingJobRequest):
         ],
     }
     READING_JOBS[job_id] = job
-    READING_JOB_TASKS[job_id] = asyncio.create_task(_run_reading_job(job_id))
+    READING_JOB_TASKS[job_id] = asyncio.create_task(_run_reading_job_guarded(job_id))
     return {"job": _serialize_reading_job(job)}
 
 
@@ -2779,6 +2959,12 @@ async def cancel_reading_job_endpoint(job_id: str):
         raise HTTPException(status_code=404, detail="Reading job not found.")
 
     job["cancel_requested"] = True
+    # Actually cancel the running task so the remaining papers stop. The current
+    # paper's subprocess can't be interrupted (best effort), but the asyncio task
+    # is told to stop and the guarded runner finalizes the job as cancelled.
+    task = READING_JOB_TASKS.get(job_id)
+    if task is not None and not task.done():
+        task.cancel()
     if job.get("status") == "queued":
         job["status"] = "cancelled"
         job["completed_at"] = _utc_now_iso()
@@ -2794,19 +2980,45 @@ async def cancel_reading_job_endpoint(job_id: str):
 @app.post("/api/pipeline/process")
 async def process_paper_endpoint(request: ProcessRequest):
     """Download and process a specific paper from the configured remote source."""
-    from pipeline import process_paper
+    from pipeline import process_paper, update_graph_and_ideas_after_reading
 
     if request.library_id is not None and not library_exists(request.library_id):
         raise HTTPException(status_code=404, detail="Library not found.")
+    paper_id = _validate_paper_id(request.paper_id)
     try:
-        result = await process_paper(
-            request.paper_id,
-            library_id=request.library_id,
-            reading_profile=request.reading_profile,
-            analysis_focuses=request.analysis_focuses,
-            analysis_focus_prompts=request.analysis_focus_prompts,
-            custom_reading_instructions=request.custom_reading_instructions,
+        # process_paper is a coroutine that internally runs blocking subprocess
+        # and sync-sqlite work; run it on a worker thread so it does not freeze
+        # the event loop for every other request (same pattern as reading jobs).
+        result = await asyncio.to_thread(
+            lambda: asyncio.run(
+                process_paper(
+                    paper_id,
+                    library_id=request.library_id,
+                    reading_profile=request.reading_profile,
+                    analysis_focuses=request.analysis_focuses,
+                    analysis_focus_prompts=request.analysis_focus_prompts,
+                    custom_reading_instructions=request.custom_reading_instructions,
+                )
+            )
         )
+        update_graph = bool(request.update_graph or request.update_graph_and_ideas)
+        update_ideas = bool(request.update_ideas or request.update_graph_and_ideas)
+        if (
+            (update_graph or update_ideas)
+            and request.reading_profile != "metadata_only"
+            and not result.get("error")
+            and result.get("registered") is not False
+            and not (
+                isinstance(result.get("download"), dict)
+                and result["download"].get("status") == "error"
+            )
+        ):
+            result["post_reading_update"] = await asyncio.to_thread(
+                update_graph_and_ideas_after_reading,
+                request.library_id,
+                update_graph=update_graph,
+                update_ideas=update_ideas,
+            )
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return result
@@ -2828,6 +3040,8 @@ async def upload_paper(
     if not library_exists(library_id):
         raise HTTPException(status_code=404, detail="Library not found.")
 
+    safe_paper_id = _validate_paper_id(paper_id, allow_empty=True)
+
     content = await file.read()
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(
@@ -2836,10 +3050,13 @@ async def upload_paper(
                    f"Maximum is {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
         )
 
-    result = import_uploaded_file(
+    # import_uploaded_file is synchronous (disk write, sqlite, PDF text
+    # extraction); run it off the event loop so a slow PDF can't stall the server.
+    result = await asyncio.to_thread(
+        import_uploaded_file,
         content,
         library_id=library_id,
-        paper_id=paper_id or None,
+        paper_id=safe_paper_id or None,
         filename=file.filename or "",
         reading_profile=reading_profile,
         analysis_focuses=_parse_focuses_field(analysis_focuses),
@@ -2869,7 +3086,10 @@ async def upload_paper_batch(
         content = await file.read()
         payload.append((content, file.filename or "upload.pdf"))
 
-    return import_uploaded_batch(
+    # Synchronous batch processing (disk + sqlite + PDF extraction per file) —
+    # run off the event loop so a large batch can't stall the server.
+    return await asyncio.to_thread(
+        import_uploaded_batch,
         payload,
         library_id=library_id,
         reading_profile=reading_profile,
@@ -2919,7 +3139,11 @@ async def refresh_db_endpoint(library_id: Optional[int] = Query(default=None)):
 
     if library_id is not None and not library_exists(library_id):
         raise HTTPException(status_code=404, detail="Library not found.")
-    result = refresh_website_db(library_id=library_id)
+    resolved_library_id = library_id or get_active_library_id() or ensure_default_library()
+    # Serialize against reading jobs / other refreshes for this library, and run
+    # the blocking ingestion + embedding recompute off the event loop.
+    async with _library_job_lock(resolved_library_id):
+        result = await asyncio.to_thread(refresh_website_db, library_id=resolved_library_id)
     return result
 
 

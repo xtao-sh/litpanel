@@ -42,7 +42,7 @@ AGENT_DB_PATH = Path(
     )
 ).expanduser()
 AGENTS_DIR = Path(
-    _getenv("AGENTS_DIR", "KB_AGENTS_DIR", default=str(DATA_ROOT / "agents"))
+    _getenv("AGENTS_DIR", "KB_AGENTS_DIR", default=str(REPO_ROOT / "agents"))
 ).expanduser()
 
 KB_DB_PATH = _getenv("KB_DB_PATH", default=str(BASE_DIR / "kb.db"))

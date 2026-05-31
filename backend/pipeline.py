@@ -62,8 +62,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # Maximum upload size: 50 MB
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
-# Agent subprocess timeout: 10 minutes
-AGENT_TIMEOUT_SECONDS = 600
+# Agent subprocess timeout. The Reader now makes several focused LLM calls per
+# paper (dimension batches + scores + atoms), so a full "select all dimensions"
+# run on a long paper can take ~8 minutes; default to 20 minutes of headroom.
+AGENT_TIMEOUT_SECONDS = int(os.environ.get("AGENT_TIMEOUT_SECONDS", "1200"))
 
 READING_PROFILE_CONFIG: dict[str, dict[str, object]] = {
     "auto": {
@@ -207,10 +209,13 @@ ANALYSIS_FOCUS_OPTIONS: dict[str, dict[str, str]] = {
 # ---------------------------------------------------------------------------
 
 def _extract_year(paper_id: str) -> Optional[int]:
-    """Guess the year from a paper_id like w35000 based on NBER numbering.
+    """Return a placeholder publication year for a paper_id.
 
-    This is a rough heuristic.  We fall back to the current year when we
-    cannot determine a value.
+    NOTE: This does NOT actually parse the year from the paper_id. There is no
+    reliable way to map an NBER id (e.g. ``w35000``) to a publication year here,
+    so this is a deliberate placeholder that always returns the current year.
+    The ``paper_id`` argument is currently unused and the result should be
+    treated as a best-effort fallback, not an authoritative value.
     """
     return datetime.now().year
 
@@ -583,7 +588,16 @@ def download_paper(paper_id: str, papers_dir: Path) -> Path:
     logger.info("Downloading %s ...", url)
 
     try:
-        resp = requests.get(url, timeout=60)
+        resp = requests.get(
+            url,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+                )
+            },
+            timeout=60,
+        )
         resp.raise_for_status()
     except requests.RequestException as exc:
         raise RuntimeError(f"Failed to download {paper_id}: {exc}") from exc
@@ -1139,9 +1153,15 @@ def process_uploaded_pdf(
         if match:
             paper_id = match.group(1)
         else:
-            # Generate a unique ID
-            existing = sorted(library_dir.glob("upload_*.pdf"))
-            next_num = len(existing) + 1
+            # Generate a unique ID based on the highest existing numeric suffix
+            # so deleting an earlier upload never causes a number to be reused
+            # (which would overwrite a different paper's file).
+            max_num = 0
+            for existing_path in library_dir.glob("upload_*.pdf"):
+                suffix_match = re.match(r"upload_(\d+)", existing_path.stem)
+                if suffix_match:
+                    max_num = max(max_num, int(suffix_match.group(1)))
+            next_num = max_num + 1
             paper_id = f"upload_{next_num:04d}"
 
     pdf_path = library_dir / f"{paper_id}.pdf"
@@ -1427,6 +1447,90 @@ def build_paper_relations(
             finally:
                 restore_conn.close()
 
+    return result
+
+
+def update_graph_and_ideas_after_reading(
+    library_id: int | None = None,
+    *,
+    update_graph: bool = True,
+    update_ideas: bool = True,
+) -> dict:
+    """Run the selected post-reading synthesis steps.
+
+    Graph updates run Linker. Idea updates depend on the graph maps, so they run Linker
+    first when there are newly completed papers waiting to be linked, then run Thinker
+    and Critic.
+    """
+    runtime = _resolve_library_runtime(library_id)
+    _ensure_agent_db_schema(runtime["agent_db_path"])
+    update_graph = bool(update_graph)
+    update_ideas = bool(update_ideas)
+    needs_linker = update_graph or update_ideas
+
+    conn = _get_agent_db(runtime["agent_db_path"])
+    try:
+        pending_row = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM papers WHERE status = 'completed' AND linker_batch IS NULL"
+        ).fetchone()
+        pending_count = int(pending_row["cnt"]) if pending_row else 0
+    finally:
+        conn.close()
+
+    result: dict = {
+        "library_id": runtime["id"],
+        "update_graph": update_graph,
+        "update_ideas": update_ideas,
+        "pending_linker_papers": pending_count,
+    }
+    if not needs_linker:
+        result["linker"] = {"skipped": True, "reason": "Graph update disabled"}
+        result["thinker"] = {"skipped": True, "reason": "Ideas update disabled"}
+        result["critic"] = {"skipped": True, "reason": "Ideas update disabled"}
+        result["refresh"] = {"status": "skipped", "reason": "no post-reading updates selected"}
+        return result
+
+    if pending_count == 0:
+        result["linker"] = {"skipped": True, "reason": "no completed papers waiting for Linker"}
+        if not update_ideas:
+            result["thinker"] = {"skipped": True, "reason": "Ideas update disabled"}
+            result["critic"] = {"skipped": True, "reason": "Ideas update disabled"}
+            result["refresh"] = {"status": "skipped", "reason": "no graph changes to refresh"}
+            return result
+    else:
+        linker_result = run_agent_pipeline("linker", runtime=runtime)
+        result["linker"] = linker_result
+        if not linker_result.get("success"):
+            result["error"] = (
+                "Linker failed; Ideas were not updated."
+                if update_ideas and not update_graph
+                else "Linker failed; Graph and Ideas were not updated."
+                if update_ideas
+                else "Linker failed; Graph was not updated."
+            )
+            result["thinker"] = {"skipped": True, "reason": "linker failed"}
+            result["critic"] = {"skipped": True, "reason": "linker failed"}
+            result["refresh"] = {"status": "skipped", "reason": "linker failed"}
+            return result
+
+    if not update_ideas:
+        result["thinker"] = {"skipped": True, "reason": "Ideas update disabled"}
+        result["critic"] = {"skipped": True, "reason": "Ideas update disabled"}
+        result["refresh"] = refresh_website_db(runtime["id"])
+        return result
+
+    thinker_result = run_agent_pipeline("thinker", runtime=runtime)
+    result["thinker"] = thinker_result
+    if not thinker_result.get("success"):
+        result["error"] = "Thinker failed; Ideas were not updated."
+        result["critic"] = {"skipped": True, "reason": "thinker failed"}
+    else:
+        critic_result = run_agent_pipeline("critic", runtime=runtime)
+        result["critic"] = critic_result
+        if not critic_result.get("success"):
+            result["error"] = "Critic failed; Ideas were generated but not evaluated."
+
+    result["refresh"] = refresh_website_db(runtime["id"])
     return result
 
 

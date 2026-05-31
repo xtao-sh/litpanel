@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
 import subprocess
@@ -10,6 +11,8 @@ from pathlib import Path
 from typing import Any, AsyncGenerator
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -439,8 +442,11 @@ def load_workspace_ai_settings(
                         "model": str(row["model"] or ""),
                     }
                 )
-        except sqlite3.OperationalError:
-            pass
+        except sqlite3.OperationalError as exc:
+            logger.warning(
+                "Failed to load AI provider/step settings from %s; falling back to defaults: %s",
+                resolved_db_path, exc,
+            )
         finally:
             conn.close()
 
@@ -714,30 +720,58 @@ class AsyncMessageStream:
             if api_style == "openai"
             else _build_anthropic_payload(self.model, self.max_tokens, self.system, self.messages, True)
         )
-        self._client = httpx.AsyncClient(timeout=None)
-        self._ctx = self._client.stream(
-            "POST",
-            endpoint,
-            json=payload,
-            headers=_build_headers(api_style, api_key),
+        # Bounded timeouts: a generous read budget for slow token streams, but
+        # not None — otherwise a stalled provider hangs the SSE generator (and
+        # the client's request) forever with no recovery.
+        self._client = httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=15.0, read=180.0, write=30.0, pool=15.0)
         )
         try:
-            self._response = await self._ctx.__aenter__()
-        except httpx.HTTPError as exc:
-            raise LLMConnectionError(str(exc)) from exc
-        _raise_for_status(self._response)
-        self.text_stream = (
-            _iter_openai_text_stream(self._response)
-            if api_style == "openai"
-            else _iter_anthropic_text_stream(self._response)
-        )
+            self._ctx = self._client.stream(
+                "POST",
+                endpoint,
+                json=payload,
+                headers=_build_headers(api_style, api_key),
+            )
+            try:
+                self._response = await self._ctx.__aenter__()
+            except httpx.HTTPError as exc:
+                raise LLMConnectionError(str(exc)) from exc
+            # On an error status the streamed body is still unread, so
+            # _raise_for_status's `response.text` would raise httpx.ResponseNotRead
+            # instead of the real error. Read the body explicitly, then raise the
+            # proper status error.
+            if self._response.status_code >= 400:
+                body = (await self._response.aread()).decode(errors="replace")
+                raise LLMStatusError(self._response.status_code, body)
+            self.text_stream = (
+                _iter_openai_text_stream(self._response)
+                if api_style == "openai"
+                else _iter_anthropic_text_stream(self._response)
+            )
+        except BaseException:
+            # Setup failed after the client/stream was opened — close both so we
+            # don't leak sockets on every provider error (__aexit__ won't run).
+            await self._aclose()
+            raise
         return self
 
-    async def __aexit__(self, exc_type, exc, tb) -> None:
+    async def _aclose(self) -> None:
         if self._ctx is not None:
-            await self._ctx.__aexit__(exc_type, exc, tb)
+            try:
+                await self._ctx.__aexit__(None, None, None)
+            except Exception:
+                pass
+            self._ctx = None
         if self._client is not None:
-            await self._client.aclose()
+            try:
+                await self._client.aclose()
+            except Exception:
+                pass
+            self._client = None
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        await self._aclose()
 
 
 class AsyncMessagesAPI:
