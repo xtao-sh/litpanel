@@ -112,3 +112,9 @@ See [`INTRODUCTION.md`](INTRODUCTION.md) for the full architecture.
   Keyword search works offline; semantic search needs the model.
 - This is a **single-user, local** tool — there are no user accounts and it is
   not meant to be exposed as a public multi-user server.
+
+---
+
+## License
+
+[MIT](LICENSE) © xtao-sh
