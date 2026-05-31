@@ -131,9 +131,9 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
   function navigateTo(entityType: string, entityId: string) {
     handleOpenChange(false);
     if (entityType === "paper") {
-      router.push(`/paper/${entityId}`);
+      router.push(`/paper/${encodeURIComponent(entityId)}`);
     } else {
-      router.push(`/atom/${entityId}`);
+      router.push(`/atom/${encodeURIComponent(entityId)}`);
     }
   }
 

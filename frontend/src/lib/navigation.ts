@@ -214,14 +214,14 @@ export function buildPaperDetailHref({
   paperId,
   returnTo,
 }: BuildPaperDetailHrefOptions): string {
-  return appendReturnTo(`/paper/${paperId}`, returnTo);
+  return appendReturnTo(`/paper/${encodeURIComponent(paperId)}`, returnTo);
 }
 
 export function buildAtomDetailHref({
   atomSlug,
   returnTo,
 }: BuildAtomDetailHrefOptions): string {
-  return appendReturnTo(`/atom/${atomSlug}`, returnTo);
+  return appendReturnTo(`/atom/${encodeURIComponent(atomSlug)}`, returnTo);
 }
 
 export function buildFieldDetailHref({ field }: BuildFieldDetailHrefOptions): string {

@@ -211,6 +211,13 @@ function ExplorerContent() {
     [updateUrl]
   );
 
+  // Clear any pending debounce timeout on unmount.
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
   // --- Tab change ---
   const handleTabChange = useCallback(
     (tab: string) => {

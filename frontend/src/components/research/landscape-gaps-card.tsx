@@ -214,14 +214,14 @@ export function LandscapeGapsCard({
               <span className="text-[var(--ink)]">{q.text}</span>
               {actionMode === "buttons" ? (
                 <Link
-                  href={getPaperHref ? getPaperHref(q.paperId) : `/paper/${q.paperId}`}
+                  href={getPaperHref ? getPaperHref(q.paperId) : `/paper/${encodeURIComponent(q.paperId)}`}
                   className="ml-2 inline-flex rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-2 py-1 text-[11px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                 >
                   {t("research.gaps.openPaper")}
                 </Link>
               ) : (
                 <Link
-                  href={getPaperHref ? getPaperHref(q.paperId) : `/paper/${q.paperId}`}
+                  href={getPaperHref ? getPaperHref(q.paperId) : `/paper/${encodeURIComponent(q.paperId)}`}
                   className="ml-1 font-mono text-[10px] text-[#2c4870] hover:underline"
                 >
                   {q.paperId}
@@ -241,14 +241,14 @@ export function LandscapeGapsCard({
               <span className="text-[var(--ink)]">{lim.text}</span>
               {actionMode === "buttons" ? (
                 <Link
-                  href={getPaperHref ? getPaperHref(lim.paperId) : `/paper/${lim.paperId}`}
+                  href={getPaperHref ? getPaperHref(lim.paperId) : `/paper/${encodeURIComponent(lim.paperId)}`}
                   className="ml-2 inline-flex rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-2 py-1 text-[11px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-2)]"
                 >
                   {t("research.gaps.openPaper")}
                 </Link>
               ) : (
                 <Link
-                  href={getPaperHref ? getPaperHref(lim.paperId) : `/paper/${lim.paperId}`}
+                  href={getPaperHref ? getPaperHref(lim.paperId) : `/paper/${encodeURIComponent(lim.paperId)}`}
                   className="ml-1 font-mono text-[10px] text-[#2c4870] hover:underline"
                 >
                   {lim.paperId}

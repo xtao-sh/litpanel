@@ -1402,6 +1402,13 @@ function EmptyState({
     fetchPolicy: "network-only",
   });
 
+  // Clear any pending suggestions debounce timeout on unmount.
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
   const handleInputChange = useCallback(
     (value: string) => {
       onSearchChange(value);

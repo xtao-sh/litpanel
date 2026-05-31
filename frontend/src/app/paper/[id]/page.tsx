@@ -1175,7 +1175,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                   ) : null}
                   {(paper.ideaCount ?? 0) > 0 ? (
                     <Link
-                      href={`/ideas?source=${paper.paperId}`}
+                      href={`/ideas?source=${encodeURIComponent(paper.paperId)}`}
                       className="inline-flex items-center gap-1.5 rounded-full border border-[#d6b678] bg-[#f4ead8] px-3 py-1 text-xs font-medium text-[#7a5a18] transition-colors hover:bg-[#f4ead8]"
                     >
                       <Lightbulb className="h-3.5 w-3.5" />

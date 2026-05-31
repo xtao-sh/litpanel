@@ -39,7 +39,11 @@ function AskPageInner() {
       if (raw) {
         const saved = JSON.parse(raw);
         if (saved && saved.messages?.length && Date.now() - saved.timestamp < 24 * 60 * 60 * 1000) {
-          setMessages(saved.messages);
+          // Clear any persisted streaming flag — a message saved mid-stream would
+          // otherwise restore with a permanent "streaming" indicator that never finishes.
+          setMessages(
+            (saved.messages as Message[]).map((m) => ({ ...m, isStreaming: false }))
+          );
           setSessionId(saved.sessionId);
         }
       }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useState, useMemo } from "react";
+import React, { Suspense, useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@apollo/client/react";
 import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
@@ -166,6 +166,12 @@ function IdeasPageInner() {
   const [minScore, setMinScore] = useState<string>("any");
   const [heuristicFilter, setHeuristicFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string | null>(initialSourceFilter);
+
+  // Re-sync the source filter when the ?source= query param changes via
+  // client-side navigation (the initial value covers first render only).
+  useEffect(() => {
+    setSourceFilter(searchParams.get("source"));
+  }, [searchParams]);
 
   // Query -- pass status to API when a specific status is selected
   const queryStatus = statusFilter === "all" ? undefined : statusFilter;

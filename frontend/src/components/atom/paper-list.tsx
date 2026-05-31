@@ -36,7 +36,7 @@ export function PaperList({ papers, getPaperHref }: PaperListProps) {
             <tr key={paper.paperId} className="hover:bg-[var(--paper-2)]">
               <td className="px-4 py-3 pr-4">
                 <Link
-                  href={getPaperHref ? getPaperHref(paper.paperId) : `/paper/${paper.paperId}`}
+                  href={getPaperHref ? getPaperHref(paper.paperId) : `/paper/${encodeURIComponent(paper.paperId)}`}
                   className="font-mono text-xs text-[var(--forest)] hover:underline"
                 >
                   {paper.paperId}
@@ -44,7 +44,7 @@ export function PaperList({ papers, getPaperHref }: PaperListProps) {
               </td>
               <td className="px-4 py-3 pr-4 max-w-md">
                 <Link
-                  href={getPaperHref ? getPaperHref(paper.paperId) : `/paper/${paper.paperId}`}
+                  href={getPaperHref ? getPaperHref(paper.paperId) : `/paper/${encodeURIComponent(paper.paperId)}`}
                   className="text-[var(--ink)] hover:text-[var(--forest)] hover:underline"
                 >
                   {paper.title || "Untitled"}

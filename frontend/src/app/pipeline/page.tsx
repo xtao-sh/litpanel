@@ -166,6 +166,15 @@ interface ReadingJobItem {
   completed_at?: string | null;
 }
 
+interface PostReadingUpdate {
+  status: "running" | "done" | "error" | "skipped";
+  step: string;
+  message?: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  result?: unknown;
+}
+
 interface ReadingJob {
   id: string;
   library_id: number;
@@ -176,6 +185,10 @@ interface ReadingJob {
   failed: number;
   cancel_requested?: boolean;
   current_paper_id?: string | null;
+  update_graph?: boolean;
+  update_ideas?: boolean;
+  update_graph_and_ideas?: boolean;
+  post_reading_update?: PostReadingUpdate | null;
   items: ReadingJobItem[];
 }
 
@@ -661,6 +674,8 @@ function PipelinePageContent() {
   const [newFocusLabel, setNewFocusLabel] = useState("");
   const [newFocusPrompt, setNewFocusPrompt] = useState("");
   const [promptEditorOpen, setPromptEditorOpen] = useState(false);
+  const [updateGraphAfterReading, setUpdateGraphAfterReading] = useState(false);
+  const [updateIdeasAfterReading, setUpdateIdeasAfterReading] = useState(false);
 
   // --- AI reading queue ---
   const [readingQueue, setReadingQueue] = useState<ReadingQueueItem[]>([]);
@@ -1295,6 +1310,8 @@ function PipelinePageContent() {
           analysis_focuses: analysisFocuses,
           analysis_focus_prompts: buildAnalysisFocusPromptMap(),
           custom_reading_instructions: customReadingInstructions,
+          update_graph: updateGraphAfterReading,
+          update_ideas: updateIdeasAfterReading,
         }),
       });
       const data = await resp.json().catch(() => null);
@@ -1305,7 +1322,7 @@ function PipelinePageContent() {
     } catch (error) {
       setReadingJobError(error instanceof Error ? error.message : "无法创建 AI 读取任务");
     }
-  }, [analysisFocuses, applyReadingJob, buildAnalysisFocusPromptMap, customReadingInstructions, readingProfile, readingQueue, selectedLibraryId]);
+  }, [analysisFocuses, applyReadingJob, buildAnalysisFocusPromptMap, customReadingInstructions, readingProfile, readingQueue, selectedLibraryId, updateGraphAfterReading, updateIdeasAfterReading]);
 
   const handleStopQueue = useCallback(async () => {
     if (!activeReadingJob) return;
@@ -1340,7 +1357,19 @@ function PipelinePageContent() {
     (itemId: string) => {
       const item = readingQueueRef.current.find((entry) => entry.id === itemId);
       if (item?.status === "running") {
+        // The backend can only cancel the whole job (no per-paper cancel), so
+        // cancelling a running item stops the job — reflect that by marking every
+        // not-yet-finished item cancelled, not just this one, to match the server.
         handleStopQueue();
+        const now = new Date().toISOString();
+        setReadingQueue((prev) =>
+          prev.map((entry) =>
+            entry.status === "queued" || entry.status === "running"
+              ? { ...entry, status: "cancelled", step: "已取消", completedAt: now }
+              : entry
+          )
+        );
+        return;
       }
       updateQueueItem(itemId, {
         status: "cancelled",
@@ -1352,6 +1381,14 @@ function PipelinePageContent() {
   );
 
   const handleClearFinishedQueue = useCallback(() => {
+    // Never drop our handle on a job that is still running on the server: nulling
+    // activeReadingJob stops polling and orphans the live job (no progress shown).
+    if (
+      activeReadingJob &&
+      (activeReadingJob.status === "queued" || activeReadingJob.status === "running")
+    ) {
+      return;
+    }
     setReadingQueue((prev) =>
       prev.filter((item) => item.status === "queued" || item.status === "running")
     );
@@ -1360,7 +1397,7 @@ function PipelinePageContent() {
     setQueueListOpen(false);
     setExpandedReadingPaperId(null);
     setReadingOutputError("");
-  }, []);
+  }, [activeReadingJob]);
 
   const handleToggleReadingOutput = useCallback(async (paperId: string) => {
     if (expandedReadingPaperId === paperId) {
@@ -1404,25 +1441,50 @@ function PipelinePageContent() {
     activeReadingJob && activeReadingJob.requested > 0
       ? Math.round((activeReadingJob.processed / activeReadingJob.requested) * 100)
       : 0;
+  const activeJobUpdatesGraph = Boolean(
+    activeReadingJob?.update_graph || activeReadingJob?.update_graph_and_ideas
+  );
+  const activeJobUpdatesIdeas = Boolean(
+    activeReadingJob?.update_ideas || activeReadingJob?.update_graph_and_ideas
+  );
+  const activePostUpdateTargets = [
+    activeJobUpdatesGraph ? "Graph" : null,
+    activeJobUpdatesIdeas ? "Ideas" : null,
+  ]
+    .filter(Boolean)
+    .join(" / ");
+
+  // Keep the latest applyReadingJob in a ref so the polling effect can call the
+  // current version without re-subscribing whenever its identity changes.
+  const applyReadingJobRef = useRef(applyReadingJob);
+  applyReadingJobRef.current = applyReadingJob;
+
+  const activeReadingJobId = activeReadingJob?.id;
+  const activeReadingJobStatus = activeReadingJob?.status;
 
   useEffect(() => {
-    if (!activeReadingJob || (activeReadingJob.status !== "queued" && activeReadingJob.status !== "running")) {
+    // Depend on the stable job id (and its status) rather than the whole job
+    // object so the 1.5s timer is not torn down/recreated on every poll.
+    if (
+      !activeReadingJobId ||
+      (activeReadingJobStatus !== "queued" && activeReadingJobStatus !== "running")
+    ) {
       return;
     }
 
     const interval = window.setInterval(async () => {
       try {
-        const resp = await fetch(`${API_URL}/api/reading-jobs/${activeReadingJob.id}`);
+        const resp = await fetch(`${API_URL}/api/reading-jobs/${activeReadingJobId}`);
         const data = await resp.json().catch(() => null);
         if (!resp.ok) return;
-        applyReadingJob(data.job as ReadingJob);
+        applyReadingJobRef.current(data.job as ReadingJob);
       } catch {
         // Keep the last known state; the next poll can recover.
       }
     }, 1500);
 
     return () => window.clearInterval(interval);
-  }, [activeReadingJob, applyReadingJob]);
+  }, [activeReadingJobId, activeReadingJobStatus]);
 
   // -----------------------------------------------------------------------
   // Discover
@@ -1463,6 +1525,8 @@ function PipelinePageContent() {
           analysis_focuses: analysisFocuses,
           analysis_focus_prompts: buildAnalysisFocusPromptMap(),
           custom_reading_instructions: customReadingInstructions,
+          update_graph: updateGraphAfterReading,
+          update_ideas: updateIdeasAfterReading,
         }),
       });
       if (resp.ok) {
@@ -1507,6 +1571,8 @@ function PipelinePageContent() {
           analysis_focuses: analysisFocuses,
           analysis_focus_prompts: buildAnalysisFocusPromptMap(),
           custom_reading_instructions: customReadingInstructions,
+          update_graph: updateGraphAfterReading,
+          update_ideas: updateIdeasAfterReading,
         }),
       });
       if (!resp.ok) {
@@ -1870,6 +1936,42 @@ function PipelinePageContent() {
           <span className="font-mono text-xs">{readingProfile === "section_batch" ? "ON" : "OFF"}</span>
         </button>
 
+        <div className="mt-2 grid gap-2">
+          <button
+            type="button"
+            onClick={() => setUpdateGraphAfterReading((value) => !value)}
+            title="开启后，队列读完会运行 Linker，把新 paper cards 合并进 Graph/Atlas maps。关闭后只更新论文卡片和 atoms。"
+            className={`flex w-full items-center justify-between rounded-[var(--r)] border px-3 py-2 text-left text-sm ${
+              updateGraphAfterReading
+                ? "border-[var(--forest)]/70 bg-[var(--paper-2)] text-[var(--ink)]"
+                : "border-[var(--line-soft)] bg-[var(--paper)]/60 text-[var(--ink-4)] hover:text-[var(--ink)]"
+            }`}
+          >
+            <span className="flex min-w-0 items-center gap-2 font-medium">
+              <Network className="h-3.5 w-3.5 shrink-0" />
+              <span>读完更新 Graph</span>
+            </span>
+            <span className="font-mono text-xs">{updateGraphAfterReading ? "ON" : "OFF"}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setUpdateIdeasAfterReading((value) => !value)}
+            title="开启后，队列读完会基于 Graph/Atlas 运行 Thinker 和 Critic，生成并评估 Ideas；如果有新论文尚未入图，后端会先运行 Linker。"
+            className={`flex w-full items-center justify-between rounded-[var(--r)] border px-3 py-2 text-left text-sm ${
+              updateIdeasAfterReading
+                ? "border-[var(--forest)]/70 bg-[var(--paper-2)] text-[var(--ink)]"
+                : "border-[var(--line-soft)] bg-[var(--paper)]/60 text-[var(--ink-4)] hover:text-[var(--ink)]"
+            }`}
+          >
+            <span className="flex min-w-0 items-center gap-2 font-medium">
+              <Sparkles className="h-3.5 w-3.5 shrink-0" />
+              <span>读完更新 Ideas</span>
+            </span>
+            <span className="font-mono text-xs">{updateIdeasAfterReading ? "ON" : "OFF"}</span>
+          </button>
+        </div>
+
         <div className="mt-3 rounded-[var(--r)] border border-[var(--line-soft)] p-2">
           <div className="mb-1.5 flex items-center justify-between gap-2">
             <span className="text-sm font-medium text-[var(--ink-4)]">推荐</span>
@@ -2164,6 +2266,20 @@ function PipelinePageContent() {
               <span className="truncate">{aiSettingsLoading ? "正在读取模型设置..." : aiModelSummary}</span>
               {aiSettingsMessage ? (
                 <span className="ml-2 text-[var(--forest)]">{aiSettingsMessage}</span>
+              ) : null}
+              {activePostUpdateTargets ? (
+                <span
+                  className={`ml-2 ${
+                    activeReadingJob?.post_reading_update?.status === "error"
+                      ? "text-[#8a3318]"
+                      : activeReadingJob?.post_reading_update?.status === "done"
+                        ? "text-[var(--forest)]"
+                        : "text-[var(--ink-4)]"
+                  }`}
+                  title={activeReadingJob?.post_reading_update?.message ?? `队列读完后更新 ${activePostUpdateTargets}`}
+                >
+                  {activePostUpdateTargets}: {activeReadingJob?.post_reading_update?.step ?? "等待读取完成"}
+                </span>
               ) : null}
             </div>
             <div className="flex flex-wrap gap-2">
