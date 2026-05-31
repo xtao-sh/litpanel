@@ -179,6 +179,12 @@ def get_default_library_id(cur: sqlite3.Cursor) -> int:
     if row is None:
         raise RuntimeError("No default library was created.")
     library_id = int(row[0])
+    data_root = ROOT / "Data"
+    papers_dir = data_root / "papers" / "source-library"
+    knowledge_base_dir = data_root / "knowledge_base" / "source-library"
+    agent_db_path = data_root / "source-library_agent.db"
+    papers_dir.mkdir(parents=True, exist_ok=True)
+    knowledge_base_dir.mkdir(parents=True, exist_ok=True)
     cur.execute(
         """
         UPDATE libraries
@@ -190,9 +196,9 @@ def get_default_library_id(cur: sqlite3.Cursor) -> int:
             "Demo Library",
             "Economics",
             "Synthetic public demo corpus for Lit Panel.",
-            "",
-            "",
-            "",
+            str(papers_dir),
+            str(knowledge_base_dir),
+            str(agent_db_path),
             library_id,
         ),
     )
