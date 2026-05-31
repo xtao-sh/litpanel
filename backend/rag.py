@@ -112,7 +112,7 @@ _STOP_WORDS = frozenset({
 })
 
 # Pattern to detect paper IDs like w31161
-_PAPER_ID_RE = re.compile(r"\bw\d{4,5}\b", re.IGNORECASE)
+_PAPER_ID_RE = re.compile(r"\bw\d{4,6}\b", re.IGNORECASE)
 
 
 def expand_query(question: str) -> list[str]:
@@ -280,8 +280,11 @@ async def _retrieve(
                     "entity_id": atom["slug"],
                     "title": atom["title"],
                     "snippet": atom.get("description", "")[:200] or "",
-                    "rank": 0.0,
-                    "rrf_score": 0.0,
+                    "rank": -50.0,
+                    # Structured atom-type hints get a positive boost so they
+                    # survive the final RRF sort (typical RRF scores are
+                    # ~0.016-0.05); kept below the explicit paper-id boost (1.0).
+                    "rrf_score": 0.5,
                 }
 
     if hints.get("paper_ids"):
@@ -421,7 +424,7 @@ async def assemble_context(
 
 def _extract_citations(text: str) -> list[str]:
     """Extract paper IDs (w12345 format) cited in the answer."""
-    return list(dict.fromkeys(re.findall(r"\bw\d{4,5}\b", text, re.IGNORECASE)))
+    return list(dict.fromkeys(re.findall(r"\bw\d{4,6}\b", text, re.IGNORECASE)))
 
 
 async def ask_knowledge_base(

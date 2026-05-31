@@ -148,7 +148,7 @@ def search_sql(
     sql = f"""
         SELECT entity_type, entity_id, title,
                highlight(search_index, 3, '<mark>', '</mark>') AS snippet,
-               rank
+               bm25(search_index, 0.0, 0.0, 10.0, 1.0) AS rank
         FROM search_index
         WHERE {where_clause}
         ORDER BY bm25(search_index, 0.0, 0.0, 10.0, 1.0)

@@ -268,7 +268,10 @@ def _top_k_indices(scores: np.ndarray, k: int) -> np.ndarray:
     k = min(k, len(scores))
     if k <= 0:
         return np.array([], dtype=int)
-    top = np.argpartition(-scores, k)[:k]
+    # np.argpartition requires kth in [0, n-1]; passing k == len(scores) raises
+    # "kth out of bounds". Use k-1, which still yields the top-k via the [:k]
+    # slice and correctly handles k == len(scores) (limit >= corpus size).
+    top = np.argpartition(-scores, k - 1)[:k]
     return top[np.argsort(-scores[top])]
 
 

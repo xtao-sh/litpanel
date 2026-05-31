@@ -51,7 +51,9 @@ async def hybrid_search(
     Hybrid search combining FTS5 + semantic similarity via RRF.
 
     Returns: {"hits": [...], "total": int}
-    Each hit: {entity_type, entity_id, title, snippet, rank, rrf_score}
+    Each hit: {entity_type, entity_id, title, snippet, rrf_score}
+    (The raw per-list `rank` is dropped during merge because FTS and semantic
+    hits use incompatible conventions; sort merged hits by `rrf_score`.)
     """
     import resolvers
 
@@ -129,6 +131,14 @@ async def hybrid_search(
         # Ensure snippet is always a string
         if not item.get("snippet"):
             item["snippet"] = ""
+
+        # Drop the raw per-list `rank`: FTS hits carry a weighted bm25 score
+        # (negative, lower=better) while semantic hits carry a cosine score
+        # (0..1, higher=better), so the merged value mixes two incompatible
+        # conventions. RRF already fuses by list position into `rrf_score`,
+        # which is the correct field to sort merged hits by. Removing `rank`
+        # prevents downstream consumers from mis-sorting on it.
+        item.pop("rank", None)
 
         enriched.append(item)
 

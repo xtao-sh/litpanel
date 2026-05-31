@@ -121,12 +121,63 @@ def _should_store_card_section(heading: str, body: str) -> bool:
     return True
 
 
+def _purge_deleted_cards(conn: sqlite3.Connection, cards_dir: Path) -> int:
+    """Remove DB rows for card-derived papers whose source file was deleted.
+
+    Direct `python ingest.py` re-runs (outside the app's purge path) otherwise
+    leave stale rows for cards whose cards/<paper_id>.md file has been removed.
+
+    This cleanup is intentionally conservative and tightly scoped:
+      * Only the ACTIVE library's linked papers are considered.
+      * Only papers with has_card = 1 (i.e. previously ingested FROM a card)
+        are eligible — triage-only / externally-merged papers (has_card = 0)
+        are never touched, so no valid metadata is removed.
+      * A paper is deleted only when its cards/<paper_id>.md file is genuinely
+        absent from disk.
+    Mirrors the paper-derived targets of purge_library_index_data() (papers,
+    card_sections, paper_scores), scoped to the truly-stale-on-disk papers.
+    """
+    library_id = _current_library_id()
+    linked = conn.execute(
+        """
+        SELECT lp.paper_id
+        FROM library_papers lp
+        JOIN papers p ON p.paper_id = lp.paper_id
+        WHERE lp.library_id = ? AND p.has_card = 1
+        """,
+        (library_id,),
+    ).fetchall()
+
+    stale = [
+        row["paper_id"]
+        for row in linked
+        if not (cards_dir / f"{row['paper_id']}.md").exists()
+    ]
+    if not stale:
+        return 0
+
+    for paper_id in stale:
+        conn.execute("DELETE FROM card_sections WHERE paper_id = ?", (paper_id,))
+        conn.execute("DELETE FROM paper_scores WHERE paper_id = ?", (paper_id,))
+        conn.execute("DELETE FROM papers WHERE paper_id = ?", (paper_id,))
+
+    conn.commit()
+    return len(stale)
+
+
 def stage1_parse_cards(conn: sqlite3.Connection) -> int:
     """Parse paper cards from cards/*.md into papers, paper_scores, card_sections."""
     cards_dir = KB_PATH / "cards"
     if not cards_dir.exists():
         print("  Warning: cards/ directory not found")
         return 0
+
+    # Drop stale rows for cards deleted on disk before re-parsing (idempotency
+    # for direct `python ingest.py` re-runs). Guarded on cards_dir.exists()
+    # above so we never purge on a misconfigured/missing directory.
+    removed = _purge_deleted_cards(conn, cards_dir)
+    if removed:
+        print(f"  Removed {removed} stale paper card(s) deleted on disk")
 
     files = sorted(cards_dir.glob("w*.md"))
     count = 0
@@ -237,7 +288,7 @@ def stage2_parse_atoms(conn: sqlite3.Connection) -> int:
             sections = _split_sections(text)
             section_map = {h: b for h, b in sections}
 
-            description = section_map.get("Description", "")
+            description = section_map.get("Description", "").strip()
             evidence_strength = section_map.get("Evidence Strength", "").strip() or None
             when_to_use = section_map.get("When to Use", "").strip() or None
             access = section_map.get("Access", "").strip() or None
@@ -255,7 +306,7 @@ def stage2_parse_atoms(conn: sqlite3.Connection) -> int:
 
             # Parse paper references from Papers section
             papers_body = section_map.get("Papers", "")
-            for m in re.finditer(r"(w\d+)", papers_body):
+            for m in re.finditer(r"(w\d{4,6})", papers_body):
                 conn.execute(
                     "INSERT OR IGNORE INTO atom_paper_refs (atom_slug, paper_id) VALUES (?, ?)",
                     (slug, m.group(1)),
@@ -714,6 +765,22 @@ def stage8_build_fts(conn: sqlite3.Connection) -> int:
     library_id = _current_library_id()
     count = 0
 
+    # Clear this library's existing index rows first. search_index has no UNIQUE
+    # constraint, so without this a second run of run_ingestion() (e.g. the plain
+    # `python ingest.py` entrypoint) would duplicate every paper/atom/map/idea
+    # row, corrupting bm25 ranking and returning duplicate hits.
+    conn.execute("DELETE FROM search_index WHERE library_id = ?", (str(library_id),))
+
+    # Ensure every ingested paper is linked to this library before the FTS JOIN
+    # below. init_db()'s library_papers backfill runs at the very start of
+    # run_ingestion(), before stage1 inserts any papers, so on a brand-new DB the
+    # paper/atom keyword index would otherwise be built empty on the first run.
+    conn.execute(
+        "INSERT OR IGNORE INTO library_papers (library_id, paper_id) "
+        "SELECT ?, paper_id FROM papers",
+        (library_id,),
+    )
+
     # Papers: title + all card section content
     papers = conn.execute(
         """
@@ -874,10 +941,19 @@ def run_ingestion() -> None:
     print("-" * 60)
     print("Ingestion complete. Summary:")
     conn = get_connection()
+    library_id = _current_library_id()
+    # Global tables ingestion populates directly.
     for table in ["papers", "paper_scores", "card_sections", "atoms",
-                   "atom_paper_refs", "field_maps", "ideas", "triage_cards",
-                   "digests"]:
+                   "atom_paper_refs", "triage_cards"]:
         row = conn.execute(f"SELECT COUNT(*) as c FROM {table}").fetchone()
+        print(f"  {table}: {row['c']} rows")
+    # Library-scoped tables ingestion writes to (the legacy field_maps/ideas/
+    # digests tables are no longer populated and always read 0).
+    for table in ["library_field_maps", "library_ideas", "library_digests"]:
+        row = conn.execute(
+            f"SELECT COUNT(*) as c FROM {table} WHERE library_id = ?",
+            (library_id,),
+        ).fetchone()
         print(f"  {table}: {row['c']} rows")
     row = conn.execute("SELECT COUNT(*) as c FROM search_index").fetchone()
     print(f"  search_index: {row['c']} rows")
