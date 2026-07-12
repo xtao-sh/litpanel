@@ -149,10 +149,15 @@ async def run_debate(
     # Fallback: semantic search if no context assembled
     if not context_parts:
         try:
-            from embeddings import semantic_search, is_loaded
+            from embeddings import is_loaded
+            from hybrid_search import semantic_search_resolver
 
             if is_loaded():
-                results = await semantic_search(idea_text, entity_type="paper", limit=5)
+                results = await semantic_search_resolver(
+                    idea_text,
+                    entity_type="paper",
+                    limit=5,
+                )
                 for r in results:
                     try:
                         content = await _fetch_paper_content(r["entity_id"])

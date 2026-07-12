@@ -1,7 +1,7 @@
 export const appConfig = {
   appName:
-    process.env.NEXT_PUBLIC_APP_NAME ?? "Research Knowledge Base",
-  appShortName: process.env.NEXT_PUBLIC_APP_SHORT_NAME ?? "Research KB",
+    process.env.NEXT_PUBLIC_APP_NAME ?? "Lit Panel",
+  appShortName: process.env.NEXT_PUBLIC_APP_SHORT_NAME ?? "Lit Panel",
   appDescription:
     process.env.NEXT_PUBLIC_APP_DESCRIPTION ??
     "Explore papers, methods, datasets, and research ideas in your local literature workspace.",

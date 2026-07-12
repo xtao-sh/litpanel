@@ -1,120 +1,153 @@
 # Lit Panel
 
-An AI-powered desktop workbench for reading and organizing economics working
-papers (NBER and beyond). It deep-reads PDFs into structured "cards" (research
-question, identification, findings, mechanisms, scores…), extracts reusable
-atoms (methods, datasets, mechanisms, puzzles), builds a searchable knowledge
-base, and answers questions over your library with citations.
+Lit Panel is a local research workbench for reading, structuring, and connecting
+academic papers. It turns PDFs into reusable paper cards and research atoms,
+builds an interactive literature graph, and supports cited search, comparison,
+idea development, and AI-assisted synthesis.
 
-Lit Panel runs **locally on your own Mac** with **your own LLM API key** — your
-papers, notes, and key never leave your machine.
+The interface is bilingual (English and Chinese), while paper titles and source
+metadata remain in their original language.
 
-> **Platform:** macOS only. Single user, local install.
+## Download
 
----
+The first public desktop release is available from
+[GitHub Releases](https://github.com/xtao-sh/litpanel/releases/latest).
 
-## Requirements
+- **macOS Apple Silicon:** download `Lit Panel-0.1.0-arm64.dmg`
+- The packaged app includes its own Node.js-compatible Electron runtime,
+  portable Python runtime, backend dependencies, and a synthetic demo library.
+- The current build is ad-hoc signed but not Apple-notarized. macOS may require
+  opening it once through Finder's **Open** context menu.
 
-- **macOS**
-- **Python 3.10+** (3.11 recommended)
-- **Node.js 18.18+** (20+ recommended) — for the web UI
-- An **LLM API key** (Kimi, OpenAI, Anthropic, DeepSeek, Gemini, or MiniMax)
+The desktop release does not require a system Python or Node.js installation.
 
----
+## What It Does
 
-## Quick start
+- Imports local PDFs, NBER working-paper IDs, and DOI metadata.
+- Runs configurable AI reading across research question, methods, data,
+  identification, findings, mechanisms, limitations, and other dimensions.
+- Lets the user independently enable or disable automatic **Graph** and
+  **Ideas** updates for each reading run.
+- Extracts reusable atoms such as methods, datasets, mechanisms, and puzzles.
+- Provides FTS5 keyword search plus optional sentence-transformer semantic
+  search, scoped to the active library.
+- Builds formal paper, atom, and topic graphs without mixing unrelated search
+  results into the selected topic.
+- Supports paper scoring, notes, collections, comparison, cited Q&A, research
+  maps, projects, and idea workspaces.
+- Stores multiple local libraries with strict API-level library isolation.
+
+## Privacy Model
+
+Lit Panel is a single-user local application. Its SQLite database, PDFs, notes,
+generated cards, graphs, and ideas stay in local storage unless the user exports
+them.
+
+AI features are not fully offline: when the user starts an AI read, asks a
+question, or requests synthesis, the selected paper text and prompt are sent to
+the AI provider configured by the user. API keys are stored in the macOS
+Keychain when configured through the app and are used only to authenticate with
+that provider.
+
+The public repository and packaged demo release exclude private databases,
+papers, `.env` files, API keys, local paths, and build-machine bytecode caches.
+
+## Run From Source
+
+### Requirements
+
+- macOS
+- Python 3.10+ (3.11 recommended)
+- Node.js 18.18+ (20+ recommended)
+- An API key for Kimi, OpenAI, Anthropic, DeepSeek, Gemini, or MiniMax when using
+  AI features
+
+### Start
 
 ```bash
-git clone https://github.com/<you>/litpanel.git
+git clone https://github.com/xtao-sh/litpanel.git
 cd litpanel
-
-# Installs backend (Python venv) + frontend (npm) deps, then starts both.
-# First run downloads dependencies and a small embedding model (~90 MB),
-# so it needs internet and may take a few minutes.
 ./scripts/dev.sh start
 ```
 
-Then open **http://127.0.0.1:3050** in your browser.
+Open [http://127.0.0.1:3050](http://127.0.0.1:3050). The backend runs at
+`http://127.0.0.1:8050`.
 
-| Command | What it does |
+| Command | Action |
 |---|---|
-| `./scripts/dev.sh start` | Install missing deps and start backend + frontend |
-| `./scripts/dev.sh stop` | Stop both |
-| `./scripts/dev.sh restart` | Restart both |
-| `./scripts/dev.sh status` | Show running processes |
+| `./scripts/dev.sh start` | Install missing dependencies and start both services |
+| `./scripts/dev.sh stop` | Stop both services |
+| `./scripts/dev.sh restart` | Restart both services |
+| `./scripts/dev.sh status` | Show service status |
 
-Backend runs on `http://127.0.0.1:8050`, frontend on `http://127.0.0.1:3050`.
+The first source run can take several minutes while Python dependencies and the
+embedding model are prepared.
 
----
+## First Run
 
-## First run: 3 steps
+1. Open **Setup**, choose an AI provider, add an API key, and enable it.
+2. Open **Pipeline** and upload a PDF or enter an NBER ID / DOI.
+3. Choose the reading dimensions and decide whether this run should update
+   Graph, Ideas, both, or neither.
+4. Select **Start reading**. The paper card and selected derived artifacts are
+   written to the active library.
 
-A fresh install starts empty. To get going:
-
-1. **Add your API key.** Open **Setup** in the app, pick a provider (e.g. Kimi or
-   OpenAI), paste your key, and enable it. The key is stored in your macOS
-   Keychain — never in plain text, never sent anywhere except the provider.
-   *(Alternatively, put it in `backend/.env`; see below.)*
-
-2. **Add a paper.** Go to **Pipeline** and either upload a PDF, or enter an NBER
-   id (e.g. `w35197`) / DOI to fetch it.
-
-3. **Read it.** Pick the analysis dimensions you want and start the AI read. The
-   paper card, 15-dimension scores, and atoms appear in the knowledge base, and
-   you can search, compare, chat with citations, and generate research ideas.
-
-Want some sample data to explore first? Seed a synthetic demo library:
+The downloadable desktop build starts with eight synthetic demo papers, twelve
+atoms, three ideas, and a small connected graph. To replace a source checkout's
+working database with the same synthetic seed:
 
 ```bash
-backend/.venv/bin/python scripts/create_demo_db.py
+backend/.venv/bin/python scripts/create_demo_db.py --force --replace-files
 ```
 
----
+Back up a working database before using `--force`.
 
 ## Configuration
 
-You usually don't need to configure anything: all data paths default to folders
-inside the project (`./Data`, `./backend/kb.db`, …) and are created on first run.
-
-The only thing you must provide is an **LLM API key**, via the in-app Setup page
-(recommended) **or** an optional `backend/.env` file:
+The recommended configuration path is the in-app **Setup** page. For local
+development, an optional environment file is also supported:
 
 ```bash
 cp backend/.env.example backend/.env
-# then set, at minimum:
-#   LLM_API_KEY=sk-...            (or KIMI_API_KEY=sk-...)
-#   LLM_API_BASE_URL=...          (defaults to Kimi)
-#   LLM_API_MODEL=...             (defaults to kimi-for-coding)
 ```
 
-`backend/.env`, `kb.db`, and everything under `Data/` are git-ignored — your
-keys and papers are never committed.
+Data paths default to `./Data` and `./backend/kb.db`. Private data and local
+configuration are ignored by Git. See `backend/.env.example` for provider and
+path variables.
 
----
+## Architecture
 
-## What's inside
+- **Backend:** FastAPI, Strawberry GraphQL, SQLite/FTS5, optional semantic
+  embeddings, and the multi-step reader/linker pipeline under `agents/`.
+- **Frontend:** Next.js App Router with the Lit Panel design framework, library,
+  paper, pipeline, graph, atlas, ideas, maps, projects, and setup views.
+- **Desktop:** Electron starts the packaged FastAPI and standalone Next.js
+  services on loopback ports `38000` and `38001`, then opens the local UI.
 
-- **Backend** — FastAPI + Strawberry GraphQL, SQLite (FTS5 keyword search +
-  sentence-transformer semantic search), a multi-agent reading pipeline under
-  `agents/`, and a RAG Q&A endpoint.
-- **Frontend** — Next.js (App Router) + Tailwind: Pipeline, Explorer, Research,
-  Fields, China dashboard, Q&A, Ideas, Graph, and more.
+See [INTRODUCTION.md](INTRODUCTION.md) for additional architecture notes and
+[desktop-mvp/README.md](desktop-mvp/README.md) for desktop build details.
 
-See [`INTRODUCTION.md`](INTRODUCTION.md) for the full architecture.
+## Validation
 
----
+```bash
+cd frontend && npm run lint && npm run build
+cd ../backend && ./.venv/bin/python -m unittest discover -s tests -v
+cd ../desktop-mvp && npm audit && npm run smoke
+```
 
-## Notes & limits
+Release builds are additionally checked for clean demo data, absent API keys and
+private paths, process shutdown, code-signature integrity, and DMG checksums.
 
-- **macOS only.** In-app key storage uses the macOS Keychain. Linux/Windows are
-  not supported for the Setup-page key flow.
-- **First run needs internet** to install deps and download the embedding model.
-  Keyword search works offline; semantic search needs the model.
-- This is a **single-user, local** tool — there are no user accounts and it is
-  not meant to be exposed as a public multi-user server.
+## Limits
 
----
+- The downloadable release currently targets macOS Apple Silicon (`arm64`).
+- Public multi-user deployment is not supported; the API is designed for a
+  local single-user workspace.
+- Semantic search needs the embedding model. Keyword search remains available
+  without it.
+- Public distribution without Gatekeeper warnings requires an Apple Developer
+  certificate and notarization.
 
 ## License
 
-[MIT](LICENSE) © xtao-sh
+[MIT](LICENSE) - xtao-sh

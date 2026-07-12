@@ -42,8 +42,19 @@ export function subscribeToActiveLibrary(callback: (libraryId: number | null) =>
 
 export function resolveInitialLibraryId(libraries: Library[]): number | null {
   const stored = getStoredActiveLibraryId();
-  if (stored && libraries.some((library) => library.id === stored)) {
-    return stored;
+  if (stored) {
+    const storedLibrary = libraries.find((library) => library.id === stored);
+    if (storedLibrary) {
+      const nonEmptyFallback = libraries.find((library) => (library.paper_count ?? 0) > 0);
+      if (
+        storedLibrary.slug === "local-library" &&
+        (storedLibrary.paper_count ?? 0) === 0 &&
+        nonEmptyFallback
+      ) {
+        return nonEmptyFallback.id;
+      }
+      return stored;
+    }
   }
-  return libraries[0]?.id ?? null;
+  return libraries.find((library) => (library.paper_count ?? 0) > 0)?.id ?? libraries[0]?.id ?? null;
 }

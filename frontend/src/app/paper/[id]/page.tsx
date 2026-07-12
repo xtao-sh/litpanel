@@ -76,6 +76,7 @@ import { ScoreBars } from "@/components/paper/score-bars";
 import { AtomChips } from "@/components/paper/atom-chips";
 import { PaperChat } from "@/components/paper/paper-chat";
 import { NoteRenderer } from "@/components/shared/note-renderer";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -99,11 +100,11 @@ function triageBadgeVariant(
 }
 
 const READING_STATUS_OPTIONS = [
-  { value: "not_set", label: "未读", color: "bg-[var(--line)]" },
-  { value: "to_read", label: "待读", color: "bg-[#b88a3b]" },
-  { value: "reading", label: "阅读中", color: "bg-[#6f86a6]" },
-  { value: "skimmed", label: "已略读", color: "bg-[#6f86a6]" },
-  { value: "read_in_detail", label: "已精读", color: "bg-[var(--forest)]" },
+  { value: "not_set", label: "Unread", labelZh: "未读", color: "bg-[var(--line)]" },
+  { value: "to_read", label: "To read", labelZh: "待读", color: "bg-[#b88a3b]" },
+  { value: "reading", label: "Reading", labelZh: "阅读中", color: "bg-[#6f86a6]" },
+  { value: "skimmed", label: "Skimmed", labelZh: "已略读", color: "bg-[#6f86a6]" },
+  { value: "read_in_detail", label: "Read in detail", labelZh: "已精读", color: "bg-[var(--forest)]" },
 ];
 
 interface PaperProcessingDimension {
@@ -158,9 +159,9 @@ function processingBadgeTone(status: string): string {
   }
 }
 
-function formatProcessingText(value: string | null | undefined): string {
-  if (!value) return "未设置";
-  const labels: Record<string, string> = {
+function formatProcessingText(value: string | null | undefined, isZh: boolean): string {
+  if (!value) return isZh ? "未设置" : "Not set";
+  const labelsZh: Record<string, string> = {
     completed: "已完成",
     triaged: "已初筛",
     indexed: "已索引",
@@ -186,12 +187,43 @@ function formatProcessingText(value: string | null | undefined): string {
     complete: "完成",
     missing: "缺失",
   };
+  const labelsEn: Record<string, string> = {
+    completed: "Completed",
+    triaged: "Triaged",
+    indexed: "Indexed",
+    pending: "Pending",
+    error: "Error",
+    pdf_error: "PDF error",
+    timeout: "Timed out",
+    auto: "Automatic",
+    metadata_only: "Metadata only",
+    title_abstract: "Title and abstract",
+    full_content: "Full text",
+    style_logic: "Writing and logic",
+    accept: "Keep",
+    deep_read: "Deep read",
+    reject: "Ignore",
+    include: "Included",
+    included: "Included",
+    not_set: "Unread",
+    to_read: "To read",
+    reading: "Reading",
+    skimmed: "Skimmed",
+    read_in_detail: "Read in detail",
+    complete: "Complete",
+    missing: "Missing",
+    good: "Useful",
+    too_shallow: "Too shallow",
+    incorrect: "Incorrect",
+    format_issue: "Formatting issue",
+  };
+  const labels = isZh ? labelsZh : labelsEn;
   return labels[value] ?? value.replace(/_/g, " ");
 }
 
-function formatSectionLabel(value: string): string {
+function formatSectionLabel(value: string, isZh: boolean): string {
   const normalized = value.trim().toLowerCase().replace(/&/g, "and").replace(/\s+/g, "_");
-  const labels: Record<string, string> = {
+  const labelsZh: Record<string, string> = {
     research_question: "研究问题",
     identification_and_method: "识别与方法",
     key_findings: "关键发现",
@@ -199,6 +231,15 @@ function formatSectionLabel(value: string): string {
     limitations_and_open_questions: "局限与开放问题",
     china_applicability: "中国适用性",
   };
+  const labelsEn: Record<string, string> = {
+    research_question: "Research question",
+    identification_and_method: "Identification and method",
+    key_findings: "Key findings",
+    what_makes_this_paper_good: "Why this paper matters",
+    limitations_and_open_questions: "Limitations and open questions",
+    china_applicability: "China applicability",
+  };
+  const labels = isZh ? labelsZh : labelsEn;
   return labels[value] ?? labels[normalized] ?? value.replace(/_/g, " ");
 }
 
@@ -223,26 +264,26 @@ const SECTION_ORDER = [
 ];
 
 const REPROCESS_PROFILE_OPTIONS = [
-  { value: "auto", label: "自动" },
-  { value: "metadata_only", label: "仅元数据" },
-  { value: "title_abstract", label: "标题与摘要" },
-  { value: "full_content", label: "全文读取" },
-  { value: "style_logic", label: "写法与逻辑" },
+  { value: "auto", label: "Automatic", labelZh: "自动" },
+  { value: "metadata_only", label: "Metadata only", labelZh: "仅元数据" },
+  { value: "title_abstract", label: "Title and abstract", labelZh: "标题与摘要" },
+  { value: "full_content", label: "Full text", labelZh: "全文读取" },
+  { value: "style_logic", label: "Writing and logic", labelZh: "写法与逻辑" },
 ];
 
 const FEEDBACK_TYPE_OPTIONS = [
-  { value: "good", label: "可用" },
-  { value: "too_shallow", label: "太浅" },
-  { value: "incorrect", label: "不准确" },
-  { value: "missing", label: "缺失" },
-  { value: "format_issue", label: "格式问题" },
+  { value: "good", label: "Useful", labelZh: "可用" },
+  { value: "too_shallow", label: "Too shallow", labelZh: "太浅" },
+  { value: "incorrect", label: "Incorrect", labelZh: "不准确" },
+  { value: "missing", label: "Missing", labelZh: "缺失" },
+  { value: "format_issue", label: "Formatting issue", labelZh: "格式问题" },
 ];
 
 // ---------------------------------------------------------------------------
 // Add to Collection dropdown
 // ---------------------------------------------------------------------------
 
-function AddToCollectionDropdown({ paperId }: { paperId: string }) {
+function AddToCollectionDropdown({ paperId, isZh }: { paperId: string; isZh: boolean }) {
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -314,14 +355,16 @@ function AddToCollectionDropdown({ paperId }: { paperId: string }) {
         className="gap-1.5 rounded-full"
       >
         <FolderPlus className="h-4 w-4" />
-        集合
+        {isZh ? "集合" : "Collection"}
         <ChevronDown className="h-3 w-3" />
       </Button>
 
       {open && (
         <div className="absolute left-0 top-full mt-1 z-50 w-64 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] shadow-[var(--shadow-2)] py-1">
           {collections.length === 0 && !creating && (
-            <p className="px-3 py-2 text-xs text-[var(--ink-4)]">还没有集合。</p>
+            <p className="px-3 py-2 text-xs text-[var(--ink-4)]">
+              {isZh ? "还没有集合。" : "No collections yet."}
+            </p>
           )}
           {collections.map((col) => (
             <button
@@ -351,7 +394,7 @@ function AddToCollectionDropdown({ paperId }: { paperId: string }) {
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="集合名称"
+                  placeholder={isZh ? "集合名称" : "Collection name"}
                   className="w-full rounded border border-[var(--line-soft)] px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--forest)]"
                   autoFocus
                   onKeyDown={(e) => {
@@ -365,13 +408,13 @@ function AddToCollectionDropdown({ paperId }: { paperId: string }) {
                     disabled={!newName.trim()}
                     className="rounded bg-[#2c4870] px-2 py-0.5 text-[10px] font-medium text-[var(--paper)] hover:bg-[#2c4870] disabled:opacity-40"
                   >
-                    创建
+                    {isZh ? "创建" : "Create"}
                   </button>
                   <button
                     onClick={() => { setCreating(false); setNewName(""); }}
                     className="rounded px-2 py-0.5 text-[10px] font-medium text-[var(--ink-4)] hover:bg-[var(--paper-2)]"
                   >
-                    取消
+                    {isZh ? "取消" : "Cancel"}
                   </button>
                 </div>
               </div>
@@ -382,7 +425,7 @@ function AddToCollectionDropdown({ paperId }: { paperId: string }) {
                 className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[#2c4870] hover:bg-[#e9eef6] transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
-                新建集合
+                {isZh ? "新建集合" : "New collection"}
               </button>
             )}
           </div>
@@ -396,7 +439,7 @@ function AddToCollectionDropdown({ paperId }: { paperId: string }) {
 // Add to User Idea dropdown
 // ---------------------------------------------------------------------------
 
-function AddToIdeaDropdown({ paperId }: { paperId: string }) {
+function AddToIdeaDropdown({ paperId, isZh }: { paperId: string; isZh: boolean }) {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -446,7 +489,7 @@ function AddToIdeaDropdown({ paperId }: { paperId: string }) {
         className="gap-1.5 rounded-full"
       >
         <Lightbulb className="h-4 w-4" />
-        加入想法
+        {isZh ? "加入想法" : "Add to idea"}
         <ChevronDown className="h-3 w-3" />
       </Button>
 
@@ -454,12 +497,14 @@ function AddToIdeaDropdown({ paperId }: { paperId: string }) {
         <div className="absolute left-0 top-full mt-1 z-50 w-72 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] shadow-[var(--shadow-2)] py-1">
           {ideas.length === 0 && (
             <div className="px-3 py-3">
-              <p className="text-xs text-[var(--ink-4)]">还没有研究想法。</p>
+              <p className="text-xs text-[var(--ink-4)]">
+                {isZh ? "还没有研究想法。" : "No research ideas yet."}
+              </p>
               <a
                 href="/ideas/workspace"
                 className="mt-1 inline-block text-xs text-[#2c4870] hover:underline"
               >
-                去想法页创建
+                {isZh ? "去想法页创建" : "Create one in Ideas"}
               </a>
             </div>
           )}
@@ -565,18 +610,22 @@ function PaperNotFound({
   paperId,
   backHref,
   backLabel,
+  isZh,
 }: {
   paperId: string;
   backHref: string;
   backLabel: string;
+  isZh: boolean;
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-24">
       <h2 className="font-display text-[2.1rem] text-[var(--ink)]">
-        没有找到论文 {paperId}
+        {isZh ? `没有找到论文 ${paperId}` : `Paper ${paperId} not found`}
       </h2>
       <p className="mt-2 text-sm text-[var(--ink-4)]">
-        这篇论文不存在，或还没有导入当前文献库。
+        {isZh
+          ? "这篇论文不存在，或还没有导入当前文献库。"
+          : "This paper does not exist or has not been imported into the active library."}
       </p>
       <Link
         href={backHref}
@@ -599,15 +648,18 @@ interface PaperDetailPageProps {
 
 export default function PaperDetailPage({ params }: PaperDetailPageProps) {
   const { id } = use(params);
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
+  const copy = useCallback((en: string, zh: string) => (isZh ? zh : en), [isZh]);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get("returnTo");
   const backHref = returnTo || "/explorer?tab=papers";
   const backLabel = returnTo?.startsWith("/projects/")
-    ? "返回项目"
+    ? copy("Back to project", "返回项目")
     : returnTo
-      ? "返回"
-      : "返回文献浏览器";
+      ? copy("Back", "返回")
+      : copy("Back to Library", "返回文献浏览器");
   const currentPageHref = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
   const { data, loading, error } = useQuery<{ paper: Paper }>(GET_PAPER, {
@@ -919,7 +971,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
       }
       await response.json();
       await reloadProcessingState();
-      setReprocessMessage("Re-run completed.");
+      setReprocessMessage(copy("Re-run completed.", "重新读取完成。"));
     } catch (error_) {
       setReprocessMessage(
         error_ instanceof Error ? error_.message : "Failed to re-run extraction."
@@ -927,7 +979,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
     } finally {
       setReprocessLoading(false);
     }
-  }, [id, reprocessProfile, reloadProcessingState]);
+  }, [copy, id, reprocessProfile, reloadProcessingState]);
 
   const handleSubmitFeedback = useCallback(async () => {
     setFeedbackSubmitting(true);
@@ -960,7 +1012,14 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
   if (loading) return <PaperSkeleton paperId={id} />;
   if (error || !data?.paper) {
-    return <PaperNotFound paperId={id} backHref={backHref} backLabel={backLabel} />;
+    return (
+      <PaperNotFound
+        paperId={id}
+        backHref={backHref}
+        backLabel={backLabel}
+        isZh={isZh}
+      />
+    );
   }
 
   const paper = data.paper;
@@ -1001,7 +1060,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
   const sectionLinks = visibleSections.map((section) => ({
     key: section.section,
     id: sectionDomId(section.section),
-    label: formatSectionLabel(section.section),
+    label: formatSectionLabel(section.section, isZh),
   }));
 
   // Calculate reading time (assume 200 words/min for academic text)
@@ -1038,27 +1097,31 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
     {
       label: "Year",
       value: paper.year ? String(paper.year) : "—",
-      sub: totalWords > 0 ? `约 ${readingMin} 分钟` : "阅读时间未估算",
+      sub: totalWords > 0
+        ? copy(`${readingMin} min read`, `约 ${readingMin} 分钟`)
+        : copy("Reading time unavailable", "阅读时间未估算"),
     },
     {
       label: "Dimensions",
       value: String(completedDimensions),
-      sub: "结构化读取",
+      sub: copy("Structured reading", "结构化读取"),
     },
     {
       label: "Atoms",
       value: String(atoms.length),
-      sub: "关联知识点",
+      sub: copy("Linked atoms", "关联知识点"),
     },
     {
       label: "Fields",
       value: String(paper.fields.length),
-      sub: paper.fields[0] ?? "未标注领域",
+      sub: paper.fields[0] ?? copy("Unclassified", "未标注领域"),
     },
     {
       label: "Score",
       value: averageScore == null ? "—" : averageScore.toFixed(1),
-      sub: averageScore == null ? "暂无评分" : "综合评分",
+      sub: averageScore == null
+        ? copy("Not scored", "暂无评分")
+        : copy("Overall score", "综合评分"),
     },
   ];
 
@@ -1072,18 +1135,20 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
           {/* --- Header --- */}
           <header className="paper-head space-y-4">
             <div className="paper-eyebrow">
-              <p className="paper-id">论文档案 · <b>{paper.paperId}</b></p>
+              <p className="paper-id">
+                {copy("Paper record", "论文档案")} · <b>{paper.paperId}</b>
+              </p>
             </div>
-            <div className="flex items-start gap-3">
-              <h1 className="paper-title flex-1">
-                {paper.title ?? "未命名论文"}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+              <h1 className="paper-title min-w-0 flex-1">
+                {paper.title ?? copy("Untitled paper", "未命名论文")}
               </h1>
               {paper.nberUrl && (
                 <a
                   href={paper.nberUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="shrink-0 mt-1 inline-flex items-center gap-1.5 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5 text-xs font-medium text-[var(--ink-4)] transition-colors hover:bg-[var(--paper)] hover:text-[var(--ink)]"
+                  className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-1.5 text-xs font-medium text-[var(--ink-4)] transition-colors hover:bg-[var(--paper)] hover:text-[var(--ink)] sm:mt-1"
                 >
                   {appConfig.externalPaperLabel}
                   <ExternalLink className="h-3 w-3" />
@@ -1122,9 +1187,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             <div className="paper-meta-stack">
               {paper.triageDecision ? (
                 <div className="paper-meta-line">
-                  <span className="paper-meta-label">筛选</span>
+                  <span className="paper-meta-label">{copy("Triage", "筛选")}</span>
                   <Badge variant={triageBadgeVariant(paper.triageDecision)}>
-                    {formatProcessingText(paper.triageDecision)}
+                    {formatProcessingText(paper.triageDecision, isZh)}
                   </Badge>
                 </div>
               ) : null}
@@ -1132,7 +1197,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               {paper.fields.length > 0 ? (
                 <div className="paper-meta-line">
                   <span className="paper-meta-label">
-                    领域
+                    {copy("Fields", "领域")}
                   </span>
                   {paper.fields.map((f) => (
                     <Link
@@ -1142,7 +1207,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         filters: { fields: [f] },
                         returnTo: currentPageHref,
                       })}
-                      title={`查看 ${f} 领域的文献`}
+                      title={copy(`View papers in ${f}`, `查看 ${f} 领域的文献`)}
                       className="lit-tag transition-colors hover:border-[var(--forest)] hover:text-[var(--forest)]"
                     >
                       {f}
@@ -1165,7 +1230,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                             query: j,
                             returnTo: currentPageHref,
                           })}
-                          title={`查看 JEL ${j} 相关文献`}
+                          title={copy(`View papers tagged JEL ${j}`, `查看 JEL ${j} 相关文献`)}
                           className="lit-tag font-mono transition-colors hover:border-[var(--forest)] hover:text-[var(--forest)]"
                         >
                           {j}
@@ -1179,7 +1244,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                       className="inline-flex items-center gap-1.5 rounded-full border border-[#d6b678] bg-[#f4ead8] px-3 py-1 text-xs font-medium text-[#7a5a18] transition-colors hover:bg-[#f4ead8]"
                     >
                       <Lightbulb className="h-3.5 w-3.5" />
-                      相关想法 {paper.ideaCount}
+                      {copy("Related ideas", "相关想法")} {paper.ideaCount}
                     </Link>
                   ) : null}
                 </div>
@@ -1193,7 +1258,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             <Card className="border-[var(--line-soft)] bg-transparent shadow-none">
               <CardHeader className="p-4 pb-2">
                 <CardTitle className="section-kicker text-[var(--ink-4)]">
-                  摘要
+                  {copy("Abstract", "摘要")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-4 pt-0">
@@ -1208,7 +1273,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
           {paper.tldr && (
             <div className="lp-card rounded-[0.7rem] p-4">
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--ink-4)]">
-                一句话摘要
+                {copy("In one sentence", "一句话摘要")}
               </p>
               <p className="text-base text-[var(--ink)] leading-relaxed">{paper.tldr}</p>
             </div>
@@ -1218,7 +1283,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
           <div className="lp-card grid gap-3 rounded-[0.7rem] px-4 py-4">
             <div className="flex flex-wrap items-center gap-2">
               <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
-                管理
+                {copy("Manage", "管理")}
               </span>
               <Button
                 variant={isBookmarked ? "default" : "outline"}
@@ -1235,20 +1300,24 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                 ) : (
                   <Bookmark className="h-4 w-4" />
                 )}
-                {isBookmarked ? "已收藏" : "收藏"}
+                {isBookmarked
+                  ? copy("Bookmarked", "已收藏")
+                  : copy("Bookmark", "收藏")}
               </Button>
 
               <div className="inline-flex h-9 items-center rounded-full border border-[var(--line-soft)]/80 bg-[var(--paper)] px-2">
                 <Select value={displayStatus ?? "not_set"} onValueChange={handleStatusChange}>
                   <SelectTrigger className="h-7 w-auto min-w-[72px] border-0 bg-transparent px-1 py-0 text-sm font-medium shadow-none focus:ring-0">
-                    <SelectValue placeholder={displayStatusOption.label} />
+                    <SelectValue
+                      placeholder={isZh ? displayStatusOption.labelZh : displayStatusOption.label}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {READING_STATUS_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
                         <span className="flex items-center gap-2">
                           <span className={`inline-block h-2 w-2 rounded-full ${opt.color}`} />
-                          {opt.label}
+                          {isZh ? opt.labelZh : opt.label}
                         </span>
                       </SelectItem>
                     ))}
@@ -1256,14 +1325,14 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                 </Select>
               </div>
 
-              <AddToCollectionDropdown paperId={paper.paperId} />
+              <AddToCollectionDropdown paperId={paper.paperId} isZh={isZh} />
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
-                操作
+                {copy("Actions", "操作")}
               </span>
-              <AddToIdeaDropdown paperId={paper.paperId} />
+              <AddToIdeaDropdown paperId={paper.paperId} isZh={isZh} />
 
               <Link
                 href={buildPaperGraphHref({
@@ -1275,7 +1344,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               >
                 <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
                   <GitBranch className="h-4 w-4" />
-                  查看图谱
+                  {copy("View graph", "查看图谱")}
                 </Button>
               </Link>
 
@@ -1289,7 +1358,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               >
                 <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
                   <Scale className="h-4 w-4" />
-                  对比
+                  {copy("Compare", "对比")}
                 </Button>
               </Link>
 
@@ -1301,7 +1370,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                 className="gap-1.5 rounded-full"
               >
                 <Lightbulb className="h-4 w-4" />
-                生成想法
+                {copy("Generate ideas", "生成想法")}
               </Button>
             </div>
           </div>
@@ -1310,7 +1379,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
           {paper.hasCard && sectionLinks.length > 0 && (
             <nav className="lit-section-nav sticky top-16 z-10 flex items-center gap-2 overflow-x-auto px-3 py-2">
               <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
-                读取维度
+                {copy("Reading dimensions", "读取维度")}
               </span>
               {sectionLinks.map((section) => (
                 <Link
@@ -1351,7 +1420,10 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               <Card className="border-[var(--line-soft)] bg-[var(--paper-2)]/50 shadow-none">
                 <CardContent className="p-4">
                   <p className="text-sm text-[var(--ink-4)]">
-                    这篇论文还没有完整的 AI 读取结果，下方先显示已有信息。
+                    {copy(
+                      "A complete AI reading is not available yet. Existing metadata is shown below.",
+                      "这篇论文还没有完整的 AI 读取结果，下方先显示已有信息。"
+                    )}
                   </p>
                 </CardContent>
               </Card>
@@ -1360,7 +1432,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               {atoms.length > 0 && (
                 <div className="space-y-3">
                   <h2 className="text-lg font-semibold text-[var(--ink)]">
-                    关联知识点
+                    {copy("Linked atoms", "关联知识点")}
                   </h2>
                   <AtomChips
                     atoms={atoms}
@@ -1375,7 +1447,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                 <Card className="border-[#bccbe0] shadow-none">
                   <CardHeader className="p-4 pb-0">
                     <CardTitle className="text-sm font-semibold text-[#223a5e]">
-                      相似论文
+                      {copy("Similar papers", "相似论文")}
                     </CardTitle>
                     <p className="text-[11px] text-[#4e688d] mt-0.5">
                       Based on content similarity
@@ -1435,12 +1507,12 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                             </span>
                             {rp.sharedAtomCount > 0 && (
                               <span className="inline-flex items-center gap-0.5 rounded-full bg-[#e9eef6] px-1.5 py-0.5 text-[10px] font-semibold text-[#223a5e]">
-                                共同知识点 {rp.sharedAtomCount}
+                                {copy("Shared atoms", "共同知识点")} {rp.sharedAtomCount}
                               </span>
                             )}
                           </div>
                           <p className="mt-1 line-clamp-2 text-sm text-[var(--ink-4)]">
-                            {rp.title ?? "未命名论文"}
+                            {rp.title ?? copy("Untitled paper", "未命名论文")}
                           </p>
                         </Link>
                       ))}
@@ -1457,7 +1529,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
               <CardHeader className="p-4 pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold text-[#7a5a18]">
                   <Swords className="h-4 w-4" />
-                  活跃争议
+                  {copy("Active debates", "活跃争议")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-4 pt-0 space-y-4">
@@ -1480,10 +1552,10 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         }`}
                       >
                         {debate.paperStance === "supporting"
-                          ? "支持"
+                          ? copy("Supporting", "支持")
                           : debate.paperStance === "challenging"
-                          ? "挑战"
-                          : "讨论"}
+                          ? copy("Challenging", "挑战")
+                          : copy("Discussing", "讨论")}
                       </span>
                     </div>
                     <p className="text-xs text-[var(--ink-4)] leading-relaxed">
@@ -1492,7 +1564,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                     {debate.otherPapers.length > 0 && (
                       <div className="flex flex-wrap gap-1 pt-1">
                         <span className="text-[10px] text-[var(--ink-4)] mr-1 self-center">
-                          Also in this debate:
+                          {copy("Also in this debate:", "同一争议中的论文：")}
                         </span>
                         {debate.otherPapers.map((pid) => (
                           <Link
@@ -1515,7 +1587,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
           {atoms.length > 0 && (
             <div className="space-y-3">
               <h2 className="text-lg font-semibold text-[var(--ink)]">
-                关联知识点
+                {copy("Linked atoms", "关联知识点")}
               </h2>
               <AtomChips
                 atoms={atoms}
@@ -1575,7 +1647,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                 {/* Rendered note preview with linked references */}
                 {noteText.includes("[[") && (
                   <div className="rounded-[var(--r)] border border-[#dfe7f2] bg-[#e9eef6]/50 px-3 py-2">
-                    <p className="mb-1 text-[10px] font-medium text-[#2c4870]">预览</p>
+                    <p className="mb-1 text-[10px] font-medium text-[#2c4870]">
+                      {copy("Preview", "预览")}
+                    </p>
                     <div className="text-sm text-[var(--ink-4)]">
                       <NoteRenderer content={noteText} />
                     </div>
@@ -1590,9 +1664,12 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             <Card className="border-[#bccbe0] bg-[#e9eef6]/30 shadow-none">
               <CardHeader className="p-4 pb-2">
                 <CardTitle className="text-sm font-semibold text-[#223a5e]">
-                  反向引用
+                  {copy("Backlinks", "反向引用")}
                   <span className="ml-1.5 text-xs font-normal text-[#4e688d]">
-                    {paper.backlinkNotes.length} 条笔记引用
+                    {copy(
+                      `${paper.backlinkNotes.length} note references`,
+                      `${paper.backlinkNotes.length} 条笔记引用`
+                    )}
                   </span>
                 </CardTitle>
               </CardHeader>
@@ -1638,7 +1715,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
           <Card className="border-[var(--line-soft)] shadow-none">
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-sm font-semibold text-[var(--ink)]">
-                AI 读取状态
+                {copy("AI reading status", "AI 读取状态")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 p-4 pt-2">
@@ -1654,34 +1731,44 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                     <span
                       className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${processingBadgeTone(processingState.processing_status)}`}
                     >
-                      {formatProcessingText(processingState.processing_status)}
+                      {formatProcessingText(processingState.processing_status, isZh)}
                     </span>
                     <span className="text-[11px] text-[var(--ink-4)]">
-                      方案: {formatProcessingText(processingState.reading_profile)}
+                      {copy("Profile", "方案")}: {formatProcessingText(processingState.reading_profile, isZh)}
                     </span>
                   </div>
 
                   <div className="space-y-2 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper-2)] p-3">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-[var(--ink-4)]">导入时间</span>
+                      <span className="text-[var(--ink-4)]">
+                        {copy("Imported", "导入时间")}
+                      </span>
                       <span className="text-[var(--ink)]">
                         {processingState.imported_at
-                          ? new Date(processingState.imported_at).toLocaleString()
+                          ? new Date(processingState.imported_at).toLocaleString(
+                              isZh ? "zh-CN" : "en-US"
+                            )
                           : "—"}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-[var(--ink-4)]">更新时间</span>
+                      <span className="text-[var(--ink-4)]">
+                        {copy("Updated", "更新时间")}
+                      </span>
                       <span className="text-[var(--ink)]">
                         {processingState.updated_at
-                          ? new Date(processingState.updated_at).toLocaleString()
+                          ? new Date(processingState.updated_at).toLocaleString(
+                              isZh ? "zh-CN" : "en-US"
+                            )
                           : "—"}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-[var(--ink-4)]">阅读状态</span>
+                      <span className="text-[var(--ink-4)]">
+                        {copy("Reading status", "阅读状态")}
+                      </span>
                       <span className="text-[var(--ink)]">
-                        {formatProcessingText(processingState.reading_status)}
+                        {formatProcessingText(processingState.reading_status, isZh)}
                       </span>
                     </div>
                   </div>
@@ -1689,12 +1776,12 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                   {processingState.analysis_focuses.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
-                        读取重点
+                        {copy("Analysis focus", "读取重点")}
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {processingState.analysis_focuses.map((focus) => (
                           <Badge key={focus} variant="outline" className="text-[10px]">
-                            {formatProcessingText(focus)}
+                            {formatProcessingText(focus, isZh)}
                           </Badge>
                         ))}
                       </div>
@@ -1703,7 +1790,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
 
                   <div className="space-y-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
-                      覆盖情况
+                      {copy("Coverage", "覆盖情况")}
                     </p>
                     <div className="space-y-2">
                       {processingState.extraction_rows.map((row) => (
@@ -1725,7 +1812,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                                   : "bg-[var(--paper-2)] text-[var(--ink-4)]"
                               }`}
                             >
-                              {row.status === "complete" ? "完成" : "缺失"}
+                              {row.status === "complete"
+                                ? copy("Complete", "完成")
+                                : copy("Missing", "缺失")}
                             </span>
                           </div>
                         </div>
@@ -1737,10 +1826,13 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
-                          重新读取
+                          {copy("Re-run reading", "重新读取")}
                         </p>
                         <p className="mt-1 text-xs leading-5 text-[var(--ink-4)]">
-                          选择重新读取的深度，刷新这篇论文的结构化信息。
+                          {copy(
+                            "Choose a reading depth and refresh this paper's structured analysis.",
+                            "选择重新读取的深度，刷新这篇论文的结构化信息。"
+                          )}
                         </p>
                       </div>
                     </div>
@@ -1751,12 +1843,14 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         disabled={reprocessLoading}
                       >
                         <SelectTrigger className="h-9 text-xs">
-                          <SelectValue placeholder="选择读取方案" />
+                          <SelectValue
+                            placeholder={copy("Choose a reading profile", "选择读取方案")}
+                          />
                         </SelectTrigger>
                         <SelectContent>
                           {REPROCESS_PROFILE_OPTIONS.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
-                              {option.label}
+                              {isZh ? option.labelZh : option.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1773,13 +1867,15 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         ) : (
                           <RefreshCw className="h-4 w-4" />
                         )}
-                        {reprocessLoading ? "正在读取..." : "重新读取"}
+                        {reprocessLoading
+                          ? copy("Reading...", "正在读取...")
+                          : copy("Re-run reading", "重新读取")}
                       </Button>
                       {reprocessMessage ? (
                         <p
                           className={cn(
                             "text-xs leading-5",
-                            reprocessMessage === "Re-run completed."
+                            reprocessMessage === copy("Re-run completed.", "重新读取完成。")
                               ? "text-[var(--forest-2)]"
                               : "text-[#8a3318]"
                           )}
@@ -1798,10 +1894,13 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                     >
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
-                          读取反馈
+                          {copy("Reading feedback", "读取反馈")}
                         </p>
                         <p className="mt-1 text-xs leading-5 text-[var(--ink-4)]">
-                          标记不准确或缺失的维度。
+                          {copy(
+                            "Flag inaccurate or missing dimensions.",
+                            "标记不准确或缺失的维度。"
+                          )}
                         </p>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
@@ -1828,7 +1927,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         disabled={feedbackSubmitting || processingState.extraction_rows.length === 0}
                       >
                         <SelectTrigger className="h-9 text-xs">
-                          <SelectValue placeholder="维度" />
+                          <SelectValue placeholder={copy("Dimension", "维度")} />
                         </SelectTrigger>
                         <SelectContent>
                           {processingState.extraction_rows.map((row) => (
@@ -1845,12 +1944,12 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         disabled={feedbackSubmitting}
                       >
                         <SelectTrigger className="h-9 text-xs">
-                          <SelectValue placeholder="反馈类型" />
+                          <SelectValue placeholder={copy("Feedback type", "反馈类型")} />
                         </SelectTrigger>
                         <SelectContent>
                           {FEEDBACK_TYPE_OPTIONS.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
-                              {option.label}
+                              {isZh ? option.labelZh : option.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1862,7 +1961,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         disabled={feedbackSubmitting}
                       >
                         <SelectTrigger className="h-9 text-xs">
-                          <SelectValue placeholder="评分" />
+                          <SelectValue placeholder={copy("Rating", "评分")} />
                         </SelectTrigger>
                         <SelectContent>
                           {["1", "2", "3", "4", "5"].map((value) => (
@@ -1877,7 +1976,10 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                     <textarea
                       value={feedbackComment}
                       onChange={(event) => setFeedbackComment(event.target.value)}
-                      placeholder="这次读取哪里需要改进？"
+                      placeholder={copy(
+                        "What should be improved in this reading?",
+                        "这次读取哪里需要改进？"
+                      )}
                       className="min-h-[96px] w-full resize-y rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--ink-4)] focus:outline-none focus:ring-2 focus:ring-[var(--forest)] focus:ring-offset-1"
                       disabled={feedbackSubmitting}
                     />
@@ -1893,7 +1995,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                       ) : (
                         <MessageCircle className="h-4 w-4" />
                       )}
-                      {feedbackSubmitting ? "正在保存..." : "保存反馈"}
+                      {feedbackSubmitting
+                        ? copy("Saving...", "正在保存...")
+                        : copy("Save feedback", "保存反馈")}
                     </Button>
 
                     {feedbackError ? (
@@ -1903,7 +2007,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-4)]">
-                          最近反馈
+                          {copy("Recent feedback", "最近反馈")}
                         </p>
                         {feedbackLoading ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--ink-4)]" />
@@ -1916,7 +2020,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                             const label =
                               processingState.extraction_rows.find(
                                 (row) => row.dimension_key === item.dimension_key
-                              )?.label ?? formatProcessingText(item.dimension_key);
+                              )?.label ?? formatProcessingText(item.dimension_key, isZh);
                             return (
                               <div
                                 key={item.id}
@@ -1927,7 +2031,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                                     {label}
                                   </Badge>
                                   <Badge variant="secondary" className="text-[10px]">
-                                    {formatProcessingText(item.feedback_type)}
+                                    {formatProcessingText(item.feedback_type, isZh)}
                                   </Badge>
                                   {item.rating ? (
                                     <span className="text-[11px] text-[var(--ink-4)]">
@@ -1941,7 +2045,9 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                                   </p>
                                 ) : null}
                                 <p className="mt-1 text-[11px] text-[var(--ink-4)]">
-                                  {new Date(item.created_at).toLocaleString()}
+                                  {new Date(item.created_at).toLocaleString(
+                                    isZh ? "zh-CN" : "en-US"
+                                  )}
                                 </p>
                               </div>
                             );
@@ -1949,7 +2055,10 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                         </div>
                       ) : (
                         <p className="text-xs leading-5 text-[var(--ink-4)]">
-                          这篇论文还没有反馈记录。
+                          {copy(
+                            "No feedback has been recorded for this paper.",
+                            "这篇论文还没有反馈记录。"
+                          )}
                         </p>
                       )}
                     </div>
@@ -1960,7 +2069,7 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                   {processingState.last_error ? (
                     <div className="rounded-[var(--r)] border border-[#da9a80] bg-[#f4dfd5] px-3 py-2">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a3318]">
-                        最近错误
+                        {copy("Latest error", "最近错误")}
                       </p>
                       <p className="mt-1 text-xs leading-5 text-[#8a3318]">
                         {processingState.last_error}
@@ -1970,7 +2079,10 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
                 </>
               ) : (
                 <p className="text-xs leading-5 text-[var(--ink-4)]">
-                  当前文献库还没有这篇论文的 AI 读取记录。
+                  {copy(
+                    "The active library has no AI reading record for this paper.",
+                    "当前文献库还没有这篇论文的 AI 读取记录。"
+                  )}
                 </p>
               )}
             </CardContent>
@@ -1981,18 +2093,24 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             <Card className="border-[var(--line-soft)] shadow-none">
               <CardHeader className="p-4 pb-0">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-[var(--ink)]">评分结构</h3>
+                  <h3 className="text-sm font-semibold text-[var(--ink)]">
+                    {copy("Score profile", "评分结构")}
+                  </h3>
                   <button
                     onClick={() => setShowRadar(!showRadar)}
                     className="text-xs text-[var(--ink-4)] hover:text-[var(--ink)]"
                   >
-                    {showRadar ? "显示条形" : "显示雷达"}
+                    {showRadar
+                      ? copy("Show bars", "显示条形")
+                      : copy("Show radar", "显示雷达")}
                   </button>
                 </div>
               </CardHeader>
               <CardContent className="p-4 pt-2">
                 {showRadar ? <ScoreRadar scores={scores} /> : <ScoreBars scores={scores} />}
-                <p className="text-[10px] text-[var(--ink-4)] mt-1">评分范围 1-5</p>
+                <p className="text-[10px] text-[var(--ink-4)] mt-1">
+                  {copy("Score range: 1-5", "评分范围 1-5")}
+                </p>
               </CardContent>
             </Card>
           )}
@@ -2002,16 +2120,16 @@ export default function PaperDetailPage({ params }: PaperDetailPageProps) {
             <Card className="border-[var(--line-soft)] shadow-none">
               <CardHeader className="p-4 pb-2">
                 <CardTitle className="text-sm font-semibold text-[var(--ink-4)]">
-                  相似论文
+                  {copy("Related papers", "相似论文")}
                 </CardTitle>
                 {/* Axis control buttons */}
                 <div className="mt-2 flex flex-wrap gap-1">
                   {[
-                    { key: "all", label: "全部" },
-                    { key: "method", label: "同方法" },
-                    { key: "dataset", label: "同数据" },
-                    { key: "mechanism", label: "同机制" },
-                    { key: "topic", label: "相似主题" },
+                    { key: "all", label: copy("All", "全部") },
+                    { key: "method", label: copy("Method", "同方法") },
+                    { key: "dataset", label: copy("Dataset", "同数据") },
+                    { key: "mechanism", label: copy("Mechanism", "同机制") },
+                    { key: "topic", label: copy("Topic", "相似主题") },
                   ].map((btn) => (
                     <button
                       key={btn.key}

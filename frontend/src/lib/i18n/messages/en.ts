@@ -889,7 +889,7 @@ const en = {
       title: "Open Knowledge Graph",
       start: "Enter a topic, paper ID, or atom.",
       noResults: "No results. Try another query.",
-      searchPlaceholder: "e.g. medical device, w31161, staggered_did",
+      searchPlaceholder: "e.g. demo-001, health insurance, search-frictions",
       suggestionsHeader: "Search results",
       explore: "Open",
       legendHint: "Node color indicates papers, methods, datasets, mechanisms, and puzzles; switch relation depth above the graph.",

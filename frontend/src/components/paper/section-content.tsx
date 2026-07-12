@@ -3,6 +3,8 @@
 import React, { useMemo } from "react";
 import Link from "next/link";
 import { processLatex } from "@/lib/render-latex";
+import { buildPaperDetailHref } from "@/lib/navigation";
+import { INLINE_PAPER_ID_SOURCE } from "@/lib/paper-identifiers";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -13,11 +15,13 @@ interface SectionContentProps {
 }
 
 // ---------------------------------------------------------------------------
-// Inline text parser: handles **bold**, *italic*, and paper IDs (wXXXXX).
+// Inline text parser: handles **bold**, *italic*, and supported paper IDs.
 // ---------------------------------------------------------------------------
 
-const INLINE_PATTERN =
-  /(\*\*w(\d{4,5})(?::\s*[^*]+?)?\*\*)|(\*\*([^*]+?)\*\*)|(\*([^*]+?)\*)|\b(w(\d{4,5}))\b/g;
+const INLINE_PATTERN = new RegExp(
+  `(\\*\\*(${INLINE_PAPER_ID_SOURCE})(?::\\s*[^*]+?)?\\*\\*)|(\\*\\*([^*]+?)\\*\\*)|(\\*([^*]+?)\\*)|\\b(${INLINE_PAPER_ID_SOURCE})\\b`,
+  "g"
+);
 
 /** Render a plain text segment that may contain LaTeX but no markdown. */
 function renderPlainWithLatex(text: string, key: string): React.ReactNode {
@@ -48,13 +52,12 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
     }
 
     if (match[1]) {
-      // **wXXXXX** or **wXXXXX: Title** -- bold paper ID link
-      const paperId = `w${match[2]}`;
+      const paperId = match[2];
       const display = match[1].slice(2, -2); // strip ** on both sides
       nodes.push(
         <Link
           key={`${keyPrefix}-${match.index}`}
-          href={`/paper/${paperId}`}
+          href={buildPaperDetailHref({ paperId })}
           className="inline-flex items-baseline gap-0.5 rounded-full border border-[var(--line-soft)] bg-[var(--paper-2)] px-1.5 py-0.5 font-mono text-sm font-medium text-[var(--forest)] no-underline hover:bg-[var(--paper-2)]"
         >
           {display}
@@ -73,12 +76,12 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
         <em key={`${keyPrefix}-${match.index}`}>{match[6]}</em>
       );
     } else if (match[7]) {
-      // Bare wXXXXX paper ID
+      // Bare paper ID
       const paperId = match[7];
       nodes.push(
         <Link
           key={`${keyPrefix}-${match.index}`}
-          href={`/paper/${paperId}`}
+          href={buildPaperDetailHref({ paperId })}
           className="inline-flex items-baseline gap-0.5 rounded-full border border-[var(--line-soft)] bg-[var(--paper-2)] px-1.5 py-0.5 font-mono text-sm font-medium text-[var(--forest)] no-underline hover:bg-[var(--paper-2)]"
         >
           {paperId}

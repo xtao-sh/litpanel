@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/dialog";
 import { appConfig } from "@/lib/app-config";
 import { getApiUrl, readErrorMessage } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/locale-context";
 import type {
   AIProviderCatalogItem,
   AIProviderSetting,
@@ -98,6 +99,7 @@ interface BatchUploadResult {
     filename: string;
     paper_id?: string;
     status?: string;
+    duplicate?: boolean;
     error?: string;
   }>;
 }
@@ -257,6 +259,16 @@ const DEFAULT_READING_PROFILE_OPTIONS: ReadingProfileOption[] = [
   },
 ];
 
+const EN_READING_PROFILE_OPTIONS: ReadingProfileOption[] = [
+  { value: "auto", label: "Standard academic card", description: "Read the paper into a balanced academic card and reusable structured elements." },
+  { value: "metadata_only", label: "Metadata only", description: "Register the paper without running AI reading." },
+  { value: "title_abstract", label: "Quick overview", description: "Focus on the title, abstract, and question framing." },
+  { value: "full_content", label: "Full-text read", description: "Extract methods, data, findings, limitations, and future research from the full paper." },
+  { value: "section_batch", label: "Section by section", description: "Read long papers section by section, then merge the results into one structured card." },
+  { value: "style_logic", label: "Style + logic", description: "Add writing style and argument logic to the full-text extraction." },
+  { value: "custom", label: "Custom", description: "Use your edited instructions and selected analysis dimensions." },
+];
+
 const DEFAULT_ANALYSIS_FOCUS_OPTIONS: AnalysisFocusOption[] = [
   {
     value: "title_abstract",
@@ -392,23 +404,80 @@ const DEFAULT_ANALYSIS_FOCUS_OPTIONS: AnalysisFocusOption[] = [
   },
 ];
 
+const EN_ANALYSIS_FOCUS_META: Record<string, { label: string; category: string }> = {
+  title_abstract: { label: "Title & abstract", category: "Core" },
+  research_question: { label: "Research question", category: "Core" },
+  literature_position: { label: "Literature position", category: "Core" },
+  institutional_context: { label: "Institutional context", category: "Context" },
+  theory_framework: { label: "Theory framework", category: "Theory" },
+  hypotheses_predictions: { label: "Hypotheses & predictions", category: "Theory" },
+  methods_data: { label: "Methods & data", category: "Empirical" },
+  identification: { label: "Identification", category: "Empirical" },
+  robustness: { label: "Robustness", category: "Empirical" },
+  findings: { label: "Findings", category: "Results" },
+  mechanisms: { label: "Mechanisms", category: "Results" },
+  external_validity: { label: "External validity", category: "Results" },
+  policy_implications: { label: "Policy implications", category: "Policy" },
+  welfare_counterfactuals: { label: "Welfare & counterfactuals", category: "Policy" },
+  method_reuse: { label: "Reusable design", category: "Reuse" },
+  data_reuse: { label: "Reusable data", category: "Reuse" },
+  limitations: { label: "Limitations", category: "Reuse" },
+  future_research: { label: "Future research", category: "Reuse" },
+  writing_style: { label: "Writing style", category: "Writing" },
+  argument_logic: { label: "Argument logic", category: "Writing" },
+  figures_tables: { label: "Figures & tables", category: "Writing" },
+  technical_appendix: { label: "Technical appendix", category: "Advanced" },
+};
+
+const EN_ANALYSIS_FOCUS_DESCRIPTIONS: Record<string, string> = {
+  title_abstract: "Extract the title, abstract structure, key objects, keywords, and one-sentence takeaway; distinguish the question, evidence, and final claim.",
+  research_question: "State the exact question, why it matters, which debate or empirical gap it addresses, and what evidence or explanation the paper adds.",
+  literature_position: "Map the paper to its closest literatures, predecessors, and disagreements; explain whether the contribution is theory, method, data, or empirical fact.",
+  institutional_context: "Explain the institutional, policy, market, technological, or historical context and how it affects identification or interpretation.",
+  theory_framework: "Extract the model setup, agents, actions, constraints, information, equilibrium concept, propositions, and theoretical predictions.",
+  hypotheses_predictions: "List explicit hypotheses, testable predictions, and comparative statics; connect each prediction to variables, samples, and tests.",
+  methods_data: "Identify methods, data sources, sample coverage, unit of observation, variables, cleaning and merge steps, and exclusions needed for replication.",
+  identification: "Extract causal variation, estimating equations, treatment and control definitions, fixed effects, standard errors, assumptions, and threats to identification.",
+  robustness: "Summarize robustness checks, placebos, sensitivity analysis, alternative variables, samples, and specifications, including remaining threats.",
+  findings: "Report main results with magnitudes, statistical and economic significance, heterogeneity, boundary conditions, and evidence versus interpretation.",
+  mechanisms: "Extract proposed causal channels, mechanism tests, mediators, and auxiliary evidence; separate supported mechanisms from speculation.",
+  external_validity: "Assess which populations, places, periods, institutions, or markets the findings may transfer to and where they may fail.",
+  policy_implications: "Explain implications for policy, regulation, or organizations, including affected groups, welfare direction, implementation constraints, and tradeoffs.",
+  welfare_counterfactuals: "Extract welfare analysis, counterfactuals, distributional effects, cost-benefit measures, key parameters, assumptions, and uncertainty.",
+  method_reuse: "Identify reusable designs, measurement strategies, data construction recipes, and identification ideas, plus prerequisites for reuse.",
+  data_reuse: "List data assets, access conditions, licensing limits, replication barriers, substitute sources, and possible reuse cases.",
+  limitations: "Identify the strongest assumptions, unresolved weaknesses, data limits, measurement error, selection, and interpretation threats.",
+  future_research: "Propose concrete follow-up questions, settings, data, mechanism tests, and publishable extensions that can become research designs.",
+  writing_style: "Analyze narrative structure, exposition, transitions, figure use, and techniques for explaining complex ideas.",
+  argument_logic: "Trace the reasoning from motivation and theory through evidence and conclusions; flag assumptions, logical jumps, and weak rebuttals.",
+  figures_tables: "Explain the most important figures and tables, what to inspect first, which claims they support, and possible misreadings or anomalies.",
+  technical_appendix: "Extract proofs, derivations, extra tables, data construction details, algorithms, and appendix evidence that changes the main interpretation.",
+};
+
+const EN_ANALYSIS_FOCUS_OPTIONS: AnalysisFocusOption[] = DEFAULT_ANALYSIS_FOCUS_OPTIONS.map((option) => ({
+  ...option,
+  label: EN_ANALYSIS_FOCUS_META[option.value]?.label ?? option.value,
+  category: EN_ANALYSIS_FOCUS_META[option.value]?.category ?? "Other",
+  description: EN_ANALYSIS_FOCUS_DESCRIPTIONS[option.value] ?? option.value,
+}));
+
 type PaperKind = "empirical" | "theory" | "structural" | "policy" | "review" | "methods" | "writing";
 type ReadingDepth = "quick" | "standard" | "deep";
 
-const PAPER_KIND_OPTIONS: Array<{ value: PaperKind; label: string; description: string }> = [
-  { value: "empirical", label: "实证论文", description: "识别、数据、结果和机制优先。" },
-  { value: "theory", label: "理论论文", description: "模型、假设、命题和可检验含义优先。" },
-  { value: "structural", label: "结构模型", description: "模型设定、估计、参数、反事实和福利优先。" },
-  { value: "policy", label: "政策/时政", description: "制度背景、政策影响、群体差异和争议点优先。" },
-  { value: "review", label: "综述论文", description: "文献地图、共识、争议和未来方向优先。" },
-  { value: "methods", label: "方法论文", description: "适用条件、算法/估计器、比较和实践注意事项优先。" },
-  { value: "writing", label: "写作学习", description: "叙事结构、图表、论证节奏和表达方式优先。" },
+const PAPER_KIND_OPTIONS: Array<{ value: PaperKind; label: string; description: string; labelEn: string; descriptionEn: string }> = [
+  { value: "empirical", label: "实证论文", description: "识别、数据、结果和机制优先。", labelEn: "Empirical paper", descriptionEn: "Prioritize identification, data, results, and mechanisms." },
+  { value: "theory", label: "理论论文", description: "模型、假设、命题和可检验含义优先。", labelEn: "Theory paper", descriptionEn: "Prioritize models, assumptions, propositions, and testable implications." },
+  { value: "structural", label: "结构模型", description: "模型设定、估计、参数、反事实和福利优先。", labelEn: "Structural model", descriptionEn: "Prioritize setup, estimation, parameters, counterfactuals, and welfare." },
+  { value: "policy", label: "政策/时政", description: "制度背景、政策影响、群体差异和争议点优先。", labelEn: "Policy / current affairs", descriptionEn: "Prioritize institutions, policy effects, group differences, and debates." },
+  { value: "review", label: "综述论文", description: "文献地图、共识、争议和未来方向优先。", labelEn: "Review paper", descriptionEn: "Prioritize the literature map, consensus, disputes, and future directions." },
+  { value: "methods", label: "方法论文", description: "适用条件、算法/估计器、比较和实践注意事项优先。", labelEn: "Methods paper", descriptionEn: "Prioritize assumptions, estimators, comparisons, and practical cautions." },
+  { value: "writing", label: "写作学习", description: "叙事结构、图表、论证节奏和表达方式优先。", labelEn: "Writing study", descriptionEn: "Prioritize narrative structure, figures, argument pacing, and exposition." },
 ];
 
-const READING_DEPTH_OPTIONS: Array<{ value: ReadingDepth; label: string; description: string }> = [
-  { value: "quick", label: "浅读", description: "快速抓住问题、方法和结论。" },
-  { value: "standard", label: "标准", description: "适合日常文献卡片和图谱结构化。" },
-  { value: "deep", label: "深读", description: "增加稳健性、局限、复用和后续研究。" },
+const READING_DEPTH_OPTIONS: Array<{ value: ReadingDepth; label: string; description: string; labelEn: string; descriptionEn: string }> = [
+  { value: "quick", label: "浅读", description: "快速抓住问题、方法和结论。", labelEn: "Quick", descriptionEn: "Capture the question, method, and conclusion quickly." },
+  { value: "standard", label: "标准", description: "适合日常文献卡片和图谱结构化。", labelEn: "Standard", descriptionEn: "Balanced for routine cards and graph structure." },
+  { value: "deep", label: "深读", description: "增加稳健性、局限、复用和后续研究。", labelEn: "Deep", descriptionEn: "Add robustness, limitations, reuse, and future research." },
 ];
 
 const PAPER_KIND_FOCUSES: Record<PaperKind, string[]> = {
@@ -434,12 +503,21 @@ const ANALYSIS_FOCUS_LABELS = new Map(
   DEFAULT_ANALYSIS_FOCUS_OPTIONS.map((option) => [option.value, option])
 );
 
-function localizeReadingProfiles(options: ReadingProfileOption[]) {
-  return options.map((option) => ({ ...option, ...(READING_PROFILE_LABELS.get(option.value) ?? {}) }));
+function localizeReadingProfiles(options: ReadingProfileOption[], isZh: boolean) {
+  const labels = isZh ? READING_PROFILE_LABELS : new Map(EN_READING_PROFILE_OPTIONS.map((option) => [option.value, option]));
+  return options.map((option) => ({ ...option, ...(labels.get(option.value) ?? {}) }));
 }
 
-function localizeAnalysisFocuses(options: AnalysisFocusOption[]) {
-  return options.map((option) => ({ ...option, ...(ANALYSIS_FOCUS_LABELS.get(option.value) ?? {}) }));
+function localizeAnalysisFocuses(options: AnalysisFocusOption[], isZh: boolean) {
+  if (isZh) {
+    return options.map((option) => ({ ...option, ...(ANALYSIS_FOCUS_LABELS.get(option.value) ?? {}) }));
+  }
+  return options.map((option) => ({
+    ...option,
+    label: EN_ANALYSIS_FOCUS_META[option.value]?.label ?? option.label,
+    category: EN_ANALYSIS_FOCUS_META[option.value]?.category ?? option.category ?? "Other",
+    description: EN_ANALYSIS_FOCUS_DESCRIPTIONS[option.value] ?? option.description,
+  }));
 }
 
 function buildDefaultFocusPrompts(options: AnalysisFocusOption[]) {
@@ -517,6 +595,10 @@ function normalizePaperIds(...values: Array<string | null | undefined>): string[
   return splitQueueIdentifiers(...values).map((value) => value.toLowerCase());
 }
 
+function isPdfFile(file: File): boolean {
+  return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+}
+
 function normalizeDoiIdentifier(value: string): string {
   return value
     .trim()
@@ -533,12 +615,12 @@ function isNberPaperId(value: string): boolean {
   return /^w\d{3,8}$/i.test(value.trim());
 }
 
-function createQueueItem(paperId: string, message?: string): ReadingQueueItem {
+function createQueueItem(paperId: string, message: string | undefined, isZh: boolean): ReadingQueueItem {
   return {
     id: `${paperId}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     paperId,
     status: "queued",
-    step: "等待读取",
+    step: isZh ? "等待读取" : "Waiting to read",
     message,
   };
 }
@@ -555,18 +637,110 @@ function queueItemsFromJob(job: ReadingJob): ReadingQueueItem[] {
   }));
 }
 
-function queueStatusLabel(status: ReadingQueueStatus): string {
+function compactQueueMessage(message?: string): string {
+  const text = (message ?? "").trim();
+  if (!text) return "";
+  const firstLine = text.split(/\r?\n/).find((line) => line.trim())?.trim() ?? text;
+  return firstLine.length > 260 ? `${firstLine.slice(0, 260)}...` : firstLine;
+}
+
+const READING_JOB_TEXT: Record<string, { en: string; zh: string }> = {
+  "等待读取": { en: "Waiting to read", zh: "等待读取" },
+  "已取消": { en: "Cancelled", zh: "已取消" },
+  "调用 AI 读取": { en: "Calling AI reader", zh: "调用 AI 读取" },
+  "AI 正在读取论文。长论文或多维度读取可能需要几分钟。": {
+    en: "AI is reading the paper. Long papers or many dimensions may take several minutes.",
+    zh: "AI 正在读取论文。长论文或多维度读取可能需要几分钟。",
+  },
+  "下载 PDF 并读取": { en: "Downloading PDF and reading", zh: "下载 PDF 并读取" },
+  "本地文件不可用，已切换到导入流程。": {
+    en: "The local file is unavailable; switched to the import flow.",
+    zh: "本地文件不可用，已切换到导入流程。",
+  },
+  "登记完成": { en: "Registration complete", zh: "登记完成" },
+  "已登记论文，未运行 AI 读取。": {
+    en: "Paper registered without AI reading.",
+    zh: "已登记论文，未运行 AI 读取。",
+  },
+  "读取完成": { en: "Reading complete", zh: "读取完成" },
+  "已完成 AI 读取": { en: "AI reading completed", zh: "已完成 AI 读取" },
+  "已请求中止": { en: "Stop requested", zh: "已请求中止" },
+  "任务已收到取消请求。": { en: "The job received a cancellation request.", zh: "任务已收到取消请求。" },
+  "读取失败": { en: "Reading failed", zh: "读取失败" },
+  "AI 读取失败，请重试。": { en: "AI reading failed. Please retry.", zh: "AI 读取失败，请重试。" },
+  "AI 已返回内容，但评分区块格式无法解析。请重试；如果仍失败，减少读取维度或切换为 Title + Abstract。": {
+    en: "AI returned content, but the score block could not be parsed. Retry, reduce dimensions, or use Title + Abstract.",
+    zh: "AI 已返回内容，但评分区块格式无法解析。请重试；如果仍失败，减少读取维度或切换为 Title + Abstract。",
+  },
+  "AI 读取超时。长论文可切换为 Section-by-section，或减少读取维度后重试。": {
+    en: "AI reading timed out. Use Section by section for long papers or reduce the reading dimensions.",
+    zh: "AI 读取超时。长论文可切换为 Section-by-section，或减少读取维度后重试。",
+  },
+  "AI 服务连接中断。请稍后重试，或减少读取维度。": {
+    en: "The AI service connection was interrupted. Retry later or reduce the reading dimensions.",
+    zh: "AI 服务连接中断。请稍后重试，或减少读取维度。",
+  },
+  "PDF 文本抽取失败。请确认文件不是扫描版图片 PDF，并尝试上传可复制文本的 PDF。": {
+    en: "PDF text extraction failed. Confirm that the file is not image-only and upload a text-selectable PDF.",
+    zh: "PDF 文本抽取失败。请确认文件不是扫描版图片 PDF，并尝试上传可复制文本的 PDF。",
+  },
+  "找不到本地 PDF。请重新上传文件，或确认这篇论文已经绑定到当前文献库。": {
+    en: "The local PDF was not found. Upload it again or confirm that the paper belongs to the active library.",
+    zh: "找不到本地 PDF。请重新上传文件，或确认这篇论文已经绑定到当前文献库。",
+  },
+  "正在运行 Linker。": { en: "Running Linker.", zh: "正在运行 Linker。" },
+  "正在运行 Linker、Thinker 和 Critic。": {
+    en: "Running Linker, Thinker, and Critic.",
+    zh: "正在运行 Linker、Thinker 和 Critic。",
+  },
+  "已完成 Linker 和索引刷新。": {
+    en: "Linker and index refresh completed.",
+    zh: "已完成 Linker 和索引刷新。",
+  },
+  "已完成 Linker、Thinker、Critic 和索引刷新。": {
+    en: "Linker, Thinker, Critic, and index refresh completed.",
+    zh: "已完成 Linker、Thinker、Critic 和索引刷新。",
+  },
+  "没有成功完成的 AI 读取，或任务已取消/仅元数据模式。": {
+    en: "No AI reading completed successfully, or the job was cancelled or metadata-only.",
+    zh: "没有成功完成的 AI 读取，或任务已取消/仅元数据模式。",
+  },
+};
+
+function localizeReadingJobText(value: string | null | undefined, isZh: boolean): string {
+  const text = (value ?? "").trim();
+  if (!text) return "";
+  const direct = READING_JOB_TEXT[text];
+  if (direct) return isZh ? direct.zh : direct.en;
+
+  const dynamicPatterns: Array<[RegExp, (target: string) => { en: string; zh: string }]> = [
+    [/^更新 (.+)$/, (target) => ({ en: `Updating ${target.replace(/ 和 /g, " & ")}`, zh: `更新 ${target}` })],
+    [/^(.+) 更新失败$/, (target) => ({ en: `${target.replace(/ 和 /g, " & ")} update failed`, zh: `${target} 更新失败` })],
+    [/^(.+) 已更新$/, (target) => ({ en: `${target.replace(/ 和 /g, " & ")} updated`, zh: `${target} 已更新` })],
+    [/^跳过 (.+)$/, (target) => ({ en: `Skipped ${target.replace(/ 和 /g, " & ")}`, zh: `跳过 ${target}` })],
+  ];
+  for (const [pattern, format] of dynamicPatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      const translated = format(match[1]);
+      return isZh ? translated.zh : translated.en;
+    }
+  }
+  return text;
+}
+
+function queueStatusLabel(status: ReadingQueueStatus, isZh: boolean): string {
   switch (status) {
     case "queued":
-      return "等待中";
+      return isZh ? "等待中" : "Queued";
     case "running":
-      return "读取中";
+      return isZh ? "读取中" : "Reading";
     case "done":
-      return "完成";
+      return isZh ? "完成" : "Done";
     case "error":
-      return "失败";
+      return isZh ? "失败" : "Failed";
     case "cancelled":
-      return "已取消";
+      return isZh ? "已取消" : "Cancelled";
   }
 }
 
@@ -590,6 +764,9 @@ function queueStatusClass(status: ReadingQueueStatus): string {
 // ---------------------------------------------------------------------------
 
 function PipelinePageContent() {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
+  const copy = useCallback((english: string, chinese: string) => (isZh ? chinese : english), [isZh]);
   // --- Discover ---
   const [discoverLoading, setDiscoverLoading] = useState(false);
   const [discoveredPapers, setDiscoveredPapers] = useState<DiscoveredPaper[]>(
@@ -619,7 +796,10 @@ function PipelinePageContent() {
   >("idle");
   const [uploadResult, setUploadResult] = useState<{
     paper_id?: string;
+    library_id?: number;
     status?: string;
+    registered?: boolean;
+    duplicate?: boolean;
     reading_profile?: string;
     text_cache?: {
       status?: string;
@@ -661,13 +841,13 @@ function PipelinePageContent() {
     "limitations",
   ]);
   const [readingProfileOptions, setReadingProfileOptions] = useState<ReadingProfileOption[]>(
-    DEFAULT_READING_PROFILE_OPTIONS
+    EN_READING_PROFILE_OPTIONS
   );
   const [analysisFocusOptions, setAnalysisFocusOptions] = useState<AnalysisFocusOption[]>(
-    DEFAULT_ANALYSIS_FOCUS_OPTIONS
+    EN_ANALYSIS_FOCUS_OPTIONS
   );
   const [analysisFocusPrompts, setAnalysisFocusPrompts] = useState<Record<string, string>>(
-    () => buildDefaultFocusPrompts(DEFAULT_ANALYSIS_FOCUS_OPTIONS)
+    () => buildDefaultFocusPrompts(isZh ? DEFAULT_ANALYSIS_FOCUS_OPTIONS : EN_ANALYSIS_FOCUS_OPTIONS)
   );
   const [activeAnalysisFocus, setActiveAnalysisFocus] = useState<string | null>("research_question");
   const [customReadingInstructions, setCustomReadingInstructions] = useState("");
@@ -793,7 +973,7 @@ function PipelinePageContent() {
 
   const handleCreateLibrary = useCallback(async () => {
     if (!newLibraryName.trim()) {
-      setCreateLibraryError("请输入数据库名称。");
+      setCreateLibraryError(copy("Enter a library name.", "请输入数据库名称。"));
       return;
     }
     setCreateLibraryLoading(true);
@@ -829,11 +1009,16 @@ function PipelinePageContent() {
       setNewLibraryKnowledgeDir("");
       setNewLibraryAgentDbPath("");
     } catch (error) {
-      setCreateLibraryError(error instanceof Error ? error.message : "无法创建数据库");
+      setCreateLibraryError(
+        error instanceof Error
+          ? error.message
+          : copy("Could not create the library.", "无法创建数据库")
+      );
     } finally {
       setCreateLibraryLoading(false);
     }
   }, [
+    copy,
     loadLibraries,
     newLibraryAgentDbPath,
     newLibraryDescription,
@@ -849,10 +1034,10 @@ function PipelinePageContent() {
       if (!resp.ok) return;
       const data = await resp.json();
       if (Array.isArray(data.reading_profiles) && data.reading_profiles.length > 0) {
-        setReadingProfileOptions(localizeReadingProfiles(data.reading_profiles as ReadingProfileOption[]));
+        setReadingProfileOptions(localizeReadingProfiles(data.reading_profiles as ReadingProfileOption[], isZh));
       }
       if (Array.isArray(data.analysis_focuses) && data.analysis_focuses.length > 0) {
-        const localizedFocuses = localizeAnalysisFocuses(data.analysis_focuses as AnalysisFocusOption[]);
+        const localizedFocuses = localizeAnalysisFocuses(data.analysis_focuses as AnalysisFocusOption[], isZh);
         setAnalysisFocusOptions(localizedFocuses);
         setAnalysisFocusPrompts((prev) => ({
           ...buildDefaultFocusPrompts(localizedFocuses),
@@ -862,7 +1047,25 @@ function PipelinePageContent() {
     } catch {
       // ignore and keep defaults
     }
-  }, []);
+  }, [isZh]);
+
+  useEffect(() => {
+    const nextOptions = isZh ? DEFAULT_ANALYSIS_FOCUS_OPTIONS : EN_ANALYSIS_FOCUS_OPTIONS;
+    setReadingProfileOptions(isZh ? DEFAULT_READING_PROFILE_OPTIONS : EN_READING_PROFILE_OPTIONS);
+    setAnalysisFocusOptions(nextOptions);
+    setAnalysisFocusPrompts((current) => {
+      const next = { ...current };
+      for (const option of nextOptions) {
+        const previousZh = ANALYSIS_FOCUS_LABELS.get(option.value)?.description;
+        const previousEn = EN_ANALYSIS_FOCUS_DESCRIPTIONS[option.value];
+        const currentValue = current[option.value];
+        if (!currentValue || currentValue === previousZh || currentValue === previousEn) {
+          next[option.value] = option.description;
+        }
+      }
+      return next;
+    });
+  }, [isZh]);
 
   const fetchReadingJobs = useCallback(async () => {
     if (!selectedLibraryId) {
@@ -993,8 +1196,8 @@ function PipelinePageContent() {
     unifiedProvider;
   const aiModelSummary =
     aiModelMode === "unified"
-      ? `${selectedProviderForSummary || "未配置"}${unifiedModel ? ` · ${unifiedModel}` : ""}`
-      : `按流程设置 · ${configurableAiSteps.length} 个步骤`;
+      ? `${selectedProviderForSummary || copy("Not configured", "未配置")}${unifiedModel ? ` · ${unifiedModel}` : ""}`
+      : copy(`Per-step setup · ${configurableAiSteps.length} steps`, `按流程设置 · ${configurableAiSteps.length} 个步骤`);
   const selectedReadingProfile =
     readingProfileOptions.find((option) => option.value === readingProfile) ?? null;
   const selectedAnalysisFocusOptions = analysisFocuses.map((focus) => (
@@ -1021,11 +1224,11 @@ function PipelinePageContent() {
   const groupedAnalysisFocusOptions = useMemo(() => {
     const groups = new Map<string, AnalysisFocusOption[]>();
     for (const option of analysisFocusOptions) {
-      const category = option.category ?? "自定义";
+      const category = option.category ?? copy("Custom", "自定义");
       groups.set(category, [...(groups.get(category) ?? []), option]);
     }
     return Array.from(groups.entries());
-  }, [analysisFocusOptions]);
+  }, [analysisFocusOptions, copy]);
   const refreshErrors = summarizeRefreshErrors(refreshResult);
 
   const updateAIModelStepConfig = (stepKey: string, patch: Partial<AIStepConfig>) => {
@@ -1097,10 +1300,14 @@ function PipelinePageContent() {
         throw new Error(data?.detail ?? data?.error ?? `HTTP ${resp.status}`);
       }
       applyAISettings(data as AISettingsResponse);
-      setAiSettingsMessage("AI 模型设置已保存。");
+      setAiSettingsMessage(copy("AI model settings saved.", "AI 模型设置已保存。"));
       setAiModelDialogOpen(false);
     } catch (error) {
-      setAiSettingsError(error instanceof Error ? error.message : "无法保存 AI 模型设置");
+      setAiSettingsError(
+        error instanceof Error
+          ? error.message
+          : copy("Could not save AI model settings.", "无法保存 AI 模型设置")
+      );
     } finally {
       setAiSettingsSaving(false);
     }
@@ -1165,7 +1372,7 @@ function PipelinePageContent() {
     const baseValue = slugifyFocusValue(label);
     const existingValues = new Set(analysisFocusOptions.map((option) => option.value));
     const value = existingValues.has(baseValue) ? `${baseValue}_${Date.now()}` : baseValue;
-    const option = { value, label, description: prompt, category: "自定义" };
+    const option = { value, label, description: prompt, category: copy("Custom", "自定义") };
     setAnalysisFocusOptions((prev) => [...prev, option]);
     setAnalysisFocusPrompts((prev) => ({ ...prev, [value]: prompt }));
     setAnalysisFocuses((prev) => [...prev, value]);
@@ -1192,6 +1399,7 @@ function PipelinePageContent() {
   const enqueuePapers = useCallback((paperIds: string[], messageByPaperId: Record<string, string> = {}) => {
     const normalizedIds = normalizePaperIds(...paperIds);
     if (normalizedIds.length === 0) return;
+    setQueueListOpen(true);
 
     setReadingQueue((prev) => {
       const activePaperIds = new Set(
@@ -1201,10 +1409,10 @@ function PipelinePageContent() {
       );
       const nextItems = normalizedIds
         .filter((paperId) => !activePaperIds.has(paperId))
-        .map((paperId) => createQueueItem(paperId, messageByPaperId[paperId]));
+        .map((paperId) => createQueueItem(paperId, messageByPaperId[paperId], isZh));
       return nextItems.length > 0 ? [...prev, ...nextItems] : prev;
     });
-  }, []);
+  }, [isZh]);
 
   const applyReadingJob = useCallback((job: ReadingJob, options?: { revealItems?: boolean }) => {
     setActiveReadingJob(job);
@@ -1234,13 +1442,16 @@ function PipelinePageContent() {
       const paperId = identifier.toLowerCase();
       return {
         paperId,
-        message: "已识别为 NBER ID；开始读取时会优先使用本地 PDF，没有本地文件时尝试下载。",
+        message: copy(
+          "Recognized as an NBER ID. Reading will use a local PDF first and download it if needed.",
+          "已识别为 NBER ID；开始读取时会优先使用本地 PDF，没有本地文件时尝试下载。"
+        ),
       };
     }
 
     if (isDoiIdentifier(identifier)) {
       if (!selectedLibraryId) {
-        throw new Error("请先选择目标文献库。");
+        throw new Error(copy("Choose a target library first.", "请先选择目标文献库。"));
       }
       const doi = normalizeDoiIdentifier(identifier);
       const resp = await fetch(`${API_URL}/api/libraries/${selectedLibraryId}/papers/from-doi`, {
@@ -1254,16 +1465,26 @@ function PipelinePageContent() {
       }
       const paperId = String(data?.paper?.paper_id ?? "").trim().toLowerCase();
       if (!paperId) {
-        throw new Error("DOI 已返回元数据，但缺少可用 paper_id。");
+        throw new Error(
+          copy("The DOI returned metadata but no usable paper ID.", "DOI 已返回元数据，但缺少可用 paper_id。")
+        );
       }
       return {
         paperId,
-        message: "已识别为 DOI 并导入元数据；如果没有 PDF，读取前需要补充全文。",
+        message: copy(
+          "Recognized as a DOI and imported metadata. Add the full text before reading if no PDF is available.",
+          "已识别为 DOI 并导入元数据；如果没有 PDF，读取前需要补充全文。"
+        ),
       };
     }
 
-    throw new Error(`无法识别 ${identifier}。请输入 w 开头的 NBER ID 或 DOI。`);
-  }, [selectedLibraryId]);
+    throw new Error(
+      copy(
+        `Could not recognize ${identifier}. Enter an NBER ID beginning with w or a DOI.`,
+        `无法识别 ${identifier}。请输入 w 开头的 NBER ID 或 DOI。`
+      )
+    );
+  }, [copy, selectedLibraryId]);
 
   const importIdentifiersToQueue = useCallback(async (identifiers: string[]) => {
     if (identifiers.length === 0) return [];
@@ -1277,7 +1498,11 @@ function PipelinePageContent() {
         paperIds.push(resolved.paperId);
         if (resolved.message) messageByPaperId[resolved.paperId] = resolved.message;
       } catch (error) {
-        setReadingJobError(error instanceof Error ? error.message : "无法识别输入");
+        setReadingJobError(
+          error instanceof Error
+            ? error.message
+            : copy("Could not recognize the input.", "无法识别输入")
+        );
         return [];
       }
     }
@@ -1290,15 +1515,27 @@ function PipelinePageContent() {
       loadLibraries();
     }
     return normalizedPaperIds;
-  }, [enqueuePapers, fetchImportHistory, fetchStatus, loadLibraries, resolveIdentifierToPaperId]);
+  }, [copy, enqueuePapers, fetchImportHistory, fetchStatus, loadLibraries, resolveIdentifierToPaperId]);
 
   const handleStartQueue = useCallback(async () => {
-    if (!selectedLibraryId) return;
+    if (!selectedLibraryId) {
+      setReadingJobError(copy("Choose a target library first.", "请先选择目标文献库。"));
+      return;
+    }
     const paperIds = readingQueue
       .filter((item) => item.status === "queued")
       .map((item) => item.paperId);
-    if (paperIds.length === 0) return;
+    if (paperIds.length === 0) {
+      setReadingJobError(
+        copy(
+          "No papers are waiting. Upload a PDF, enter an NBER ID or DOI, or retry a failed item.",
+          "没有待读取的论文。请先上传 PDF、输入 NBER ID / DOI，或重试失败项。"
+        )
+      );
+      return;
+    }
     setReadingJobError("");
+    setQueueListOpen(true);
     try {
       const resp = await fetch(`${API_URL}/api/reading-jobs`, {
         method: "POST",
@@ -1318,11 +1555,15 @@ function PipelinePageContent() {
       if (!resp.ok) {
         throw new Error(data?.detail ?? data?.error ?? `HTTP ${resp.status}`);
       }
-      applyReadingJob(data.job as ReadingJob);
+      applyReadingJob(data.job as ReadingJob, { revealItems: true });
     } catch (error) {
-      setReadingJobError(error instanceof Error ? error.message : "无法创建 AI 读取任务");
+      setReadingJobError(
+        error instanceof Error
+          ? error.message
+          : copy("Could not create the AI reading job.", "无法创建 AI 读取任务")
+      );
     }
-  }, [analysisFocuses, applyReadingJob, buildAnalysisFocusPromptMap, customReadingInstructions, readingProfile, readingQueue, selectedLibraryId, updateGraphAfterReading, updateIdeasAfterReading]);
+  }, [analysisFocuses, applyReadingJob, buildAnalysisFocusPromptMap, copy, customReadingInstructions, readingProfile, readingQueue, selectedLibraryId, updateGraphAfterReading, updateIdeasAfterReading]);
 
   const handleStopQueue = useCallback(async () => {
     if (!activeReadingJob) return;
@@ -1335,22 +1576,26 @@ function PipelinePageContent() {
       if (!resp.ok) {
         throw new Error(data?.detail ?? data?.error ?? `HTTP ${resp.status}`);
       }
-      applyReadingJob(data.job as ReadingJob);
+      applyReadingJob(data.job as ReadingJob, { revealItems: true });
     } catch (error) {
-      setReadingJobError(error instanceof Error ? error.message : "无法中止 AI 读取任务");
+      setReadingJobError(
+        error instanceof Error
+          ? error.message
+          : copy("Could not stop the AI reading job.", "无法中止 AI 读取任务")
+      );
     }
-  }, [activeReadingJob, applyReadingJob]);
+  }, [activeReadingJob, applyReadingJob, copy]);
 
   const handleRetryQueueItem = useCallback(
     (itemId: string) => {
       updateQueueItem(itemId, {
         status: "queued",
-        step: "等待读取",
+        step: copy("Waiting to read", "等待读取"),
         message: "",
         completedAt: undefined,
       });
     },
-    [updateQueueItem]
+    [copy, updateQueueItem]
   );
 
   const handleCancelQueueItem = useCallback(
@@ -1365,7 +1610,7 @@ function PipelinePageContent() {
         setReadingQueue((prev) =>
           prev.map((entry) =>
             entry.status === "queued" || entry.status === "running"
-              ? { ...entry, status: "cancelled", step: "已取消", completedAt: now }
+              ? { ...entry, status: "cancelled", step: copy("Cancelled", "已取消"), completedAt: now }
               : entry
           )
         );
@@ -1373,11 +1618,11 @@ function PipelinePageContent() {
       }
       updateQueueItem(itemId, {
         status: "cancelled",
-        step: "已取消",
+        step: copy("Cancelled", "已取消"),
         completedAt: new Date().toISOString(),
       });
     },
-    [handleStopQueue, updateQueueItem]
+    [copy, handleStopQueue, updateQueueItem]
   );
 
   const handleClearFinishedQueue = useCallback(() => {
@@ -1425,11 +1670,15 @@ function PipelinePageContent() {
         },
       }));
     } catch (error) {
-      setReadingOutputError(error instanceof Error ? error.message : "无法读取结构化卡片");
+      setReadingOutputError(
+        error instanceof Error
+          ? error.message
+          : copy("Could not load the structured card.", "无法读取结构化卡片")
+      );
     } finally {
       setReadingOutputLoadingId(null);
     }
-  }, [expandedReadingPaperId, readingOutputByPaperId, selectedLibraryId]);
+  }, [copy, expandedReadingPaperId, readingOutputByPaperId, selectedLibraryId]);
 
   const queuedCount = readingQueue.filter((item) => item.status === "queued").length;
   const runningCount = readingQueue.filter((item) => item.status === "running").length;
@@ -1437,6 +1686,16 @@ function PipelinePageContent() {
     (item) => item.status === "done" || item.status === "error" || item.status === "cancelled"
   ).length;
   const queueRunning = activeReadingJob?.status === "queued" || activeReadingJob?.status === "running";
+  const startQueueDisabledReason = queueRunning
+    ? copy("A reading job is already running.", "当前已有读取任务正在运行。")
+    : !selectedLibraryId
+      ? copy("Choose a target library first.", "请先选择目标文献库。")
+      : queuedCount === 0
+        ? copy(
+            "Upload a PDF, enter an NBER ID or DOI, or retry a failed item first.",
+            "请先上传 PDF、输入 NBER ID / DOI，或重试失败项。"
+          )
+        : "";
   const jobProgressPercent =
     activeReadingJob && activeReadingJob.requested > 0
       ? Math.round((activeReadingJob.processed / activeReadingJob.requested) * 100)
@@ -1612,6 +1871,11 @@ function PipelinePageContent() {
   const handleUpload = async (paperIdOverride = "") => {
     if (!uploadFile) return null;
 
+    if (!isPdfFile(uploadFile)) {
+      setUploadError(copy("Choose a PDF file.", "请选择 PDF 文件。"));
+      return null;
+    }
+
     // 50 MB limit
     if (uploadFile.size > 50 * 1024 * 1024) {
       setUploadError("File too large. Maximum is 50 MB.");
@@ -1640,18 +1904,29 @@ function PipelinePageContent() {
         method: "POST",
         body: formData,
       });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
-      if (data.error) {
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) {
+        throw new Error(data?.detail ?? data?.error ?? `HTTP ${resp.status}`);
+      }
+      const paperIdFromResponse = String(data?.paper_id ?? "").trim();
+      const status = String(data?.status ?? "");
+      const canContinue = (status === "registered" || status === "duplicate") && paperIdFromResponse;
+      if (!canContinue) {
         setUploadStatus("error");
-        setUploadError(data.error);
+        setUploadError(
+          data?.error ??
+            copy(
+              "The PDF was uploaded, but the server did not return a readable paper ID.",
+              "PDF 已上传，但没有返回可读取的 paper_id。"
+            )
+        );
       } else {
         setUploadStatus("done");
         setUploadResult(data);
         fetchStatus();
         fetchImportHistory();
         loadLibraries();
-        return String(data.paper_id ?? "").trim() || null;
+        return data;
       }
     } catch (err) {
       setUploadStatus("error");
@@ -1665,9 +1940,17 @@ function PipelinePageContent() {
   const handleFolderUpload = async (files: FileList | null) => {
     if (!files || files.length === 0 || !selectedLibraryId) return;
 
+    const pdfFiles = Array.from(files).filter(isPdfFile);
+    if (pdfFiles.length === 0) {
+      setUploadError(copy("This folder contains no importable PDFs.", "这个文件夹里没有可导入的 PDF。"));
+      return;
+    }
+
     setBatchUploading(true);
     setBatchResult(null);
     setUploadError("");
+    setDoiMessage("");
+    setRecentImportedPapers([]);
 
     const formData = new FormData();
     formData.append("library_id", String(selectedLibraryId));
@@ -1675,11 +1958,9 @@ function PipelinePageContent() {
     formData.append("analysis_focuses", serializeFocuses());
     formData.append("analysis_focus_prompts", serializeFocusPrompts());
     formData.append("custom_reading_instructions", customReadingInstructions);
-    Array.from(files)
-      .filter((file) => file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"))
-      .forEach((file) => {
-        formData.append("files", file);
-      });
+    pdfFiles.forEach((file) => {
+      formData.append("files", file);
+    });
 
     try {
       const resp = await fetch(`${API_URL}/api/pipeline/upload-batch`, {
@@ -1689,6 +1970,33 @@ function PipelinePageContent() {
       const data = await resp.json().catch(() => null);
       if (!resp.ok) throw new Error(data?.detail ?? `HTTP ${resp.status}`);
       setBatchResult(data);
+      const queueableResults = ((data?.results ?? []) as BatchUploadResult["results"]).filter(
+        (item) => (item.status === "registered" || item.status === "duplicate") && item.paper_id
+      );
+      const queueablePaperIds = normalizePaperIds(...queueableResults.map((item) => item.paper_id));
+      if (queueablePaperIds.length > 0 && readingProfile !== "metadata_only") {
+        const messageByPaperId = Object.fromEntries(
+          queueableResults.map((item) => [
+            String(item.paper_id).toLowerCase(),
+            item.status === "duplicate"
+              ? copy("The PDF already exists and was added to the reading queue.", "PDF 已存在，已加入读取队列。")
+              : copy("The PDF was imported, cached, and added to the reading queue.", "PDF 已导入并生成文本缓存，已加入读取队列。"),
+          ])
+        );
+        enqueuePapers(queueablePaperIds, messageByPaperId);
+        setQueueListOpen(true);
+        setRecentImportedPapers(
+          queueablePaperIds.map((paperId) => ({ paperId, note: messageByPaperId[paperId] }))
+        );
+        setDoiMessage(
+          copy(
+            `Imported ${queueablePaperIds.length} PDFs and added them to the queue. Confirm the settings, then click Start reading.`,
+            `已导入 ${queueablePaperIds.length} 篇 PDF 并加入下方读取队列。确认读取设置后，点击“开始读取”。`
+          )
+        );
+      } else if (readingProfile === "metadata_only") {
+        setDoiMessage(copy("The PDFs were registered as metadata only; AI reading is not required.", "PDF 已登记为元数据模式，不需要运行 AI 读取。"));
+      }
       fetchStatus();
       fetchImportHistory();
       loadLibraries();
@@ -1702,15 +2010,20 @@ function PipelinePageContent() {
   const handleImportLiterature = async () => {
     const identifiers = splitQueueIdentifiers(importIdentifier);
     if (!selectedLibraryId) {
-      setUploadError("请先选择目标文献库。");
+      setUploadError(copy("Choose a target library first.", "请先选择目标文献库。"));
       return;
     }
     if (!uploadFile && identifiers.length === 0) {
-      setUploadError("请输入 NBER ID / DOI，或上传 PDF。");
+      setUploadError(copy("Enter an NBER ID or DOI, or upload a PDF.", "请输入 NBER ID / DOI，或上传 PDF。"));
       return;
     }
     if (uploadFile && identifiers.length > 1) {
-      setUploadError("上传单个 PDF 时只能绑定一个 NBER ID 或 DOI。");
+      setUploadError(
+        copy(
+          "A single PDF can be linked to only one NBER ID or DOI.",
+          "上传单个 PDF 时只能绑定一个 NBER ID 或 DOI。"
+        )
+      );
       return;
     }
     setDoiLoading(true);
@@ -1724,13 +2037,30 @@ function PipelinePageContent() {
           const resolved = await resolveIdentifierToPaperId(identifiers[0]);
           paperId = resolved.paperId;
         }
-        const uploadedPaperId = await handleUpload(paperId);
+        const uploadData = await handleUpload(paperId);
+        const uploadedPaperId = String(uploadData?.paper_id ?? "").trim().toLowerCase();
         if (uploadedPaperId) {
           setImportIdentifier("");
-          setRecentImportedPapers([{ paperId: uploadedPaperId, note: "PDF 已导入并生成文本缓存" }]);
-          setDoiMessage(
-            "PDF 已导入并生成文本缓存。需要批量重读时，可在下方加入队列并点击开始读取。"
-          );
+          if (readingProfile === "metadata_only") {
+            setRecentImportedPapers([
+              { paperId: uploadedPaperId, note: copy("Registered as metadata only", "已登记为元数据模式") },
+            ]);
+            setDoiMessage(copy("The PDF was registered as metadata only; AI reading is not required.", "PDF 已登记为元数据模式，不需要运行 AI 读取。"));
+          } else {
+            const note =
+              uploadData?.status === "duplicate"
+                ? copy("The PDF already exists and was added to the reading queue.", "PDF 已存在，已加入读取队列。")
+                : copy("The PDF was imported, cached, and added to the reading queue.", "PDF 已导入并生成文本缓存，已加入读取队列。");
+            enqueuePapers([uploadedPaperId], { [uploadedPaperId]: note });
+            setQueueListOpen(true);
+            setRecentImportedPapers([{ paperId: uploadedPaperId, note }]);
+            setDoiMessage(
+              copy(
+                "The PDF was added to the queue. Confirm the settings, then click Start reading.",
+                "PDF 已加入下方读取队列。确认读取设置后，点击“开始读取”。"
+              )
+            );
+          }
         }
         return;
       }
@@ -1739,15 +2069,18 @@ function PipelinePageContent() {
       if (paperIds.length > 0) {
         setImportIdentifier("");
         setRecentImportedPapers(
-          paperIds.map((paperId) => ({ paperId, note: "已加入读取队列" }))
+          paperIds.map((paperId) => ({ paperId, note: copy("Added to reading queue", "已加入读取队列") }))
         );
         setDoiMessage(
-          `已导入 ${paperIds.length} 篇文献并加入下方读取队列。确认读取设置后，点击“开始读取”。`
+          copy(
+            `Imported ${paperIds.length} papers and added them to the queue. Confirm the settings, then click Start reading.`,
+            `已导入 ${paperIds.length} 篇文献并加入下方读取队列。确认读取设置后，点击“开始读取”。`
+          )
         );
       }
     } catch (err) {
       setDoiMessage("");
-      setUploadError(err instanceof Error ? err.message : "导入文献失败");
+      setUploadError(err instanceof Error ? err.message : copy("Paper import failed.", "导入文献失败"));
     } finally {
       setDoiLoading(false);
     }
@@ -1757,11 +2090,13 @@ function PipelinePageContent() {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file && file.type === "application/pdf") {
+    if (file && isPdfFile(file)) {
       setUploadFile(file);
       setUploadStatus("idle");
       setUploadError("");
       setUploadResult(null);
+    } else if (file) {
+      setUploadError(copy("Choose a PDF file.", "请选择 PDF 文件。"));
     }
   };
 
@@ -1858,17 +2193,17 @@ function PipelinePageContent() {
         <div className="grid gap-2">
           <label
             className="grid grid-cols-[3.2rem_minmax(0,1fr)] items-center gap-2"
-            title={PAPER_KIND_OPTIONS.find((option) => option.value === paperKind)?.description}
+            title={isZh ? PAPER_KIND_OPTIONS.find((option) => option.value === paperKind)?.description : PAPER_KIND_OPTIONS.find((option) => option.value === paperKind)?.descriptionEn}
           >
-            <span className="text-sm font-medium text-[var(--ink-4)]">类型</span>
+            <span className="text-sm font-medium text-[var(--ink-4)]">{copy("Type", "类型")}</span>
             <Select value={paperKind} onValueChange={(value) => setPaperKind(value as PaperKind)}>
               <SelectTrigger className="lit-control-select h-9 text-sm">
-                <SelectValue placeholder="论文类型" />
+                <SelectValue placeholder={copy("Paper type", "论文类型")} />
               </SelectTrigger>
               <SelectContent>
                 {PAPER_KIND_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                    {isZh ? option.label : option.labelEn}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1877,17 +2212,17 @@ function PipelinePageContent() {
 
           <label
             className="grid grid-cols-[3.2rem_minmax(0,1fr)] items-center gap-2"
-            title={READING_DEPTH_OPTIONS.find((option) => option.value === readingDepth)?.description}
+            title={isZh ? READING_DEPTH_OPTIONS.find((option) => option.value === readingDepth)?.description : READING_DEPTH_OPTIONS.find((option) => option.value === readingDepth)?.descriptionEn}
           >
-            <span className="text-sm font-medium text-[var(--ink-4)]">深度</span>
+            <span className="text-sm font-medium text-[var(--ink-4)]">{copy("Depth", "深度")}</span>
             <Select value={readingDepth} onValueChange={(value) => setReadingDepth(value as ReadingDepth)}>
               <SelectTrigger className="lit-control-select h-9 text-sm">
-                <SelectValue placeholder="阅读深度" />
+                <SelectValue placeholder={copy("Reading depth", "阅读深度")} />
               </SelectTrigger>
               <SelectContent>
                 {READING_DEPTH_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                    {isZh ? option.label : option.labelEn}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1896,20 +2231,25 @@ function PipelinePageContent() {
 
           <label
             className="grid grid-cols-[3.2rem_minmax(0,1fr)] items-center gap-2"
-            title={selectedReadingProfile?.description ?? "选择读取方式和默认关注方向。"}
+            title={selectedReadingProfile?.description ?? copy("Choose a reading mode and default focus areas.", "选择读取方式和默认关注方向。")}
           >
-            <span className="text-sm font-medium text-[var(--ink-4)]">方式</span>
+            <span className="text-sm font-medium text-[var(--ink-4)]">{copy("Mode", "方式")}</span>
             <Select
               value={readingProfile}
               onValueChange={(value) => {
                 setReadingProfile(value);
                 if (value === "custom" && !customReadingInstructions.trim()) {
-                  setCustomReadingInstructions("按我在下方选择和编辑的维度读取论文，并优先输出可复用的结构化发现。");
+                  setCustomReadingInstructions(
+                    copy(
+                      "Read the paper using the dimensions selected and edited below, prioritizing reusable structured findings.",
+                      "按我在下方选择和编辑的维度读取论文，并优先输出可复用的结构化发现。"
+                    )
+                  );
                 }
               }}
             >
               <SelectTrigger className="lit-control-select h-9 text-sm">
-                <SelectValue placeholder="读取方式" />
+                <SelectValue placeholder={copy("Reading mode", "读取方式")} />
               </SelectTrigger>
               <SelectContent>
                 {readingProfileOptions.map((option) => (
@@ -1925,14 +2265,14 @@ function PipelinePageContent() {
         <button
           type="button"
           onClick={() => setReadingProfile(readingProfile === "section_batch" ? "auto" : "section_batch")}
-          title="长论文可先按 Introduction、Data、Results 等小节逐段读取，再汇总成结构化卡片。速度更慢，但覆盖更完整。"
+          title={copy("Read long papers section by section before merging them into a structured card. This is slower but improves coverage.", "长论文可先按 Introduction、Data、Results 等小节逐段读取，再汇总成结构化卡片。速度更慢，但覆盖更完整。")}
           className={`mt-3 flex w-full items-center justify-between rounded-[var(--r)] border px-3 py-2 text-left text-sm ${
             readingProfile === "section_batch"
               ? "border-[var(--forest)]/70 bg-[var(--paper-2)] text-[var(--ink)]"
               : "border-[var(--line-soft)] bg-[var(--paper)]/60 text-[var(--ink-4)] hover:text-[var(--ink)]"
           }`}
         >
-          <span className="font-medium">长文分节读取</span>
+          <span className="font-medium">{copy("Section-by-section reading", "长文分节读取")}</span>
           <span className="font-mono text-xs">{readingProfile === "section_batch" ? "ON" : "OFF"}</span>
         </button>
 
@@ -1940,7 +2280,7 @@ function PipelinePageContent() {
           <button
             type="button"
             onClick={() => setUpdateGraphAfterReading((value) => !value)}
-            title="开启后，队列读完会运行 Linker，把新 paper cards 合并进 Graph/Atlas maps。关闭后只更新论文卡片和 atoms。"
+            title={copy("After the queue finishes, run Linker to merge new paper cards into Graph and Atlas. When off, only cards and atoms are updated.", "开启后，队列读完会运行 Linker，把新 paper cards 合并进 Graph/Atlas maps。关闭后只更新论文卡片和 atoms。")}
             className={`flex w-full items-center justify-between rounded-[var(--r)] border px-3 py-2 text-left text-sm ${
               updateGraphAfterReading
                 ? "border-[var(--forest)]/70 bg-[var(--paper-2)] text-[var(--ink)]"
@@ -1949,7 +2289,7 @@ function PipelinePageContent() {
           >
             <span className="flex min-w-0 items-center gap-2 font-medium">
               <Network className="h-3.5 w-3.5 shrink-0" />
-              <span>读完更新 Graph</span>
+              <span>{copy("Update Graph after reading", "读完更新 Graph")}</span>
             </span>
             <span className="font-mono text-xs">{updateGraphAfterReading ? "ON" : "OFF"}</span>
           </button>
@@ -1957,7 +2297,7 @@ function PipelinePageContent() {
           <button
             type="button"
             onClick={() => setUpdateIdeasAfterReading((value) => !value)}
-            title="开启后，队列读完会基于 Graph/Atlas 运行 Thinker 和 Critic，生成并评估 Ideas；如果有新论文尚未入图，后端会先运行 Linker。"
+            title={copy("After the queue finishes, run Thinker and Critic over Graph and Atlas to generate and evaluate ideas. Linker runs first when needed.", "开启后，队列读完会基于 Graph/Atlas 运行 Thinker 和 Critic，生成并评估 Ideas；如果有新论文尚未入图，后端会先运行 Linker。")}
             className={`flex w-full items-center justify-between rounded-[var(--r)] border px-3 py-2 text-left text-sm ${
               updateIdeasAfterReading
                 ? "border-[var(--forest)]/70 bg-[var(--paper-2)] text-[var(--ink)]"
@@ -1966,7 +2306,7 @@ function PipelinePageContent() {
           >
             <span className="flex min-w-0 items-center gap-2 font-medium">
               <Sparkles className="h-3.5 w-3.5 shrink-0" />
-              <span>读完更新 Ideas</span>
+              <span>{copy("Update Ideas after reading", "读完更新 Ideas")}</span>
             </span>
             <span className="font-mono text-xs">{updateIdeasAfterReading ? "ON" : "OFF"}</span>
           </button>
@@ -1974,7 +2314,7 @@ function PipelinePageContent() {
 
         <div className="mt-3 rounded-[var(--r)] border border-[var(--line-soft)] p-2">
           <div className="mb-1.5 flex items-center justify-between gap-2">
-            <span className="text-sm font-medium text-[var(--ink-4)]">推荐</span>
+            <span className="text-sm font-medium text-[var(--ink-4)]">{copy("Recommended", "推荐")}</span>
             <span className="lit-chip-muted">{recommendedFocusOptions.length}</span>
           </div>
           <div className="max-h-24 overflow-auto pr-1">
@@ -1992,10 +2332,10 @@ function PipelinePageContent() {
             size="sm"
             onClick={applyRecommendedFocuses}
             className="mt-2 h-8 w-full gap-1.5 px-2 text-sm"
-            title="按当前论文类型和阅读深度替换选中维度。"
+            title={copy("Replace the selected dimensions using the current paper type and reading depth.", "按当前论文类型和阅读深度替换选中维度。")}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            应用推荐
+            {copy("Apply recommendation", "应用推荐")}
           </Button>
         </div>
 
@@ -2003,7 +2343,7 @@ function PipelinePageContent() {
           <textarea
             value={customReadingInstructions}
             onChange={(event) => setCustomReadingInstructions(event.target.value)}
-            placeholder="自定义读取说明"
+            placeholder={copy("Custom reading instructions", "自定义读取说明")}
             className="mt-3 min-h-[74px] w-full resize-y rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)] outline-none focus:border-[var(--forest)]"
           />
         ) : null}
@@ -2011,7 +2351,7 @@ function PipelinePageContent() {
 
       <div className="lit-workbench min-w-0 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line-soft)] pb-2">
-          <p className="text-sm font-semibold text-[var(--ink)]">读取维度</p>
+          <p className="text-sm font-semibold text-[var(--ink)]">{copy("Reading dimensions", "读取维度")}</p>
           <div className="flex items-center gap-2">
             <span className="rounded-full border border-[var(--line-soft)] px-2.5 py-1 font-mono text-sm">
               {selectedAnalysisFocusOptions.length} / {analysisFocusOptions.length}
@@ -2023,14 +2363,14 @@ function PipelinePageContent() {
               onClick={() => setPromptEditorOpen((value) => !value)}
               disabled={selectedAnalysisFocusOptions.length === 0}
               className="h-8 gap-1.5 px-2.5 text-sm"
-              title="展开后可以修改每个选中维度的提示词。"
+              title={copy("Expand to edit the prompt for each selected dimension.", "展开后可以修改每个选中维度的提示词。")}
             >
               {promptEditorOpen ? (
                 <ChevronDown className="h-3.5 w-3.5" />
               ) : (
                 <ChevronRight className="h-3.5 w-3.5" />
               )}
-              编辑提示词
+              {copy("Edit prompts", "编辑提示词")}
             </Button>
           </div>
         </div>
@@ -2069,13 +2409,13 @@ function PipelinePageContent() {
           <Input
             value={newFocusLabel}
             onChange={(event) => setNewFocusLabel(event.target.value)}
-            placeholder="新增维度"
+            placeholder={copy("New dimension", "新增维度")}
             className="h-9 rounded-[var(--r)] text-sm"
           />
           <Input
             value={newFocusPrompt}
             onChange={(event) => setNewFocusPrompt(event.target.value)}
-            placeholder="这个维度具体让 AI 看什么"
+            placeholder={copy("What should the AI inspect for this dimension?", "这个维度具体让 AI 看什么")}
             className="h-9 rounded-[var(--r)] text-sm"
           />
           <Button
@@ -2086,7 +2426,7 @@ function PipelinePageContent() {
             disabled={!newFocusLabel.trim() || !newFocusPrompt.trim()}
             className="h-9 text-sm"
           >
-            添加
+            {copy("Add", "添加")}
           </Button>
         </div>
 
@@ -2094,7 +2434,7 @@ function PipelinePageContent() {
           <div className="mt-3 rounded-[var(--r)] border border-[var(--line-soft)]/80 bg-[var(--paper)] p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <p className="text-sm font-medium text-[var(--ink-4)]">选中维度</p>
+              <p className="text-sm font-medium text-[var(--ink-4)]">{copy("Selected dimensions", "选中维度")}</p>
               <Badge variant="outline" className="h-6 px-2 text-xs">
                 {selectedAnalysisFocusOptions.length}
               </Badge>
@@ -2111,7 +2451,7 @@ function PipelinePageContent() {
               disabled={analysisFocuses.length === 0}
               className="h-8 px-2.5 text-sm"
             >
-              清空
+              {copy("Clear", "清空")}
             </Button>
           </div>
 
@@ -2129,7 +2469,7 @@ function PipelinePageContent() {
                 }`}
               >
                 <span>{option.label}</span>
-                <span className="text-xs opacity-70">{option.category ?? "自定义"}</span>
+                <span className="text-xs opacity-70">{option.category ?? copy("Custom", "自定义")}</span>
               </button>
             ))}
           </div>
@@ -2141,7 +2481,7 @@ function PipelinePageContent() {
                   {activePromptOption.label}
                 </p>
                 <p className="mt-1 text-sm text-[var(--ink-4)]">
-                  {activePromptOption.category ?? "自定义"}
+                  {activePromptOption.category ?? copy("Custom", "自定义")}
                 </p>
               </div>
               <textarea
@@ -2173,7 +2513,7 @@ function PipelinePageContent() {
       <div className="lit-paper-head pb-4">
         <p className="lit-paper-id">Import desk</p>
         <h2 className="font-display mt-2 text-3xl text-[var(--ink)]">
-          导入中心
+          {copy("Import Center", "导入中心")}
         </h2>
       </div>
 
@@ -2199,7 +2539,7 @@ function PipelinePageContent() {
                 {library.name}
               </option>
             ))}
-            <option value={CREATE_LIBRARY_SELECT_VALUE}>+ 新增数据库</option>
+            <option value={CREATE_LIBRARY_SELECT_VALUE}>{copy("+ New library", "+ 新增数据库")}</option>
           </select>
         </div>
       )}
@@ -2214,22 +2554,22 @@ function PipelinePageContent() {
               <div className="min-w-0">
                 <CardTitle
                   className="text-lg font-semibold tracking-tight"
-                  title="先在上方导入 PDF、NBER ID 或 DOI，再用当前读取设置逐篇处理队列。"
+                  title={copy("Import a PDF, NBER ID, or DOI above, then process the queue with the current reading settings.", "先在上方导入 PDF、NBER ID 或 DOI，再用当前读取设置逐篇处理队列。")}
                 >
-                  AI 读取
+                  {copy("AI reading", "AI 读取")}
                 </CardTitle>
                 <p className="mt-1 text-sm text-[var(--ink-4)]">
                   {activeReadingJob
-                    ? `任务 ${activeReadingJob.id.slice(0, 8)} · ${activeReadingJob.processed}/${activeReadingJob.requested}`
-                    : "队列、进度、中止"}
+                    ? copy(`Job ${activeReadingJob.id.slice(0, 8)} · ${activeReadingJob.processed}/${activeReadingJob.requested}`, `任务 ${activeReadingJob.id.slice(0, 8)} · ${activeReadingJob.processed}/${activeReadingJob.requested}`)
+                    : copy("Queue, progress, and cancellation", "队列、进度、中止")}
                 </p>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2 sm:min-w-[330px]">
               {[
-                ["等待", queuedCount],
-                ["运行", runningCount],
-                ["结束", finishedCount],
+                [copy("Queued", "等待"), queuedCount],
+                [copy("Running", "运行"), runningCount],
+                [copy("Finished", "结束"), finishedCount],
               ].map(([label, value]) => (
                 <div
                   key={label}
@@ -2253,9 +2593,9 @@ function PipelinePageContent() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3
                 className="text-sm font-semibold text-[var(--ink)]"
-                title="先指定读取方法和维度，再启动队列。"
+                title={copy("Choose the reading method and dimensions before starting the queue.", "先指定读取方法和维度，再启动队列。")}
               >
-                读取设置
+                {copy("Reading settings", "读取设置")}
               </h3>
             </div>
             {readingSettingsContent}
@@ -2263,7 +2603,7 @@ function PipelinePageContent() {
 
           <div className="lit-workbench flex flex-col gap-3 p-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0 text-sm text-[var(--ink-4)]">
-              <span className="truncate">{aiSettingsLoading ? "正在读取模型设置..." : aiModelSummary}</span>
+              <span className="truncate">{aiSettingsLoading ? copy("Loading model settings...", "正在读取模型设置...") : aiModelSummary}</span>
               {aiSettingsMessage ? (
                 <span className="ml-2 text-[var(--forest)]">{aiSettingsMessage}</span>
               ) : null}
@@ -2276,9 +2616,15 @@ function PipelinePageContent() {
                         ? "text-[var(--forest)]"
                         : "text-[var(--ink-4)]"
                   }`}
-                  title={activeReadingJob?.post_reading_update?.message ?? `队列读完后更新 ${activePostUpdateTargets}`}
+                  title={
+                    activeReadingJob?.post_reading_update?.message
+                      ? localizeReadingJobText(activeReadingJob.post_reading_update.message, isZh)
+                      : copy(`Update ${activePostUpdateTargets} after the queue finishes`, `队列读完后更新 ${activePostUpdateTargets}`)
+                  }
                 >
-                  {activePostUpdateTargets}: {activeReadingJob?.post_reading_update?.step ?? "等待读取完成"}
+                  {activePostUpdateTargets}: {activeReadingJob?.post_reading_update?.step
+                    ? localizeReadingJobText(activeReadingJob.post_reading_update.step, isZh)
+                    : copy("Waiting for reading to finish", "等待读取完成")}
                 </span>
               ) : null}
             </div>
@@ -2288,13 +2634,14 @@ function PipelinePageContent() {
                 onClick={handleStartQueue}
                 disabled={queueRunning || queuedCount === 0 || !selectedLibraryId}
                 className="h-10 gap-2 px-5"
+                title={startQueueDisabledReason || copy(`Read ${queuedCount} papers`, `读取 ${queuedCount} 篇论文`)}
               >
                 {queueRunning ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Play className="h-4 w-4" />
                 )}
-                开始读取
+                {copy("Start reading", "开始读取")}
               </Button>
               <Button
                 type="button"
@@ -2302,10 +2649,10 @@ function PipelinePageContent() {
                 onClick={handleStopQueue}
                 disabled={!queueRunning}
                 className="h-10 gap-2"
-                title="请求中止当前任务，并停止继续处理后续队列。"
+                title={copy("Stop the current job and do not process the remaining queue.", "请求中止当前任务，并停止继续处理后续队列。")}
               >
                 <PauseCircle className="h-4 w-4" />
-                中止
+                {copy("Stop", "中止")}
               </Button>
               <Button
                 type="button"
@@ -2313,10 +2660,10 @@ function PipelinePageContent() {
                 onClick={handleClearFinishedQueue}
                 disabled={finishedCount === 0 || queueRunning}
                 className="h-10 gap-2"
-                title="清理已完成、失败或已取消的队列项。"
+                title={copy("Remove completed, failed, and cancelled queue items.", "清理已完成、失败或已取消的队列项。")}
               >
                 <Trash2 className="h-4 w-4" />
-                清理
+                {copy("Clear", "清理")}
               </Button>
               <Button
                 type="button"
@@ -2329,10 +2676,14 @@ function PipelinePageContent() {
                 className="h-10 gap-2"
               >
                 <SlidersHorizontal className="h-4 w-4" />
-                AI 模型
+                {copy("AI model", "AI 模型")}
               </Button>
             </div>
           </div>
+
+          {startQueueDisabledReason && !queueRunning ? (
+            <p className="-mt-2 text-sm text-[var(--ink-4)]">{startQueueDisabledReason}</p>
+          ) : null}
 
           {readingJobError ? (
             <div className="rounded-[var(--r)] border border-[#da9a80] bg-[#f4dfd5] px-3 py-2 text-sm text-[#8a3318]">
@@ -2342,7 +2693,7 @@ function PipelinePageContent() {
 
           {recentReadingJobs.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink-4)]">
-              <span className="font-medium text-[var(--ink)]">最近任务</span>
+              <span className="font-medium text-[var(--ink)]">{copy("Recent jobs", "最近任务")}</span>
               {recentReadingJobs.slice(0, 4).map((job) => (
                 <Button
                   key={job.id}
@@ -2355,10 +2706,10 @@ function PipelinePageContent() {
                     setQueueListOpen(sameJob ? !queueListOpen : true);
                   }}
                   className="h-8 gap-1.5 px-2.5 text-sm"
-                  title={`任务 ${job.id}，${job.processed}/${job.requested}`}
+                  title={copy(`Job ${job.id}, ${job.processed}/${job.requested}`, `任务 ${job.id}，${job.processed}/${job.requested}`)}
                 >
                   <span className="font-mono">{job.id.slice(0, 6)}</span>
-                  <span>{queueStatusLabel(job.status)}</span>
+                  <span>{queueStatusLabel(job.status, isZh)}</span>
                   <span>{job.processed}/{job.requested}</span>
                   {activeReadingJob?.id === job.id && queueListOpen ? (
                     <ChevronDown className="h-3.5 w-3.5" />
@@ -2389,18 +2740,26 @@ function PipelinePageContent() {
                           <span
                             className={`rounded-full border px-2 py-0.5 text-sm font-medium ${queueStatusClass(item.status)}`}
                           >
-                            {queueStatusLabel(item.status)}
+                            {queueStatusLabel(item.status, isZh)}
                           </span>
-                          <span className="text-sm text-[var(--ink-4)]">{item.step}</span>
+                          <span className="text-sm text-[var(--ink-4)]">
+                            {localizeReadingJobText(item.step, isZh)}
+                          </span>
                         </div>
                         {item.message ? (
-                          <button
-                            type="button"
-                            onClick={() => void handleToggleReadingOutput(item.paperId)}
-                            className="mt-1 text-left text-sm text-[var(--ink-4)] underline-offset-4 hover:text-[var(--ink)] hover:underline"
-                          >
-                            {item.message}
-                          </button>
+                          item.status === "done" ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleToggleReadingOutput(item.paperId)}
+                              className="mt-1 text-left text-sm text-[var(--ink-4)] underline-offset-4 hover:text-[var(--ink)] hover:underline"
+                            >
+                              {compactQueueMessage(localizeReadingJobText(item.message, isZh))}
+                            </button>
+                          ) : (
+                            <p className="mt-1 text-sm text-[var(--ink-4)]">
+                              {compactQueueMessage(localizeReadingJobText(item.message, isZh))}
+                            </p>
+                          )
                         ) : null}
                       </div>
                       <div className="flex items-center gap-1.5">
@@ -2417,7 +2776,7 @@ function PipelinePageContent() {
                             ) : (
                               <ChevronRight className="h-3.5 w-3.5" />
                             )}
-                            提取内容
+                            {copy("Extracted content", "提取内容")}
                           </Button>
                         ) : null}
                         {item.status === "error" || item.status === "cancelled" ? (
@@ -2429,7 +2788,7 @@ function PipelinePageContent() {
                             className="h-8 gap-1.5 px-2.5 text-sm"
                           >
                             <RotateCcw className="h-3.5 w-3.5" />
-                            重试
+                            {copy("Retry", "重试")}
                           </Button>
                         ) : null}
                         {item.status === "queued" || item.status === "running" ? (
@@ -2441,7 +2800,7 @@ function PipelinePageContent() {
                             className="h-8 gap-1.5 px-2.5 text-sm"
                           >
                             <XCircle className="h-3.5 w-3.5" />
-                            取消
+                            {copy("Cancel", "取消")}
                           </Button>
                         ) : null}
                       </div>
@@ -2451,7 +2810,7 @@ function PipelinePageContent() {
                         {readingOutputLoadingId === item.paperId ? (
                           <div className="flex items-center gap-2 text-sm text-[var(--ink-4)]">
                             <Loader2 className="h-4 w-4 animate-spin" />
-                            正在读取结构化卡片……
+                            {copy("Loading the structured card...", "正在读取结构化卡片……")}
                           </div>
                         ) : output ? (
                           <div className="space-y-3">
@@ -2460,7 +2819,7 @@ function PipelinePageContent() {
                                 {output.paper?.title || item.paperId}
                               </p>
                               <p className="mt-1 text-xs text-[var(--ink-4)]">
-                                {output.sections.length} 张结构化卡片
+                                {copy(`${output.sections.length} structured sections`, `${output.sections.length} 张结构化卡片`)}
                                 {output.processing?.reading_profile ? ` · ${output.processing.reading_profile}` : ""}
                               </p>
                             </div>
@@ -2481,12 +2840,12 @@ function PipelinePageContent() {
                                 ))}
                               </div>
                             ) : (
-                              <p className="text-sm text-[var(--ink-4)]">尚未生成结构化卡片。</p>
+                              <p className="text-sm text-[var(--ink-4)]">{copy("No structured card has been generated yet.", "尚未生成结构化卡片。")}</p>
                             )}
                           </div>
                         ) : (
                           <p className="text-sm text-[#8a3318]">
-                            {readingOutputError || "暂时无法读取结构化卡片。"}
+                            {readingOutputError || copy("The structured card is temporarily unavailable.", "暂时无法读取结构化卡片。")}
                           </p>
                         )}
                       </div>
@@ -2498,26 +2857,38 @@ function PipelinePageContent() {
           ) : readingQueue.length === 0 ? (
             <div
               className="flex min-h-[112px] items-center justify-center rounded-[var(--r)] border border-dashed border-[var(--line-soft)]/80 bg-[var(--paper)]/35 px-4 py-6 text-center"
-              title="从文献浏览器的论文操作菜单选择 AI 读取，或在这里输入 NBER ID / DOI。"
+              title={copy("Choose AI reading from a paper action menu, or enter an NBER ID or DOI here.", "从文献浏览器的论文操作菜单选择 AI 读取，或在这里输入 NBER ID / DOI。")}
             >
               <div>
                 <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] text-[var(--ink-4)]">
                   <FileText className="h-5 w-5" />
                 </div>
-                <p className="mt-3 text-sm font-medium text-[var(--ink)]">暂无待读取论文</p>
-                <p className="mt-1 text-sm text-[var(--ink-4)]">从文献浏览器加入，或输入 NBER ID / DOI。</p>
+                <p className="mt-3 text-sm font-medium text-[var(--ink)]">{copy("No papers are waiting", "暂无待读取论文")}</p>
+                <p className="mt-1 text-sm text-[var(--ink-4)]">{copy("Add papers from the library, or enter an NBER ID or DOI.", "从文献浏览器加入，或输入 NBER ID / DOI。")}</p>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              onClick={() => setQueueListOpen(true)}
+              className="flex w-full items-center justify-between rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-left text-sm text-[var(--ink-4)] hover:text-[var(--ink)]"
+            >
+              <span>{copy(`${readingQueue.length} papers in the queue`, `${readingQueue.length} 篇论文在队列中`)}</span>
+              <span className="inline-flex items-center gap-1">
+                {copy("Expand queue", "展开队列")}
+                <ChevronRight className="h-3.5 w-3.5" />
+              </span>
+            </button>
+          )}
         </CardContent>
       </Card>
 
       <Dialog open={aiModelDialogOpen} onOpenChange={setAiModelDialogOpen}>
         <DialogContent className="max-h-[86vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>AI 模型选择</DialogTitle>
+            <DialogTitle>{copy("AI model selection", "AI 模型选择")}</DialogTitle>
             <DialogDescription>
-              这些设置会写入全局 AI 配置，后续 Reader 和相关流程会按这里选择的模型运行。
+              {copy("These settings update the global AI configuration used by Reader and related pipeline steps.", "这些设置会写入全局 AI 配置，后续 Reader 和相关流程会按这里选择的模型运行。")}
             </DialogDescription>
           </DialogHeader>
 
@@ -2529,7 +2900,7 @@ function PipelinePageContent() {
                 onClick={() => setAiModelMode("unified")}
                 className="justify-start"
               >
-                统一模型
+                {copy("One model", "统一模型")}
               </Button>
               <Button
                 type="button"
@@ -2537,14 +2908,14 @@ function PipelinePageContent() {
                 onClick={() => setAiModelMode("per_step")}
                 className="justify-start"
               >
-                按流程设置
+                {copy("Per-step models", "按流程设置")}
               </Button>
             </div>
 
             {aiSettingsLoading ? (
               <div className="flex items-center gap-2 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] p-4 text-sm text-[var(--ink-4)]">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                正在读取 AI 配置
+                {copy("Loading AI configuration", "正在读取 AI 配置")}
               </div>
             ) : aiModelMode === "unified" ? (
               <div className="grid gap-3 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] p-4 md:grid-cols-[220px_minmax(0,1fr)]">
@@ -2552,7 +2923,7 @@ function PipelinePageContent() {
                   <p className="text-sm font-medium text-[var(--ink)]">Provider</p>
                   <Select value={unifiedProvider} onValueChange={setUnifiedProvider}>
                     <SelectTrigger>
-                      <SelectValue placeholder="选择 Provider" />
+                      <SelectValue placeholder={copy("Choose provider", "选择 Provider")} />
                     </SelectTrigger>
                     <SelectContent>
                       {aiProviders.map((provider) => (
@@ -2571,7 +2942,7 @@ function PipelinePageContent() {
                     placeholder={
                       providerSettingMap.get(unifiedProvider)?.default_model ||
                       aiProviders.find((provider) => provider.key === unifiedProvider)?.default_model ||
-                      "输入模型名称"
+                      copy("Enter model name", "输入模型名称")
                     }
                   />
                 </div>
@@ -2612,7 +2983,7 @@ function PipelinePageContent() {
                         placeholder={
                           providerSettingMap.get(config.provider)?.default_model ||
                           aiProviders.find((provider) => provider.key === config.provider)?.default_model ||
-                          "模型名称"
+                          copy("Model name", "模型名称")
                         }
                       />
                     </div>
@@ -2635,7 +3006,7 @@ function PipelinePageContent() {
               onClick={() => setAiModelDialogOpen(false)}
               disabled={aiSettingsSaving}
             >
-              取消
+              {copy("Cancel", "取消")}
             </Button>
             <Button
               type="button"
@@ -2644,7 +3015,7 @@ function PipelinePageContent() {
               className="gap-2"
             >
               {aiSettingsSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              保存
+              {copy("Save", "保存")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2653,54 +3024,68 @@ function PipelinePageContent() {
       <Dialog open={createLibraryOpen} onOpenChange={setCreateLibraryOpen}>
         <DialogContent className="max-h-[86vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>新增数据库</DialogTitle>
+            <DialogTitle>{copy("New library", "新增数据库")}</DialogTitle>
             <DialogDescription>
-              设定新的文献库名称、学科和存储位置。路径留空时会按名称自动创建。
+              {copy(
+                "Set the library name, discipline, and storage locations. Empty paths are created automatically from the name.",
+                "设定新的文献库名称、学科和存储位置。路径留空时会按名称自动创建。"
+              )}
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4">
             <div className="grid gap-2">
-              <label className="text-sm font-medium text-[var(--ink)]">数据库名称</label>
+              <label className="text-sm font-medium text-[var(--ink)]">
+                {copy("Library name", "数据库名称")}
+              </label>
               <Input
                 value={newLibraryName}
                 onChange={(event) => setNewLibraryName(event.target.value)}
-                placeholder="例如 Health Economics Library"
+                placeholder={copy("For example, Health Economics Library", "例如 Health Economics Library")}
               />
             </div>
             <div className="grid gap-2">
-              <label className="text-sm font-medium text-[var(--ink)]">学科 / 主题</label>
+              <label className="text-sm font-medium text-[var(--ink)]">
+                {copy("Discipline / topic", "学科 / 主题")}
+              </label>
               <Input
                 value={newLibraryDiscipline}
                 onChange={(event) => setNewLibraryDiscipline(event.target.value)}
-                placeholder="例如 Health Economics"
+                placeholder={copy("For example, Health Economics", "例如 Health Economics")}
               />
             </div>
             <div className="grid gap-2">
-              <label className="text-sm font-medium text-[var(--ink)]">说明</label>
+              <label className="text-sm font-medium text-[var(--ink)]">
+                {copy("Description", "说明")}
+              </label>
               <textarea
                 value={newLibraryDescription}
                 onChange={(event) => setNewLibraryDescription(event.target.value)}
-                placeholder="这个数据库主要收什么论文、服务什么研究场景"
+                placeholder={copy(
+                  "What papers belong here, and which research workflow does this library support?",
+                  "这个数据库主要收什么论文、服务什么研究场景"
+                )}
                 className="min-h-[84px] w-full resize-y rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)] outline-none focus:border-[var(--forest)]"
               />
             </div>
             <div className="grid gap-3 rounded-[var(--r)] border border-[var(--line-soft)] bg-[var(--paper)] p-3">
-              <p className="text-sm font-medium text-[var(--ink)]">高级路径</p>
+              <p className="text-sm font-medium text-[var(--ink)]">
+                {copy("Advanced paths", "高级路径")}
+              </p>
               <Input
                 value={newLibraryPapersDir}
                 onChange={(event) => setNewLibraryPapersDir(event.target.value)}
-                placeholder="PDF 目录，留空自动生成"
+                placeholder={copy("PDF directory; leave empty to create automatically", "PDF 目录，留空自动生成")}
               />
               <Input
                 value={newLibraryKnowledgeDir}
                 onChange={(event) => setNewLibraryKnowledgeDir(event.target.value)}
-                placeholder="知识库目录，留空自动生成"
+                placeholder={copy("Knowledge base directory; leave empty to create automatically", "知识库目录，留空自动生成")}
               />
               <Input
                 value={newLibraryAgentDbPath}
                 onChange={(event) => setNewLibraryAgentDbPath(event.target.value)}
-                placeholder="Agent DB 路径，留空自动生成"
+                placeholder={copy("Agent database path; leave empty to create automatically", "Agent DB 路径，留空自动生成")}
               />
             </div>
             {createLibraryError ? (
@@ -2717,7 +3102,7 @@ function PipelinePageContent() {
               onClick={() => setCreateLibraryOpen(false)}
               disabled={createLibraryLoading}
             >
-              取消
+              {copy("Cancel", "取消")}
             </Button>
             <Button
               type="button"
@@ -2726,7 +3111,7 @@ function PipelinePageContent() {
               className="gap-2"
             >
               {createLibraryLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              创建并切换
+              {copy("Create and switch", "创建并切换")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2929,7 +3314,7 @@ function PipelinePageContent() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold">
-              最近导入
+              {copy("Recent imports", "最近导入")}
             </CardTitle>
             <Button
               variant="ghost"
@@ -2947,11 +3332,11 @@ function PipelinePageContent() {
         </CardHeader>
         <CardContent>
           {!selectedLibraryId ? (
-            <p className="text-sm text-[var(--ink-4)]">选择文献库后查看导入历史。</p>
+            <p className="text-sm text-[var(--ink-4)]">{copy("Choose a library to view import history.", "选择文献库后查看导入历史。")}</p>
           ) : importsLoading && importHistory.length === 0 ? (
             <div className="flex items-center gap-2 text-sm text-[var(--ink-4)]">
               <Loader2 className="h-4 w-4 animate-spin" />
-              正在加载导入历史……
+              {copy("Loading import history...", "正在加载导入历史……")}
             </div>
           ) : importHistory.length > 0 ? (
             <div className="space-y-3">
@@ -2963,19 +3348,21 @@ function PipelinePageContent() {
                         {batch.source_label || batch.source_type}
                       </p>
                       <p className="text-xs text-[var(--ink-4)]">
-                        {new Date(batch.created_at).toLocaleString()} · {batch.source_type}
+                        {new Date(batch.created_at).toLocaleString(isZh ? "zh-CN" : "en-US")} · {batch.source_type}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs">
-                      <Badge variant="outline">{batch.total_files} 个文件</Badge>
+                      <Badge variant="outline">
+                        {copy(`${batch.total_files} files`, `${batch.total_files} 个文件`)}
+                      </Badge>
                       <Badge className="bg-[var(--forest-soft)] text-[var(--forest-2)] border-[var(--forest)]">
-                        {batch.imported_files} 已导入
+                        {copy(`${batch.imported_files} imported`, `${batch.imported_files} 已导入`)}
                       </Badge>
                       <Badge className="bg-[var(--paper-2)] text-[var(--ink-3)] border-[var(--line-soft)]">
-                        {batch.skipped_files} 已跳过
+                        {copy(`${batch.skipped_files} skipped`, `${batch.skipped_files} 已跳过`)}
                       </Badge>
                       <Badge className="bg-[#f4dfd5] text-[#8a3318] border-[#da9a80]">
-                        {batch.failed_files} 失败
+                        {copy(`${batch.failed_files} failed`, `${batch.failed_files} 失败`)}
                       </Badge>
                     </div>
                   </div>
@@ -2994,7 +3381,7 @@ function PipelinePageContent() {
             </div>
           ) : (
             <p className="text-sm text-[var(--ink-4)]">
-              这个文献库还没有导入历史。
+              {copy("This library has no import history yet.", "这个文献库还没有导入历史。")}
             </p>
           )}
         </CardContent>
@@ -3242,7 +3629,7 @@ function PipelinePageContent() {
       <Card className="order-1 border-[var(--line-soft)] bg-[var(--paper)]/80 shadow-none">
         <CardHeader className="border-b border-[var(--line-soft)] pb-3">
           <CardTitle className="text-sm font-semibold">
-            上传 PDF
+            {copy("Add papers", "上传 PDF")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 p-4">
@@ -3271,10 +3658,17 @@ function PipelinePageContent() {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  setUploadFile(file);
-                  setUploadStatus("idle");
-                  setUploadError("");
-                  setUploadResult(null);
+                  if (isPdfFile(file)) {
+                    setUploadFile(file);
+                    setUploadStatus("idle");
+                    setUploadError("");
+                    setUploadResult(null);
+                  } else {
+                    setUploadFile(null);
+                    setUploadStatus("idle");
+                    setUploadResult(null);
+                    setUploadError(copy("Choose a PDF file.", "请选择 PDF 文件。"));
+                  }
                 }
               }}
             />
@@ -3290,16 +3684,16 @@ function PipelinePageContent() {
               <div className="text-center">
                 <Upload className="mx-auto h-7 w-7 text-[var(--ink-4)]" />
                 <p className="mt-2 text-sm text-[var(--ink-4)]">
-                  拖入 PDF，或点击选择文件
+                  {copy("Drop a PDF here, or click to choose a file", "拖入 PDF，或点击选择文件")}
                 </p>
-                <p className="mt-1 text-xs text-[var(--ink-4)]">最大 50 MB</p>
+                <p className="mt-1 text-xs text-[var(--ink-4)]">{copy("Maximum 50 MB", "最大 50 MB")}</p>
               </div>
             )}
           </div>
 
           <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
             <Input
-              placeholder="NBER ID 或 DOI（如 w35000 或 10.xxxx/xxxx）"
+              placeholder={copy("NBER ID or DOI (for example w35000 or 10.xxxx/xxxx)", "NBER ID 或 DOI（如 w35000 或 10.xxxx/xxxx）")}
               value={importIdentifier}
               onChange={(e) => setImportIdentifier(e.target.value)}
               className="h-10 min-w-0 rounded-[var(--r)] font-mono text-sm"
@@ -3323,7 +3717,7 @@ function PipelinePageContent() {
               ) : (
                 <FileText className="h-4 w-4" />
               )}
-              导入文献
+              {copy("Import paper", "导入文献")}
             </Button>
             <Button
               type="button"
@@ -3337,7 +3731,7 @@ function PipelinePageContent() {
               ) : (
                 <FileText className="h-4 w-4" />
               )}
-              导入文件夹
+              {copy("Import folder", "导入文件夹")}
             </Button>
             <input
               ref={folderInputRef}
@@ -3353,7 +3747,7 @@ function PipelinePageContent() {
             />
           </div>
           <p className="text-xs text-[var(--ink-4)]">
-            流程：先在这里导入 PDF、NBER ID 或 DOI；系统会自动识别并登记。随后在下方确认读取维度，点击“开始读取”处理队列。
+            {copy("Import a PDF, NBER ID, or DOI here. The app detects and registers it, then adds it to the queue. Confirm the reading dimensions and click Start reading.", "流程：先在这里导入 PDF、NBER ID 或 DOI；系统会自动识别并登记。随后在下方确认读取维度，点击“开始读取”处理队列。")}
           </p>
           {doiMessage ? (
             <div className="rounded-[var(--r)] border border-[#bccbe0] bg-[#e9eef6] p-3 text-sm text-[#1b2e4d]">
@@ -3377,29 +3771,32 @@ function PipelinePageContent() {
           {/* Upload result */}
           {uploadStatus === "done" && uploadResult && (
             <div className="rounded-[var(--r)] border border-[var(--forest)] bg-[var(--forest-soft)] p-3 text-sm text-[var(--forest-2)]">
-              <p className="font-medium">上传成功</p>
+              <p className="font-medium">{copy("Upload complete", "上传成功")}</p>
               <p className="mt-1 text-xs">
-                论文 ID：<span className="font-mono">{uploadResult.paper_id ?? ""}</span>
-                {" "}&middot; 状态：{uploadResult.status ?? ""}
+                {copy("Paper ID:", "论文 ID：")} <span className="font-mono">{uploadResult.paper_id ?? ""}</span>
+                {" "}&middot; {copy("Status:", "状态：")} {uploadResult.status ?? ""}
               </p>
               {uploadResult.reading_profile ? (
                 <p className="mt-1 text-xs">
-                  阅读方案：<span className="font-medium">{uploadResult.reading_profile}</span>
+                  {copy("Reading profile:", "阅读方案：")} <span className="font-medium">{uploadResult.reading_profile}</span>
                 </p>
               ) : null}
               {uploadResult.text_cache ? (
                 <p className="mt-1 text-xs">
-                  文本缓存：
+                  {copy("Text cache:", "文本缓存：")}
                   {uploadResult.text_cache.status === "ok" ? (
                     <>
-                      预览 {uploadResult.text_cache.scout_chars?.toLocaleString() ?? 0} 字
+                      {copy("Preview", "预览")} {uploadResult.text_cache.scout_chars?.toLocaleString() ?? 0} {copy("characters", "字")}
                       {uploadResult.text_cache.full_chars != null
-                        ? ` · full ${uploadResult.text_cache.full_chars.toLocaleString()} 字`
+                        ? copy(
+                            ` · full ${uploadResult.text_cache.full_chars.toLocaleString()} characters`,
+                            ` · full ${uploadResult.text_cache.full_chars.toLocaleString()} 字`
+                          )
                         : ""}
                     </>
                   ) : (
                     <span className="text-[#7a5a18]">
-                      生成失败：{uploadResult.text_cache.error ?? "unknown"}
+                      {copy("Generation failed:", "生成失败：")} {uploadResult.text_cache.error ?? "unknown"}
                     </span>
                   )}
                 </p>
@@ -3415,13 +3812,18 @@ function PipelinePageContent() {
           {batchResult && (
             <div className="rounded-[var(--r)] border border-[#bccbe0] bg-[#e9eef6] p-3 text-sm text-[#1b2e4d]">
               <p className="font-medium">
-                批量导入完成：{batchResult.imported_files} 个已导入，{batchResult.skipped_files} 个已跳过，{batchResult.failed_files} 个失败
+                {copy(
+                  `Batch import complete: ${batchResult.imported_files} imported, ${batchResult.skipped_files} skipped, ${batchResult.failed_files} failed`,
+                  `批量导入完成：${batchResult.imported_files} 个已导入，${batchResult.skipped_files} 个已跳过，${batchResult.failed_files} 个失败`
+                )}
               </p>
               <div className="mt-2 max-h-40 overflow-auto space-y-1 text-xs">
                 {batchResult.results.map((item) => (
                   <div key={`${item.filename}-${item.paper_id ?? ""}`} className="flex items-center justify-between gap-3">
                     <span className="truncate">{item.filename}</span>
-                    <span className="shrink-0 font-medium">{item.status ?? "未知"}</span>
+                    <span className="shrink-0 font-medium">
+                      {item.status ?? copy("Unknown", "未知")}
+                    </span>
                   </div>
                 ))}
               </div>

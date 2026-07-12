@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { User, Bot, Microscope, GitBranch, Copy, Check } from "lucide-react";
-import { buildPaperSetGraphHref } from "@/lib/navigation";
+import { buildPaperDetailHref, buildPaperSetGraphHref } from "@/lib/navigation";
+import { INLINE_PAPER_ID_SOURCE } from "@/lib/paper-identifiers";
 import { cn } from "@/lib/utils";
 import { ContextPanel, type ContextItem } from "./context-panel";
 import { CitationBadges } from "./citation-badges";
@@ -31,7 +32,10 @@ function renderContent(text: string) {
 
   return lines.map((line, lineIdx) => {
     // Combine bold and paper-id into a single pass
-    const COMBINED_RE = /(\*\*(.+?)\*\*)|(\b(w\d{4,6})\b)/g;
+    const COMBINED_RE = new RegExp(
+      `(\\*\\*(.+?)\\*\\*)|(\\b(${INLINE_PAPER_ID_SOURCE})\\b)`,
+      "g"
+    );
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -52,7 +56,7 @@ function renderContent(text: string) {
         parts.push(
           <Link
             key={`p-${lineIdx}-${match.index}`}
-            href={`/paper/${match[4]}`}
+            href={buildPaperDetailHref({ paperId: match[4] })}
             className="inline-flex items-baseline rounded-full bg-[var(--forest-soft)] px-2 py-0.5 font-mono text-sm font-medium text-[var(--forest)] no-underline hover:bg-[var(--forest-soft)]"
           >
             {match[4]}

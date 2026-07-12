@@ -32,37 +32,6 @@ type YearCount = {
   count: number;
 };
 
-const hubRows = [
-  {
-    title: "Paper",
-    href: "/library",
-    icon: FileText,
-    description: "15-dim score, sections, atoms.",
-    metric: "312 CARDS",
-  },
-  {
-    title: "Graph",
-    href: "/graph",
-    icon: Network,
-    description: "Force · radial · cluster · timeline.",
-    metric: "2,941 EDGES",
-  },
-  {
-    title: "Atlas",
-    href: "/explorer",
-    icon: LayoutGrid,
-    description: "Methods · mechanisms · datasets.",
-    metric: "1,184 ATOMS",
-  },
-  {
-    title: "Gaps",
-    href: "/research",
-    icon: Layers,
-    description: "Open questions and threads.",
-    metric: "12 ACTIVE",
-  },
-] as const;
-
 const copy = {
   en: {
     mastRight: "PERSONAL CORPUS · 742 PAPERS",
@@ -263,6 +232,36 @@ export default function HomePage() {
   const { data: yearData } = useQuery<{ yearDistribution: YearCount[] }>(GET_YEAR_DISTRIBUTION);
 
   const stats = statsData?.stats;
+  const hubRows = [
+    {
+      title: "Paper",
+      href: "/library",
+      icon: FileText,
+      description: isZh ? "评分、章节与知识点。" : "Scores, sections, and atoms.",
+      metric: `${formatCount(stats?.totalCards, locale)} ${isZh ? "张卡片" : "CARDS"}`,
+    },
+    {
+      title: "Graph",
+      href: "/graph",
+      icon: Network,
+      description: isZh ? "力导向、径向、聚类与时间线。" : "Force, radial, cluster, and timeline.",
+      metric: `${formatCount(stats?.totalEdges, locale)} ${isZh ? "条连接" : "EDGES"}`,
+    },
+    {
+      title: "Atlas",
+      href: "/explorer",
+      icon: LayoutGrid,
+      description: isZh ? "方法、机制与数据集。" : "Methods, mechanisms, and datasets.",
+      metric: `${formatCount(stats?.totalAtoms, locale)} ${isZh ? "个知识点" : "ATOMS"}`,
+    },
+    {
+      title: "Gaps",
+      href: "/research",
+      icon: Layers,
+      description: isZh ? "开放问题与研究线索。" : "Open questions and research threads.",
+      metric: `${formatCount(stats?.totalPuzzles, locale)} ${isZh ? "个问题" : "OPEN"}`,
+    },
+  ] as const;
   const leadPaper =
     leadDetailData?.paper ??
     papersData?.papers.items[0] ??

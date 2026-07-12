@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { ChevronDown } from "lucide-react";
 import { SectionContent } from "@/components/paper/section-content";
 import { stripLatex } from "@/lib/render-latex";
+import { useI18n } from "@/lib/i18n/locale-context";
 
 interface SectionCardProps {
   title: string;
@@ -12,9 +13,9 @@ interface SectionCardProps {
 }
 
 /** Pretty-print a section title from its snake_case key. */
-function formatSectionTitle(raw: string): string {
+function formatSectionTitle(raw: string, isZh: boolean): string {
   const normalized = raw.trim().toLowerCase().replace(/&/g, "and").replace(/\s+/g, "_");
-  const labels: Record<string, string> = {
+  const labelsZh: Record<string, string> = {
     research_question: "研究问题",
     identification_and_method: "识别与方法",
     key_findings: "关键发现",
@@ -22,6 +23,15 @@ function formatSectionTitle(raw: string): string {
     limitations_and_open_questions: "局限与开放问题",
     china_applicability: "中国适用性",
   };
+  const labelsEn: Record<string, string> = {
+    research_question: "Research question",
+    identification_and_method: "Identification and method",
+    key_findings: "Key findings",
+    what_makes_this_paper_good: "Why this paper matters",
+    limitations_and_open_questions: "Limitations and open questions",
+    china_applicability: "China applicability",
+  };
+  const labels = isZh ? labelsZh : labelsEn;
   if (labels[raw]) return labels[raw];
   if (labels[normalized]) return labels[normalized];
   return raw
@@ -34,6 +44,8 @@ export function SectionCard({
   content,
   defaultExpanded = false,
 }: SectionCardProps) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   const preview = useMemo(() => {
@@ -56,7 +68,7 @@ export function SectionCard({
           className={`h-4 w-4 shrink-0 text-[var(--ink-4)] transition-transform duration-200 ${expanded ? "rotate-0" : "-rotate-90"}`}
         />
         <h3 className="lit-section-title">
-          {formatSectionTitle(title)}
+          {formatSectionTitle(title, isZh)}
         </h3>
       </button>
 

@@ -232,6 +232,7 @@ export const GET_STATS = gql`
       totalDatasets
       totalPuzzles
       totalIdeas
+      totalEdges
     }
   }
 `;

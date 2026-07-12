@@ -45,6 +45,11 @@ const CytoscapeGraph = dynamic(
 );
 
 const ALL_TYPES = new Set(["paper", "mechanism", "method", "dataset", "puzzle"]);
+const DIRECT_PAPER_ID_PATTERN = /^(?:w\d+|demo-[a-z0-9_-]+|upload_[a-z0-9_-]+|doi_[a-z0-9_-]+|arxiv_[a-z0-9_-]+)$/i;
+// A plain word such as "insurance" is usually a topic query, not an atom ID.
+// Treat only slug-shaped values as direct atoms; suggestion clicks still pass
+// entityType="atom" and support one-word atom slugs explicitly.
+const DIRECT_ATOM_ID_PATTERN = /^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)+$/i;
 
 function toSlug(nodeId: string): string {
   return nodeId.startsWith("atom:") ? nodeId.slice(5) : nodeId;
@@ -736,7 +741,7 @@ function GraphPageInner() {
   );
 
   const handleSearchSubmit = useCallback(
-    async (value: string) => {
+    async (value: string, entityType?: string) => {
       const trimmed = value.trim();
       if (!trimmed) return;
 
@@ -750,7 +755,7 @@ function GraphPageInner() {
         returnTo: graphContext?.returnTo ?? initialReturnTo,
       };
 
-      if (/^w\d+$/i.test(trimmed)) {
+      if (entityType === "paper" || DIRECT_PAPER_ID_PATTERN.test(trimmed)) {
         await loadPaperNetwork(trimmed.toLowerCase(), depth, {
           label: trimmed.toLowerCase(),
           ...inheritedContext,
@@ -758,7 +763,7 @@ function GraphPageInner() {
         return;
       }
 
-      if (/^[a-z][a-z0-9_]*$/.test(trimmed)) {
+      if (entityType === "atom" || (entityType == null && DIRECT_ATOM_ID_PATTERN.test(trimmed))) {
         await loadAtomNeighborhood(trimmed, depth, {
           label: trimmed,
           ...inheritedContext,
@@ -1389,7 +1394,7 @@ function EmptyState({
   hasSearched: boolean;
   searchQuery: string;
   onSearchChange: (v: string) => void;
-  onSearchSubmit: (v: string) => void;
+  onSearchSubmit: (v: string, entityType?: string) => void;
   errorMsg: string | null;
 }) {
   const { t } = useI18n();
@@ -1445,7 +1450,7 @@ function EmptyState({
       setShowSuggestions(false);
       setSuggestions([]);
       onSearchChange(hit.entityId);
-      onSearchSubmit(hit.entityId);
+      onSearchSubmit(hit.entityId, hit.entityType);
     },
     [onSearchChange, onSearchSubmit]
   );
@@ -1558,10 +1563,10 @@ function EmptyState({
                 <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
                   <span className="text-xs text-[var(--ink-4)]">{t("graph.empty.try")}:</span>
                   {[
-                    { label: "w31161", value: "w31161" },
-                    { label: "w29691", value: "w29691" },
-                    { label: "medical device", value: "medical device" },
-                    { label: "health insurance", value: "health insurance" },
+                    { label: "demo-001", value: "demo-001", entityType: "paper" },
+                    { label: "demo-007", value: "demo-007", entityType: "paper" },
+                    { label: "search-frictions", value: "search-frictions", entityType: "atom" },
+                    { label: "health insurance", value: "health insurance", entityType: undefined },
                   ].map((item) => (
                     <Button
                       key={item.value}
@@ -1569,7 +1574,7 @@ function EmptyState({
                       size="sm"
                       onClick={() => {
                         onSearchChange(item.value);
-                        onSearchSubmit(item.value);
+                        onSearchSubmit(item.value, item.entityType);
                       }}
                       className="rounded-full px-3.5 text-xs"
                     >

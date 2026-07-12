@@ -2223,6 +2223,12 @@ async def paper_network(paper_id: str, depth: int = 1) -> dict[str, Any]:
             mode="paper",
             source_paper_count=1,
             seed_count=1,
+            warning_message=(
+                "No graph atoms are available for this paper yet. "
+                "Run AI reading with Graph updates enabled, then rebuild relations."
+                if not edges
+                else None
+            ),
         )
     except Exception as exc:
         logger.exception("paper_network failed for %s", paper_id)
@@ -2516,6 +2522,10 @@ async def paper_set_network(paper_ids: list[str], depth: int = 1) -> dict[str, A
                 source_paper_count=source_paper_count,
                 seed_count=len(nodes),
                 truncated=truncated,
+                warning_message=(
+                    "No graph atoms are available for this paper set yet. "
+                    "Run AI reading with Graph updates enabled, then rebuild relations."
+                ),
             )
             _set_paper_set_network_cache(cache_key, result)
             return result
@@ -3159,7 +3169,7 @@ async def get_stats() -> dict[str, int]:
     zeros = {
         "total_papers": 0, "total_cards": 0, "total_atoms": 0,
         "total_mechanisms": 0, "total_methods": 0, "total_datasets": 0,
-        "total_puzzles": 0, "total_ideas": 0,
+        "total_puzzles": 0, "total_ideas": 0, "total_edges": 0,
     }
     if not _db_exists():
         return zeros
@@ -3242,6 +3252,16 @@ async def get_stats() -> dict[str, int]:
                 "total_ideas",
                 "SELECT COUNT(*) FROM library_ideas WHERE library_id = ?",
                 [content_library_id],
+            ),
+            (
+                "total_edges",
+                """
+                SELECT COUNT(*)
+                FROM atom_paper_refs apr
+                JOIN papers p ON p.paper_id = apr.paper_id
+                """
+                + (f" WHERE {paper_scope}" if paper_scope else ""),
+                paper_scope_binds,
             ),
         ]:
             cursor = await db.execute(sql, binds)
@@ -5074,15 +5094,19 @@ async def get_personalized_feed(limit: int = 10) -> list[dict[str, Any]]:
         binds: list[Any] = []
         if user_paper_ids:
             placeholders = ",".join("?" for _ in user_paper_ids)
-            exclusion_clause = f"AND paper_id NOT IN ({placeholders})"
+            exclusion_clause = f"AND p.paper_id NOT IN ({placeholders})"
             binds = list(user_paper_ids)
+        scope_clause, scope_binds = _paper_scope_where("p")
+        if scope_clause:
+            exclusion_clause += f" AND {scope_clause}"
+            binds.extend(scope_binds)
         binds.append(limit)
 
         cursor = await db.execute(
-            f"""SELECT * FROM papers
-                WHERE average_score IS NOT NULL
+            f"""SELECT p.* FROM papers p
+                WHERE p.average_score IS NOT NULL
                 {exclusion_clause}
-                ORDER BY average_score DESC, year DESC
+                ORDER BY p.average_score DESC, p.year DESC
                 LIMIT ?""",
             binds,
         )
@@ -5108,7 +5132,8 @@ async def advise_methods(description: str, limit: int = 10) -> list[dict[str, An
     Uses semantic search over method atoms to find the most relevant ones.
     Returns methods with relevance scores and when_to_use guidance.
     """
-    from embeddings import semantic_search, is_loaded
+    from embeddings import is_loaded
+    from hybrid_search import semantic_search_resolver
 
     if not _db_exists():
         return []
@@ -5117,7 +5142,11 @@ async def advise_methods(description: str, limit: int = 10) -> list[dict[str, An
 
     if is_loaded():
         # Semantic search over atoms — fetch extra to filter methods
-        results = await semantic_search(description, entity_type="atom", limit=limit * 3)
+        results = await semantic_search_resolver(
+            description,
+            entity_type="atom",
+            limit=limit * 3,
+        )
 
         for r in results:
             atom = await get_atom(r["entity_id"])
@@ -5837,9 +5866,13 @@ async def check_idea_novelty(idea_text: str) -> dict[str, Any]:
     result: dict[str, Any] = {"similar_papers": [], "similar_ideas": [], "is_novel": True}
 
     try:
-        from embeddings import semantic_search
+        from hybrid_search import semantic_search_resolver
         # Search papers
-        paper_hits = await semantic_search(idea_text, entity_type="paper", limit=10)
+        paper_hits = await semantic_search_resolver(
+            idea_text,
+            entity_type="paper",
+            limit=10,
+        )
         for hit in paper_hits:
             paper = await get_paper(hit["entity_id"])
             if paper:
@@ -5873,8 +5906,12 @@ async def suggest_methodology(idea_text: str, limit: int = 10) -> list[dict[str,
     """Find method atoms relevant to an idea text."""
     results: list[dict[str, Any]] = []
     try:
-        from embeddings import semantic_search
-        hits = await semantic_search(idea_text, entity_type="atom", limit=limit * 3)
+        from hybrid_search import semantic_search_resolver
+        hits = await semantic_search_resolver(
+            idea_text,
+            entity_type="atom",
+            limit=limit * 3,
+        )
         for hit in hits:
             atom = await get_atom(hit["entity_id"])
             if atom and atom.get("type") == "method":
@@ -5896,8 +5933,12 @@ async def check_data_availability(idea_text: str, limit: int = 10) -> list[dict[
     """Find dataset atoms relevant to an idea text."""
     results: list[dict[str, Any]] = []
     try:
-        from embeddings import semantic_search
-        hits = await semantic_search(idea_text, entity_type="atom", limit=limit * 3)
+        from hybrid_search import semantic_search_resolver
+        hits = await semantic_search_resolver(
+            idea_text,
+            entity_type="atom",
+            limit=limit * 3,
+        )
         for hit in hits:
             atom = await get_atom(hit["entity_id"])
             if atom and atom.get("type") == "dataset":

@@ -2,6 +2,10 @@
 
 import React from "react";
 import Link from "next/link";
+import { buildPaperDetailHref } from "@/lib/navigation";
+import { INLINE_PAPER_ID_SOURCE } from "@/lib/paper-identifiers";
+
+const PAPER_ID_RE = new RegExp(`^${INLINE_PAPER_ID_SOURCE}$`);
 
 // ---------------------------------------------------------------------------
 // NoteRenderer: parses [[wXXXXX]] and [[atom_slug]] into clickable links
@@ -31,9 +35,8 @@ export function NoteRenderer({ content }: NoteRendererProps) {
     }
 
     const ref = match[1].trim();
-    // Determine if it's a paper ID (starts with 'w' followed by digits) or an atom slug
-    const isPaper = /^w\d{4,6}$/.test(ref);
-    const href = isPaper ? `/paper/${ref}` : `/atom/${ref}`;
+    const isPaper = PAPER_ID_RE.test(ref);
+    const href = isPaper ? buildPaperDetailHref({ paperId: ref }) : `/atom/${encodeURIComponent(ref)}`;
 
     parts.push(
       <Link
@@ -70,7 +73,7 @@ export function extractNoteReferences(content: string): { papers: string[]; atom
 
   while ((match = regex.exec(content)) !== null) {
     const ref = match[1].trim();
-    if (/^w\d{4,6}$/.test(ref)) {
+    if (PAPER_ID_RE.test(ref)) {
       if (!papers.includes(ref)) papers.push(ref);
     } else {
       if (!atoms.includes(ref)) atoms.push(ref);

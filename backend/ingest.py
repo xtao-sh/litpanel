@@ -157,8 +157,31 @@ def _purge_deleted_cards(conn: sqlite3.Connection, cards_dir: Path) -> int:
         return 0
 
     for paper_id in stale:
+        conn.execute(
+            "DELETE FROM library_papers WHERE library_id = ? AND paper_id = ?",
+            (library_id, paper_id),
+        )
+        still_linked = conn.execute(
+            "SELECT 1 FROM library_papers WHERE paper_id = ? LIMIT 1",
+            (paper_id,),
+        ).fetchone()
+        if still_linked is not None:
+            continue
         conn.execute("DELETE FROM card_sections WHERE paper_id = ?", (paper_id,))
         conn.execute("DELETE FROM paper_scores WHERE paper_id = ?", (paper_id,))
+        conn.execute("DELETE FROM triage_cards WHERE paper_id = ?", (paper_id,))
+        conn.execute("DELETE FROM atom_paper_refs WHERE paper_id = ?", (paper_id,))
+        conn.execute("DELETE FROM user_bookmarks WHERE paper_id = ?", (paper_id,))
+        conn.execute("DELETE FROM user_reading_status WHERE paper_id = ?", (paper_id,))
+        conn.execute("DELETE FROM collection_papers WHERE paper_id = ?", (paper_id,))
+        conn.execute(
+            "DELETE FROM embeddings WHERE entity_type = 'paper' AND entity_id = ?",
+            (paper_id,),
+        )
+        conn.execute(
+            "DELETE FROM search_index WHERE entity_type = 'paper' AND entity_id = ?",
+            (paper_id,),
+        )
         conn.execute("DELETE FROM papers WHERE paper_id = ?", (paper_id,))
 
     conn.commit()
@@ -179,7 +202,8 @@ def stage1_parse_cards(conn: sqlite3.Connection) -> int:
     if removed:
         print(f"  Removed {removed} stale paper card(s) deleted on disk")
 
-    files = sorted(cards_dir.glob("w*.md"))
+    library_id = _current_library_id()
+    files = sorted(cards_dir.glob("*.md"))
     count = 0
 
     for fp in files:
@@ -187,10 +211,10 @@ def stage1_parse_cards(conn: sqlite3.Connection) -> int:
         if not text:
             continue
 
-        paper_id = fp.stem  # e.g. "w31161"
+        paper_id = fp.stem  # e.g. "w31161" or a local/demo paper id
 
         # Title from first heading: "# w31161: Generative AI at Work"
-        title_match = re.match(r"#\s+\w+:\s*(.+)", text)
+        title_match = re.match(r"#\s+[^:]+:\s*(.+)", text)
         title = title_match.group(1).strip() if title_match else fp.stem
 
         sections = _split_sections(text)
@@ -221,6 +245,10 @@ def stage1_parse_cards(conn: sqlite3.Connection) -> int:
                 meta.get("jel"),
                 average,
             ),
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO library_papers (library_id, paper_id, source_path, file_sha256) VALUES (?, ?, ?, ?)",
+            (library_id, paper_id, "", ""),
         )
 
         # Re-reading a paper should replace stale structured sections/scores
@@ -306,7 +334,7 @@ def stage2_parse_atoms(conn: sqlite3.Connection) -> int:
 
             # Parse paper references from Papers section
             papers_body = section_map.get("Papers", "")
-            for m in re.finditer(r"(w\d{4,6})", papers_body):
+            for m in re.finditer(r"^\s*-\s*([A-Za-z][A-Za-z0-9_-]{2,})\b", papers_body, flags=re.MULTILINE):
                 conn.execute(
                     "INSERT OR IGNORE INTO atom_paper_refs (atom_slug, paper_id) VALUES (?, ?)",
                     (slug, m.group(1)),
@@ -683,6 +711,10 @@ def _find_existing_db() -> Path | None:
 
 def stage7_merge_existing(conn: sqlite3.Connection) -> int:
     """Pull paper metadata from the existing agent-system database."""
+    if os.environ.get("KB_SKIP_EXISTING_AGENT_MERGE", "").strip().lower() in {"1", "true", "yes", "on"}:
+        print("  Skipping external agent database merge")
+        return 0
+
     existing_path = _find_existing_db()
     if existing_path is None:
         print("  Warning: external agent database not found, skipping merge")
@@ -690,6 +722,7 @@ def stage7_merge_existing(conn: sqlite3.Connection) -> int:
 
     ext_conn = sqlite3.connect(str(existing_path))
     ext_conn.row_factory = sqlite3.Row
+    library_id = _current_library_id()
 
     # Check which columns exist in the external DB (triage_summary may not exist in older versions)
     ext_columns = {col[1] for col in ext_conn.execute("PRAGMA table_info(papers)").fetchall()}
@@ -749,6 +782,10 @@ def stage7_merge_existing(conn: sqlite3.Connection) -> int:
                 triage_summary_val,
             ),
         )
+        conn.execute(
+            "INSERT OR IGNORE INTO library_papers (library_id, paper_id, source_path, file_sha256) VALUES (?, ?, ?, ?)",
+            (library_id, paper_id, "", ""),
+        )
         count += 1
 
     ext_conn.close()
@@ -769,16 +806,9 @@ def stage8_build_fts(conn: sqlite3.Connection) -> int:
     # constraint, so without this a second run of run_ingestion() (e.g. the plain
     # `python ingest.py` entrypoint) would duplicate every paper/atom/map/idea
     # row, corrupting bm25 ranking and returning duplicate hits.
-    conn.execute("DELETE FROM search_index WHERE library_id = ?", (str(library_id),))
-
-    # Ensure every ingested paper is linked to this library before the FTS JOIN
-    # below. init_db()'s library_papers backfill runs at the very start of
-    # run_ingestion(), before stage1 inserts any papers, so on a brand-new DB the
-    # paper/atom keyword index would otherwise be built empty on the first run.
     conn.execute(
-        "INSERT OR IGNORE INTO library_papers (library_id, paper_id) "
-        "SELECT ?, paper_id FROM papers",
-        (library_id,),
+        "DELETE FROM search_index WHERE CAST(library_id AS TEXT) = ?",
+        (str(library_id),),
     )
 
     # Papers: title + all card section content

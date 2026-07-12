@@ -192,10 +192,18 @@ async def apply_active_library(request: Request, call_next):
     if raw:
         try:
             parsed = int(raw)
-            if parsed > 0 and library_exists(parsed):
-                library_id = parsed
+            if parsed <= 0:
+                raise ValueError
         except ValueError:
-            library_id = None
+            return JSONResponse(
+                {"detail": "X-Library-Id must be a positive integer."},
+                status_code=400,
+            )
+        if not library_exists(parsed):
+            return JSONResponse({"detail": "Library not found."}, status_code=404)
+        library_id = parsed
+    else:
+        library_id = ensure_default_library()
 
     token = set_active_library_id(library_id)
     try:
@@ -216,9 +224,12 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3001",
+        "http://localhost:3050",
+        "http://127.0.0.1:3050",
+        "http://localhost:38001",
+        "http://127.0.0.1:38001",
         *EXTRA_CORS_ORIGINS,
     ],
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -273,6 +284,35 @@ class DoiImportRequest(BaseModel):
     doi: str
 
 
+class BatchPaperReprocessRequest(BaseModel):
+    paper_ids: list[str]
+    reading_profile: str = ""
+    analysis_focuses: list[str] = []
+    analysis_focus_prompts: dict[str, str] = {}
+    custom_reading_instructions: str = ""
+
+
+class PaperReprocessRequest(BaseModel):
+    library_id: Optional[int] = None
+    reading_profile: str = ""
+    analysis_focuses: list[str] = []
+    analysis_focus_prompts: dict[str, str] = {}
+    custom_reading_instructions: str = ""
+
+
+class PaperFeedbackRequest(BaseModel):
+    library_id: Optional[int] = None
+    dimension_key: str = ""
+    feedback_type: str
+    rating: Optional[int] = None
+    comment: str = ""
+
+
+class FeedbackActionStatusRequest(BaseModel):
+    library_id: Optional[int] = None
+    action_status: str
+
+
 def _doi_to_paper_id(doi: str) -> str:
     normalized = doi.strip().lower()
     normalized = re.sub(r"^https?://(?:dx\.)?doi\.org/", "", normalized)
@@ -321,7 +361,7 @@ def _fetch_doi_metadata(doi: str) -> dict[str, object]:
         url,
         headers={
             "Accept": "application/vnd.citationstyles.csl+json",
-            "User-Agent": "Research Knowledge Base DOI importer",
+            "User-Agent": "Lit Panel DOI importer",
         },
     )
     try:
@@ -2514,22 +2554,6 @@ class ProcessRequest(BaseModel):
     update_graph_and_ideas: bool = False
 
 
-class PaperReprocessRequest(BaseModel):
-    library_id: Optional[int] = None
-    reading_profile: str = ""
-    analysis_focuses: list[str] = []
-    analysis_focus_prompts: dict[str, str] = {}
-    custom_reading_instructions: str = ""
-
-
-class BatchPaperReprocessRequest(BaseModel):
-    paper_ids: list[str]
-    reading_profile: str = ""
-    analysis_focuses: list[str] = []
-    analysis_focus_prompts: dict[str, str] = {}
-    custom_reading_instructions: str = ""
-
-
 class ReadingJobRequest(BaseModel):
     paper_ids: list[str]
     library_id: Optional[int] = None
@@ -2540,19 +2564,6 @@ class ReadingJobRequest(BaseModel):
     update_graph: bool = False
     update_ideas: bool = False
     update_graph_and_ideas: bool = False
-
-
-class PaperFeedbackRequest(BaseModel):
-    library_id: Optional[int] = None
-    dimension_key: str = ""
-    feedback_type: str
-    rating: Optional[int] = None
-    comment: str = ""
-
-
-class FeedbackActionStatusRequest(BaseModel):
-    library_id: Optional[int] = None
-    action_status: str
 
 
 class PipelineRunRequest(BaseModel):
@@ -2652,6 +2663,24 @@ def _serialize_reading_job(job: dict[str, object]) -> dict[str, object]:
     }
 
 
+def _friendly_reading_job_error(message: object) -> str:
+    text = str(message or "").strip()
+    lower = text.lower()
+    if not text:
+        return "AI 读取失败，请重试。"
+    if "no parseable scores" in lower:
+        return "AI 已返回内容，但评分区块格式无法解析。请重试；如果仍失败，减少读取维度或切换为 Title + Abstract。"
+    if "timeout" in lower or "timed out" in lower:
+        return "AI 读取超时。长论文可切换为 Section-by-section，或减少读取维度后重试。"
+    if "server disconnected" in lower or "read operation timed out" in lower:
+        return "AI 服务连接中断。请稍后重试，或减少读取维度。"
+    if "pdf extraction failed" in lower or "extracted text too short" in lower or "pdf_error" in lower:
+        return "PDF 文本抽取失败。请确认文件不是扫描版图片 PDF，并尝试上传可复制文本的 PDF。"
+    if "local pdf file not found" in lower:
+        return "找不到本地 PDF。请重新上传文件，或确认这篇论文已经绑定到当前文献库。"
+    return text[-500:]
+
+
 async def _run_reading_job(job_id: str) -> None:
     from pipeline import process_paper, reprocess_existing_paper, update_graph_and_ideas_after_reading
 
@@ -2671,6 +2700,7 @@ async def _run_reading_job(job_id: str) -> None:
         job["current_paper_id"] = paper_id
         item["status"] = "running"
         item["step"] = "调用 AI 读取"
+        item["message"] = "AI 正在读取论文。长论文或多维度读取可能需要几分钟。"
         item["started_at"] = _utc_now_iso()
 
         try:
@@ -2750,7 +2780,7 @@ async def _run_reading_job(job_id: str) -> None:
         except Exception as exc:
             item["status"] = "error"
             item["step"] = "读取失败"
-            item["message"] = str(exc)
+            item["message"] = _friendly_reading_job_error(exc)
             item["completed_at"] = _utc_now_iso()
 
     job["current_paper_id"] = None
@@ -2880,6 +2910,8 @@ async def pipeline_options_endpoint():
 
 @app.post("/api/reading-jobs")
 async def create_reading_job_endpoint(request: ReadingJobRequest):
+    from pipeline import normalize_reading_profile
+
     resolved_library_id = request.library_id or get_active_library_id() or ensure_default_library()
     if not library_exists(resolved_library_id):
         raise HTTPException(status_code=404, detail="Library not found.")
@@ -2902,7 +2934,7 @@ async def create_reading_job_endpoint(request: ReadingJobRequest):
         "library_id": resolved_library_id,
         "paper_ids": paper_ids,
         "status": "queued",
-        "reading_profile": request.reading_profile or "auto",
+        "reading_profile": normalize_reading_profile(request.reading_profile),
         "analysis_focuses": request.analysis_focuses,
         "analysis_focus_prompts": request.analysis_focus_prompts,
         "custom_reading_instructions": request.custom_reading_instructions,
@@ -3063,6 +3095,8 @@ async def upload_paper(
         analysis_focus_prompts=_parse_prompt_map_field(analysis_focus_prompts),
         custom_reading_instructions=custom_reading_instructions,
     )
+    if result.get("status") == "failed":
+        raise HTTPException(status_code=400, detail=str(result.get("error") or "Upload failed."))
     return result
 
 

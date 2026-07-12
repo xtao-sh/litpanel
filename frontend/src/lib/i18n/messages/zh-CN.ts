@@ -889,7 +889,7 @@ const zhCN = {
       title: "打开知识图谱",
       start: "输入主题、论文 ID 或知识点。",
       noResults: "没有结果，换一个查询试试。",
-      searchPlaceholder: "例如：medical device、w31161、staggered_did",
+      searchPlaceholder: "例如：demo-001、health insurance、search-frictions",
       suggestionsHeader: "搜索结果",
       explore: "打开",
       legendHint: "节点颜色代表论文、方法、数据集、机制和问题；关系深度可在图谱上方切换。",

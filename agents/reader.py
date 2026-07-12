@@ -407,12 +407,81 @@ def remove_paper_from_atom_files(paper_id: str):
                 filepath.write_text(updated.rstrip() + "\n")
 
 
+_SCORE_DIMENSION_KEYS = (
+    "literature_innovation",
+    "theory_contribution",
+    "empirical_rigor",
+    "data_quality",
+    "method_complexity",
+    "technical_difficulty",
+    "method_innovation",
+    "reproducibility",
+    "narrative_clarity",
+    "structure_quality",
+    "lit_review_quality",
+    "presentation_quality",
+    "scholarly_relevance",
+    "data_accessibility",
+    "inspiration",
+)
+
+
+def _normalize_score_value(value: object) -> float | None:
+    try:
+        score = float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    if 0 < score <= 5:
+        return score
+    return None
+
+
 def parse_scores(card_text: str) -> dict:
-    """Extract 15-dimension scores from the card's Scores section."""
-    scores = {}
-    # Match pattern like "- literature_innovation: X/5" or "literature_innovation: X/5"
-    for match in re.finditer(r"(?:^|\n)\s*-?\s*(\w+):\s*([\d.]+)/5", card_text):
-        scores[match.group(1)] = float(match.group(2))
+    """Extract fixed 1-5 dimension scores from tolerant markdown or JSON output."""
+    scores: dict[str, float] = {}
+
+    # Some models return a JSON object even when asked for markdown. Accept it as
+    # long as it contains the fixed dimension keys and numeric values.
+    json_match = re.search(r"\{.*\}", card_text, re.DOTALL)
+    if json_match:
+        try:
+            parsed = json.loads(json_match.group(0))
+        except json.JSONDecodeError:
+            parsed = None
+        if isinstance(parsed, dict):
+            candidate = parsed.get("scores", parsed)
+            if isinstance(candidate, dict):
+                for key in _SCORE_DIMENSION_KEYS:
+                    value = candidate.get(key)
+                    if isinstance(value, dict):
+                        value = value.get("score") or value.get("value")
+                    score = _normalize_score_value(value)
+                    if score is not None:
+                        scores[key] = score
+
+    # Tolerate common markdown variants:
+    # - **dimension**: 4 / 5
+    # 1. dimension - 4
+    # dimension (score: 4/5)
+    for key in _SCORE_DIMENSION_KEYS:
+        pattern = re.compile(
+            rf"(?:^|\n)\s*(?:[-*]|\d+[.)])?\s*(?:\*\*)?\s*{re.escape(key)}\s*(?:\*\*)?"
+            rf"(?:\s*[\]:：=\-–—]\s*|\s+\(?score\s*[:：]\s*)"
+            rf"([1-5](?:\.\d+)?)\s*(?:/+\s*5)?",
+            re.IGNORECASE,
+        )
+        match = pattern.search(card_text)
+        if not match:
+            pattern = re.compile(
+                rf"{re.escape(key)}[^\n]{{0,80}}?\(([1-5](?:\.\d+)?)\s*/\s*5\)",
+                re.IGNORECASE,
+            )
+            match = pattern.search(card_text)
+        if match:
+            score = _normalize_score_value(match.group(1))
+            if score is not None:
+                scores[key] = score
+
     return scores
 
 

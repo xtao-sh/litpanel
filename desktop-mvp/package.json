@@ -1,0 +1,53 @@
+{
+  "name": "lit-panel-desktop",
+  "version": "0.1.0",
+  "description": "A local AI-assisted literature reading and research workspace.",
+  "author": "Lit Panel",
+  "private": true,
+  "type": "module",
+  "main": "main.mjs",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "node ./scripts/smoke-test.mjs",
+    "rebuild:web": "node ./scripts/rebuild-frontend.mjs",
+    "prepare:package": "node ./scripts/prepare-package.mjs",
+    "prepare:icon": "node ./scripts/build-icon.mjs",
+    "dist:app": "npm run prepare:icon && npm run prepare:package && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir --publish never",
+    "dist:dmg": "npm run dist:app && node ./scripts/build-dmg.mjs"
+  },
+  "devDependencies": {
+    "electron": "^43.1.0",
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "com.litpanel.desktop",
+    "productName": "Lit Panel",
+    "disableDefaultIgnoredFiles": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.mjs",
+      "preload.mjs",
+      "src/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "extraResources": [
+      {
+        "from": ".bundle/app-bundle",
+        "to": "app-bundle",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/lit-panel.icns",
+      "target": [
+        "dmg"
+      ]
+    }
+  }
+}

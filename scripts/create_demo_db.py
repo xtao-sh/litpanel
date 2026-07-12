@@ -145,14 +145,34 @@ def parse_args() -> argparse.Namespace:
         help="Path to the SQLite database to create.",
     )
     parser.add_argument(
+        "--data-root",
+        default=str(ROOT / "Data"),
+        help="Directory where public demo cards and runtime files are created.",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Replace an existing database at --db.",
     )
+    parser.add_argument(
+        "--files-only",
+        action="store_true",
+        help="Only write the public demo knowledge-base files; do not recreate the SQLite database.",
+    )
+    parser.add_argument(
+        "--replace-files",
+        action="store_true",
+        help="Clear the source-library demo cards/atoms/maps/ideas directories before writing files.",
+    )
+    parser.add_argument(
+        "--portable-paths",
+        action="store_true",
+        help="Store portable placeholders in the libraries table instead of host absolute paths.",
+    )
     return parser.parse_args()
 
 
-def ensure_schema(db_path: Path, force: bool) -> None:
+def ensure_schema(db_path: Path, data_root: Path, force: bool) -> None:
     if db_path.exists() and not force:
         raise SystemExit(f"{db_path} already exists. Pass --force to replace it.")
     for suffix in ("", "-wal", "-shm"):
@@ -162,6 +182,8 @@ def ensure_schema(db_path: Path, force: bool) -> None:
 
     db_path.parent.mkdir(parents=True, exist_ok=True)
     os.environ["KB_DB_PATH"] = str(db_path)
+    os.environ["KB_DATA_ROOT"] = str(data_root)
+    os.environ["KB_DISABLE_LEGACY_AI_IMPORT"] = "1"
     sys.path.insert(0, str(ROOT))
     sys.path.insert(0, str(BACKEND_DIR))
 
@@ -174,17 +196,148 @@ def json_text(value: object) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def get_default_library_id(cur: sqlite3.Cursor) -> int:
+def _card_markdown(paper: dict) -> str:
+    atoms = PAPER_ATOMS.get(str(paper["paper_id"]), [])
+    atom_lines = "\n".join(f"- {slug}" for slug in atoms) or "- none"
+    score = float(paper["score"])
+    return f"""# {paper["paper_id"]}: {paper["title"]}
+
+## Meta
+- Authors: {", ".join(paper["authors"])}
+- Year: {paper["year"]}
+- Fields: {", ".join(paper["fields"])}
+- JEL: {", ".join(paper["jel"])}
+
+## Research Question
+{paper["summary"]}
+
+## Methods & Data
+This public demo card uses synthetic metadata and short descriptions so the UI can be shipped without private research notes.
+
+## Findings
+The example highlights how {paper["fields"][0].lower()} concepts can be represented as reusable graph atoms.
+
+## Atoms
+{atom_lines}
+
+## Scores
+- identification: {max(1, min(5, round(score)))}/5
+- data_quality: {max(1, min(5, round(score - 0.2)))}/5
+- contribution: {max(1, min(5, round(score + 0.1)))}/5
+- external_validity: {max(1, min(5, round(score - 0.1)))}/5
+- clarity: {max(1, min(5, round(score)))}/5
+**Average: {score:.1f}/5**
+"""
+
+
+def _atom_markdown(atom: tuple[str, str, str, str, str, str]) -> str:
+    slug, _atom_type, title, description, strength, theme = atom
+    papers = [paper_id for paper_id, slugs in PAPER_ATOMS.items() if slug in slugs]
+    paper_lines = "\n".join(f"- {paper_id}" for paper_id in papers) or "- none"
+    return f"""# {title}
+
+## Description
+{description}
+
+## Evidence Strength
+{strength}
+
+## When to Use
+Use this public demo atom when exploring the {theme} portion of the synthetic corpus.
+
+## Access
+Demo
+
+## URL
+
+## Key References
+- Public demo seed
+
+## Papers
+{paper_lines}
+"""
+
+
+def seed_demo_files(data_root: Path, *, replace: bool = False) -> None:
+    knowledge_base_dir = data_root / "knowledge_base" / "source-library"
+    cards_dir = knowledge_base_dir / "cards"
+    atoms_dir = knowledge_base_dir / "atoms"
+    maps_dir = knowledge_base_dir / "maps"
+    ideas_dir = knowledge_base_dir / "ideas"
+
+    if replace:
+        import shutil
+
+        for path in [cards_dir, atoms_dir, maps_dir, ideas_dir]:
+            if path.exists():
+                shutil.rmtree(path)
+
+    cards_dir.mkdir(parents=True, exist_ok=True)
+    for subdir in ["methods", "datasets", "mechanisms", "puzzles"]:
+        (atoms_dir / subdir).mkdir(parents=True, exist_ok=True)
+    maps_dir.mkdir(parents=True, exist_ok=True)
+    ideas_dir.mkdir(parents=True, exist_ok=True)
+
+    for paper in PAPERS:
+        (cards_dir / f"{paper['paper_id']}.md").write_text(_card_markdown(paper), encoding="utf-8")
+
+    atom_dir_by_type = {
+        "method": "methods",
+        "dataset": "datasets",
+        "mechanism": "mechanisms",
+        "puzzle": "puzzles",
+    }
+    for atom in ATOMS:
+        slug, atom_type, *_ = atom
+        (atoms_dir / atom_dir_by_type[atom_type] / f"{slug}.md").write_text(
+            _atom_markdown(atom),
+            encoding="utf-8",
+        )
+
+    (maps_dir / "demo-atlas.md").write_text(
+        "# Demo Atlas\n\nThis public seed contains synthetic papers and atoms only.\n",
+        encoding="utf-8",
+    )
+    (ideas_dir / "idea_bank.md").write_text(
+        "\n\n".join(
+            [
+                "# Demo Ideas",
+                "## IDEA-2026-001: Measure how search frictions alter wage-posting pass-through.\n**Status:** DEVELOP\n**Generated:** 2026-01-01\n**Heuristic:** demo-seed\n**Source papers:** demo-001, demo-005\n\nNovelty: 4/5 | Feasibility: 4/5 | Impact: 4/5\n\n**Composite: 4.1/5**\n\nA synthetic idea for testing the complete Ideas workflow.",
+                "## IDEA-2026-002: Compare procurement score transparency across synthetic supplier markets.\n**Status:** DEVELOP\n**Generated:** 2026-01-01\n**Heuristic:** demo-seed\n**Source papers:** demo-006\n\nNovelty: 4/5 | Feasibility: 4/5 | Impact: 4/5\n\n**Composite: 3.8/5**\n\nA synthetic idea for testing the complete Ideas workflow.",
+                "## IDEA-2026-003: Map green patent diffusion through inventor-team composition.\n**Status:** DEVELOP\n**Generated:** 2026-01-01\n**Heuristic:** demo-seed\n**Source papers:** demo-008\n\nNovelty: 4/5 | Feasibility: 4/5 | Impact: 4/5\n\n**Composite: 3.7/5**\n\nA synthetic idea for testing the complete Ideas workflow.",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def get_default_library_id(
+    cur: sqlite3.Cursor,
+    data_root: Path,
+    *,
+    portable_paths: bool = False,
+) -> int:
     row = cur.execute("SELECT id FROM libraries ORDER BY id LIMIT 1").fetchone()
     if row is None:
         raise RuntimeError("No default library was created.")
     library_id = int(row[0])
-    data_root = ROOT / "Data"
     papers_dir = data_root / "papers" / "source-library"
     knowledge_base_dir = data_root / "knowledge_base" / "source-library"
     agent_db_path = data_root / "source-library_agent.db"
     papers_dir.mkdir(parents=True, exist_ok=True)
     knowledge_base_dir.mkdir(parents=True, exist_ok=True)
+    stored_papers_dir = "__LIT_PANEL_DATA_ROOT__/papers/source-library" if portable_paths else str(papers_dir)
+    stored_knowledge_base_dir = (
+        "__LIT_PANEL_DATA_ROOT__/knowledge_base/source-library"
+        if portable_paths
+        else str(knowledge_base_dir)
+    )
+    stored_agent_db_path = (
+        "__LIT_PANEL_DATA_ROOT__/source-library_agent.db"
+        if portable_paths
+        else str(agent_db_path)
+    )
     cur.execute(
         """
         UPDATE libraries
@@ -196,9 +349,9 @@ def get_default_library_id(cur: sqlite3.Cursor) -> int:
             "Demo Library",
             "Economics",
             "Synthetic public demo corpus for Lit Panel.",
-            str(papers_dir),
-            str(knowledge_base_dir),
-            str(agent_db_path),
+            stored_papers_dir,
+            stored_knowledge_base_dir,
+            stored_agent_db_path,
             library_id,
         ),
     )
@@ -318,9 +471,9 @@ This public seed contains synthetic papers and atoms only. Replace it with your 
         (library_id, "demo-atlas", "Demo Atlas", field_map),
     )
     ideas = [
-        ("idea-001", "Measure how search frictions alter wage-posting pass-through.", ["demo-001", "demo-005"], 4.1),
-        ("idea-002", "Compare procurement score transparency across synthetic supplier markets.", ["demo-006"], 3.8),
-        ("idea-003", "Map green patent diffusion through inventor-team composition.", ["demo-008"], 3.7),
+        ("IDEA-2026-001", "Measure how search frictions alter wage-posting pass-through.", ["demo-001", "demo-005"], 4.1),
+        ("IDEA-2026-002", "Compare procurement score transparency across synthetic supplier markets.", ["demo-006"], 3.8),
+        ("IDEA-2026-003", "Map green patent diffusion through inventor-team composition.", ["demo-008"], 3.7),
     ]
     for idea_id, title, source_papers, composite in ideas:
         content = f"Demo idea generated from {', '.join(source_papers)}."
@@ -370,25 +523,120 @@ def rebuild_search_index(cur: sqlite3.Cursor, library_id: int) -> None:
         )
 
 
-def seed_demo_db(db_path: Path) -> None:
-    conn = sqlite3.connect(str(db_path))
+def seed_demo_agent_db(data_root: Path, library_id: int, *, force: bool) -> None:
+    agent_db_path = data_root / "source-library_agent.db"
+    if agent_db_path.exists():
+        if not force:
+            raise SystemExit(
+                f"{agent_db_path} already exists. Pass --force to replace the demo runtime database."
+            )
+        agent_db_path.unlink()
+
+    agent_db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(agent_db_path))
     try:
-        cur = conn.cursor()
-        library_id = get_default_library_id(cur)
-        seed_papers(cur, library_id)
-        seed_atoms(cur)
-        seed_maps_and_ideas(cur, library_id)
-        rebuild_search_index(cur, library_id)
+        conn.executescript(
+            """
+            CREATE TABLE papers (
+                paper_id TEXT PRIMARY KEY,
+                file_path TEXT NOT NULL,
+                status TEXT DEFAULT 'pending',
+                year INTEGER,
+                folder TEXT DEFAULT '',
+                title TEXT DEFAULT '',
+                authors TEXT DEFAULT '',
+                relevance_score REAL,
+                field_tags TEXT DEFAULT '',
+                key_contribution TEXT DEFAULT '',
+                triage_decision TEXT,
+                triage_summary TEXT,
+                triaged_at TIMESTAMP,
+                completed_at TIMESTAMP,
+                linker_batch INTEGER,
+                reading_profile TEXT DEFAULT 'auto',
+                analysis_focuses TEXT DEFAULT '[]',
+                analysis_focus_prompts TEXT DEFAULT '{}',
+                custom_reading_instructions TEXT DEFAULT '',
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX idx_agent_papers_status ON papers(status);
+            CREATE INDEX idx_agent_papers_folder ON papers(folder);
+            """
+        )
+        for paper in PAPERS:
+            conn.execute(
+                """
+                INSERT INTO papers (
+                    paper_id, file_path, status, year, folder, title, authors,
+                    relevance_score, field_tags, key_contribution, triage_decision,
+                    triage_summary, triaged_at, completed_at, reading_profile,
+                    analysis_focuses
+                ) VALUES (?, '', 'completed', ?, ?, ?, ?, ?, ?, ?, 'DEEP_READ', ?, CURRENT_TIMESTAMP,
+                          CURRENT_TIMESTAMP, 'full_content', ?)
+                """,
+                (
+                    paper["paper_id"],
+                    paper["year"],
+                    f"library:{library_id}",
+                    paper["title"],
+                    ", ".join(paper["authors"]),
+                    int(round(float(paper["score"]) * 20)),
+                    ", ".join(paper["fields"]),
+                    paper["summary"],
+                    paper["summary"],
+                    json_text(["identification", "data", "contribution"]),
+                ),
+            )
         conn.commit()
     finally:
         conn.close()
 
 
+def seed_demo_db(
+    db_path: Path,
+    data_root: Path,
+    *,
+    force: bool,
+    portable_paths: bool = False,
+) -> None:
+    conn = sqlite3.connect(str(db_path))
+    try:
+        cur = conn.cursor()
+        library_id = get_default_library_id(cur, data_root, portable_paths=portable_paths)
+        seed_papers(cur, library_id)
+        seed_atoms(cur)
+        seed_maps_and_ideas(cur, library_id)
+        rebuild_search_index(cur, library_id)
+        conn.commit()
+        # Remove free pages that may still contain the host paths written by
+        # schema initialization before portable placeholders are applied.
+        conn.execute("VACUUM")
+    finally:
+        conn.close()
+    seed_demo_agent_db(data_root, library_id, force=force)
+
+
 def main() -> None:
     args = parse_args()
+    data_root = Path(args.data_root).resolve()
+    if args.files_only:
+        seed_demo_files(data_root, replace=args.replace_files)
+        print("Wrote public demo knowledge-base files.")
+        return
     db_path = Path(args.db).resolve()
-    ensure_schema(db_path, force=args.force)
-    seed_demo_db(db_path)
+    agent_db_path = data_root / "source-library_agent.db"
+    if agent_db_path.exists() and not args.force:
+        raise SystemExit(
+            f"{agent_db_path} already exists. Pass --force to replace the demo runtime database."
+        )
+    ensure_schema(db_path, data_root, force=args.force)
+    seed_demo_files(data_root, replace=args.replace_files)
+    seed_demo_db(
+        db_path,
+        data_root,
+        force=args.force,
+        portable_paths=args.portable_paths,
+    )
     print(f"Created demo database: {db_path}")
 
 

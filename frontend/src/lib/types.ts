@@ -270,6 +270,7 @@ export interface Stats {
   totalDatasets: number;
   totalPuzzles: number;
   totalIdeas: number;
+  totalEdges: number;
 }
 
 export interface WhatsNewPaper {

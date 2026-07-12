@@ -692,6 +692,7 @@ class Stats:
     total_datasets: int
     total_puzzles: int
     total_ideas: int
+    total_edges: int
 
 
 @strawberry.type

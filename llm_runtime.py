@@ -178,6 +178,13 @@ def _load_openclaw_env() -> dict[str, str]:
 
 
 def _load_legacy_env_provider() -> dict[str, str] | None:
+    if os.environ.get("KB_DISABLE_LEGACY_AI_IMPORT", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        return None
     openclaw_env = _load_openclaw_env()
     api_key = (
         os.environ.get("LLM_API_KEY")

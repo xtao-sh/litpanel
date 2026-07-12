@@ -165,7 +165,7 @@ h2,
 .font-display {
   font-family: var(--font-display), "Source Serif 4", Georgia, serif;
   font-variation-settings: normal;
-  letter-spacing: -0.018em;
+  letter-spacing: 0;
   line-height: 1.06;
 }
 
@@ -173,7 +173,7 @@ h3,
 h4,
 h5,
 h6 {
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 ::selection {
@@ -245,7 +245,7 @@ h6 {
   font-family: var(--font-display), "Source Serif 4", Georgia, serif;
   font-size: 1.25rem;
   line-height: 1;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   color: oklch(var(--foreground));
 }
 
@@ -281,6 +281,33 @@ h6 {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-4);
+}
+
+@media (max-width: 1500px) {
+  .lp-nav-inner {
+    gap: 16px;
+    padding-inline: 24px;
+  }
+
+  .lp-brand-date {
+    display: none;
+  }
+
+  .lp-nav-links {
+    gap: 18px;
+  }
+
+  .lp-nav-link {
+    font-size: 1rem;
+  }
+
+  .lp-search-trigger {
+    min-width: min(300px, 24vw);
+  }
+
+  .lp-nav-right {
+    gap: 9px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -429,7 +456,7 @@ h6 {
     font-family: var(--serif);
     font-size: clamp(1.55rem, 1.9vw, 2rem);
     font-weight: 400;
-    letter-spacing: -0.035em;
+    letter-spacing: 0;
     line-height: 0.95;
     white-space: nowrap;
   }
@@ -641,7 +668,7 @@ h6 {
     font-family: var(--serif);
     font-size: clamp(2.4rem, 4.4vw, 3.6rem);
     font-weight: 400;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
     line-height: 1.05;
   }
 
@@ -657,7 +684,7 @@ h6 {
     font-family: var(--serif);
     font-size: 22px;
     font-weight: 500;
-    letter-spacing: -0.012em;
+    letter-spacing: 0;
   }
 
   .lp-h3 {
@@ -666,7 +693,7 @@ h6 {
     font-family: var(--serif);
     font-size: 17px;
     font-weight: 500;
-    letter-spacing: -0.008em;
+    letter-spacing: 0;
   }
 
   .lp-lede {
@@ -882,7 +909,7 @@ h6 {
     font-family: var(--serif);
     font-size: 38px;
     font-weight: 400;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
     line-height: 1;
   }
 
@@ -968,7 +995,7 @@ h6 {
     font-family: var(--serif);
     font-size: 22px;
     font-weight: 400;
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
     line-height: 1;
   }
 
@@ -1036,7 +1063,7 @@ h6 {
     font-family: var(--serif);
     font-size: clamp(3.4rem, 5.6vw, 5.75rem);
     font-weight: 400;
-    letter-spacing: -0.035em;
+    letter-spacing: 0;
     line-height: 0.95;
   }
 
@@ -1073,7 +1100,7 @@ h6 {
     font-family: var(--serif);
     font-size: clamp(1.65rem, 2.2vw, 2.45rem);
     font-weight: 400;
-    letter-spacing: -0.025em;
+    letter-spacing: 0;
     line-height: 0.98;
   }
 
@@ -1221,7 +1248,7 @@ h6 {
     font-family: var(--serif);
     font-size: clamp(2.25rem, 3.2vw, 4rem);
     font-weight: 420;
-    letter-spacing: -0.045em;
+    letter-spacing: 0;
     line-height: 1.02;
   }
 
@@ -1337,7 +1364,7 @@ h6 {
     font-family: var(--serif);
     font-size: clamp(1.35rem, 2.15vw, 2.35rem);
     font-weight: 420;
-    letter-spacing: -0.035em;
+    letter-spacing: 0;
     line-height: 1.04;
   }
 
@@ -1476,7 +1503,7 @@ h6 {
     color: var(--ink);
     font-family: var(--serif);
     font-weight: 430;
-    letter-spacing: -0.025em;
+    letter-spacing: 0;
   }
 
   .lp-glance-feature h4 {
@@ -1802,10 +1829,16 @@ h6 {
     color: var(--forest);
   }
 
+  .graph-shell {
+    display: block;
+    height: calc(100dvh - 77px);
+    min-height: 520px;
+  }
+
   .graph-stage-app {
     position: relative;
     display: block;
-    height: calc(100vh - 73px);
+    height: 100%;
     overflow: hidden;
   }
 }

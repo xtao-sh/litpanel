@@ -3,6 +3,8 @@
 import React, { useMemo } from "react";
 import Link from "next/link";
 import { processLatex } from "@/lib/render-latex";
+import { buildPaperDetailHref } from "@/lib/navigation";
+import { INLINE_PAPER_ID_SOURCE } from "@/lib/paper-identifiers";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -13,12 +15,14 @@ interface MarkdownRendererProps {
 }
 
 // ---------------------------------------------------------------------------
-// Inline text parser: handles **bold**, paper IDs (wXXXXX), and
+// Inline text parser: handles **bold**, supported paper IDs, and
 // [bracketed content] as muted italic text.
 // ---------------------------------------------------------------------------
 
-const INLINE_PATTERN =
-  /(\*\*w(\d{4,5})(?::\s*[^*]+?)?\*\*)|(\*\*([^*]+)\*\*)|\b(w(\d{4,5}))\b|(\[[^\]]+\])/g;
+const INLINE_PATTERN = new RegExp(
+  `(\\*\\*(${INLINE_PAPER_ID_SOURCE})(?::\\s*[^*]+?)?\\*\\*)|(\\*\\*([^*]+)\\*\\*)|\\b(${INLINE_PAPER_ID_SOURCE})\\b|(\\[[^\\]]+\\])`,
+  "g"
+);
 
 function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
@@ -45,13 +49,12 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
     }
 
     if (match[1]) {
-      // **wXXXXX** or **wXXXXX: Title** -- bold paper ID link
-      const paperId = `w${match[2]}`;
+      const paperId = match[2];
       const display = match[1].slice(2, -2); // strip ** on both sides
       nodes.push(
         <Link
           key={`${keyPrefix}-${match.index}`}
-          href={`/paper/${paperId}`}
+          href={buildPaperDetailHref({ paperId })}
           title={`Paper ${paperId}`}
           className="inline-flex items-baseline gap-0.5 rounded-full border border-[var(--line-soft)] bg-[var(--paper-2)] px-2 py-0.5 font-mono text-sm font-medium text-[var(--forest)] no-underline transition-colors hover:bg-[var(--paper-2)] hover:text-[var(--forest)]"
         >
@@ -69,21 +72,21 @@ function renderInlineText(text: string, keyPrefix: string): React.ReactNode[] {
       nodes.push(
         <Link
           key={`${keyPrefix}-${match.index}`}
-          href={`/paper/${paperId}`}
+          href={buildPaperDetailHref({ paperId })}
           title={`Paper ${paperId}`}
           className="inline-flex items-baseline gap-0.5 rounded-full border border-[var(--line-soft)] bg-[var(--paper-2)] px-2 py-0.5 font-mono text-sm font-medium text-[var(--forest)] no-underline transition-colors hover:bg-[var(--paper-2)] hover:text-[var(--forest)]"
         >
           {paperId}
         </Link>
       );
-    } else if (match[7]) {
+    } else if (match[6]) {
       // [bracketed content]
       nodes.push(
         <span
           key={`${keyPrefix}-${match.index}`}
           className="text-sm italic text-[var(--ink-4)]"
         >
-          {match[7]}
+          {match[6]}
         </span>
       );
     }

@@ -11,6 +11,75 @@ from typing import Any, Optional
 logger = logging.getLogger("hybrid_search")
 
 RRF_K = 60  # Standard RRF constant
+SEMANTIC_ONLY_MIN_SCORE = {
+    "paper": 0.30,
+    "atom": 0.28,
+    "all": 0.28,
+}
+SEMANTIC_WITH_FTS_MIN_SCORE = {
+    "paper": 0.24,
+    "atom": 0.22,
+    "all": 0.22,
+}
+
+
+async def _filter_hits_to_active_library(
+    resolvers: Any,
+    hits: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    library_id = resolvers._active_library_id()
+    if library_id is None or not hits:
+        return hits
+
+    paper_ids = [
+        str(hit.get("entity_id"))
+        for hit in hits
+        if hit.get("entity_type") == "paper" and hit.get("entity_id")
+    ]
+    atom_ids = [
+        str(hit.get("entity_id"))
+        for hit in hits
+        if hit.get("entity_type") == "atom" and hit.get("entity_id")
+    ]
+
+    allowed_papers: set[str] = set()
+    allowed_atoms: set[str] = set()
+    db = await resolvers._get_db()
+    if paper_ids:
+        placeholders = ", ".join("?" for _ in paper_ids)
+        cursor = await db.execute(
+            f"""
+            SELECT paper_id
+            FROM library_papers
+            WHERE library_id = ? AND paper_id IN ({placeholders})
+            """,
+            [library_id, *paper_ids],
+        )
+        allowed_papers = {str(row["paper_id"]) for row in await cursor.fetchall()}
+
+    if atom_ids:
+        placeholders = ", ".join("?" for _ in atom_ids)
+        cursor = await db.execute(
+            f"""
+            SELECT DISTINCT apr.atom_slug
+            FROM atom_paper_refs apr
+            JOIN library_papers lp ON lp.paper_id = apr.paper_id
+            WHERE lp.library_id = ? AND apr.atom_slug IN ({placeholders})
+            """,
+            [library_id, *atom_ids],
+        )
+        allowed_atoms = {str(row["atom_slug"]) for row in await cursor.fetchall()}
+
+    filtered: list[dict[str, Any]] = []
+    for hit in hits:
+        entity_type = hit.get("entity_type")
+        entity_id = str(hit.get("entity_id") or "")
+        if entity_type == "paper" and entity_id not in allowed_papers:
+            continue
+        if entity_type == "atom" and entity_id not in allowed_atoms:
+            continue
+        filtered.append(hit)
+    return filtered
 
 
 def reciprocal_rank_fusion(
@@ -58,6 +127,7 @@ async def hybrid_search(
     import resolvers
 
     ranked_lists: list[list[dict[str, Any]]] = []
+    fts_results: dict[str, Any] = {"hits": [], "total": 0}
 
     # 1. FTS5 keyword search
     fts_results = await resolvers.search(
@@ -70,23 +140,35 @@ async def hybrid_search(
     try:
         from embeddings import semantic_search as sem_search, is_loaded
 
-        if is_loaded():
+        semantic_type_supported = entity_type is None or entity_type in ("paper", "atom")
+        if is_loaded() and semantic_type_supported:
             sem_entity = entity_type if entity_type in ("paper", "atom") else "all"
             sem_results = await sem_search(
                 query, entity_type=sem_entity, limit=limit * 2
             )
+            threshold_key = sem_entity if sem_entity in ("paper", "atom") else "all"
+            threshold_map = (
+                SEMANTIC_WITH_FTS_MIN_SCORE
+                if fts_results["hits"]
+                else SEMANTIC_ONLY_MIN_SCORE
+            )
+            min_score = threshold_map[threshold_key]
             # Convert to same format as FTS hits
             sem_hits = []
             for item in sem_results:
+                score = float(item.get("score", 0.0) or 0.0)
+                if score < min_score:
+                    continue
                 sem_hits.append(
                     {
                         "entity_type": item["entity_type"],
                         "entity_id": item["entity_id"],
                         "title": "",  # Will be filled from FTS or DB lookup
                         "snippet": "",
-                        "rank": item.get("score", 0.0),
+                        "rank": score,
                     }
                 )
+            sem_hits = await _filter_hits_to_active_library(resolvers, sem_hits)
             if sem_hits:
                 ranked_lists.append(sem_hits)
     except ImportError:
@@ -196,16 +278,35 @@ async def semantic_search_resolver(
     Returns list of {entity_type, entity_id, title, score}.
     """
     try:
+        import resolvers
         from embeddings import semantic_search as sem_search, is_loaded
 
         if not is_loaded():
             return []
 
+        if entity_type is not None and entity_type not in ("paper", "atom"):
+            return []
         sem_entity = entity_type if entity_type in ("paper", "atom") else "all"
-        sem_results = await sem_search(query, entity_type=sem_entity, limit=limit)
+        # The embedding index is global, while the UI is library-scoped. Fetch
+        # extra candidates before filtering so a small library can still fill
+        # the requested result window without leaking another library's rows.
+        candidate_limit = max(limit, min(limit * 4, 200))
+        sem_results = await sem_search(
+            query,
+            entity_type=sem_entity,
+            limit=candidate_limit,
+        )
+        threshold_key = sem_entity if sem_entity in ("paper", "atom") else "all"
+        sem_results = [
+            item
+            for item in sem_results
+            if float(item.get("score", 0.0) or 0.0)
+            >= SEMANTIC_ONLY_MIN_SCORE[threshold_key]
+        ]
+        sem_results = await _filter_hits_to_active_library(resolvers, sem_results)
 
         enriched = []
-        for item in sem_results:
+        for item in sem_results[:limit]:
             title, snippet = await _lookup_title(item["entity_type"], item["entity_id"])
             enriched.append(
                 {

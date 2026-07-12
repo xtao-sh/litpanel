@@ -141,7 +141,10 @@ def search_sql(
 
     if library_id is not None:
         where_parts.append("library_id = ?")
-        binds.append(str(library_id))
+        # FTS5 preserves the storage class of unindexed columns. Library IDs
+        # are inserted as integers, so binding a string here silently matches
+        # no rows even when the visible value is the same (for example 1).
+        binds.append(library_id)
 
     where_clause = " AND ".join(where_parts)
 
@@ -175,7 +178,7 @@ def count_sql(
 
     if library_id is not None:
         where_parts.append("library_id = ?")
-        binds.append(str(library_id))
+        binds.append(library_id)
 
     where_clause = " AND ".join(where_parts)
 

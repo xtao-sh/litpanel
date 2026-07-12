@@ -5,6 +5,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(Path(__file__).resolve().parent / ".env")
+except ImportError:
+    pass
+
 
 def _getenv(*names: str, default: str) -> str:
     for name in names:
@@ -57,12 +64,12 @@ PROJECTS_DIR = Path(
 APP_NAME = _getenv(
     "APP_NAME",
     "KB_APP_NAME",
-    default="Research Knowledge Base",
+    default="Lit Panel",
 )
 APP_SHORT_NAME = _getenv(
     "APP_SHORT_NAME",
     "KB_APP_SHORT_NAME",
-    default="Research KB",
+    default="Lit Panel",
 )
 APP_DESCRIPTION = _getenv(
     "APP_DESCRIPTION",

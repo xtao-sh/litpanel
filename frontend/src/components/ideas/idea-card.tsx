@@ -23,6 +23,7 @@ import { SectionContent } from "@/components/paper/section-content";
 import { SET_IDEA_STATUS, GET_IDEAS, CREATE_USER_IDEA, GET_USER_IDEAS, ADD_PAPER_TO_IDEA } from "@/lib/queries";
 import type { Idea, UserIdea } from "@/lib/types";
 import { useI18n } from "@/lib/i18n/locale-context";
+import { parsePaperReference } from "@/lib/paper-identifiers";
 
 // ---------------------------------------------------------------------------
 // Status helpers
@@ -73,7 +74,7 @@ function compositeColor(value: number | null): string {
 }
 
 // ---------------------------------------------------------------------------
-// Source paper parser: extract wXXXXX (description) pairs
+// Source paper parser: accepts NBER, demo, DOI, arXiv, and uploaded-paper IDs.
 // ---------------------------------------------------------------------------
 
 interface SourcePaper {
@@ -84,20 +85,8 @@ interface SourcePaper {
 function parseSourcePapers(papers: string[]): SourcePaper[] {
   const result: SourcePaper[] = [];
   for (const raw of papers) {
-    // Match pattern: wXXXXX (description) or just wXXXXX
-    const match = raw.match(/^(w\d{4,5})\s*(?:\(([^)]+)\))?/);
-    if (match) {
-      result.push({
-        id: match[1],
-        description: match[2] ? match[2].trim() : null,
-      });
-    } else {
-      // Might just be a bare paper ID
-      const bare = raw.match(/(w\d{4,5})/);
-      if (bare) {
-        result.push({ id: bare[1], description: null });
-      }
-    }
+    const parsed = parsePaperReference(raw);
+    if (parsed) result.push(parsed);
   }
   return result;
 }

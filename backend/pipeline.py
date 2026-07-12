@@ -44,6 +44,7 @@ from database import (
     ensure_default_library,
     finalize_import_batch,
     get_connection,
+    get_duplicate_file_paper_id,
     get_paper_processing_state,
     get_library,
     is_duplicate_file_for_library,
@@ -66,6 +67,10 @@ MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 # paper (dimension batches + scores + atoms), so a full "select all dimensions"
 # run on a long paper can take ~8 minutes; default to 20 minutes of headroom.
 AGENT_TIMEOUT_SECONDS = int(os.environ.get("AGENT_TIMEOUT_SECONDS", "1200"))
+
+
+def _looks_like_pdf(content: bytes) -> bool:
+    return content[:1024].lstrip().startswith(b"%PDF-")
 
 READING_PROFILE_CONFIG: dict[str, dict[str, object]] = {
     "auto": {
@@ -338,7 +343,12 @@ def _ensure_pdf_text_cache(pdf_path: Path, reading_profile: str = "auto") -> dic
         return {"status": "error", "error": str(exc)}
 
 
-def _agent_env(runtime: dict, paper_ids: list[str] | None = None) -> dict[str, str]:
+def _agent_env(
+    runtime: dict,
+    paper_ids: list[str] | None = None,
+    *,
+    merge_existing_agent: bool = False,
+) -> dict[str, str]:
     env = os.environ.copy()
     existing_pythonpath = env.get("PYTHONPATH", "")
     pythonpath_entries = [
@@ -356,8 +366,14 @@ def _agent_env(runtime: dict, paper_ids: list[str] | None = None) -> dict[str, s
     env["KB_CONTENT_ROOT"] = str(runtime["knowledge_base_dir"])
     env["KNOWLEDGE_BASE_DIR"] = str(runtime["knowledge_base_dir"])
     env["KB_AGENT_PROJECT_ROOT"] = str(runtime["knowledge_base_dir"].parent)
-    env["EXISTING_AGENT_DB_PATHS"] = str(runtime["agent_db_path"])
-    env["KB_EXISTING_AGENT_DB_PATHS"] = str(runtime["agent_db_path"])
+    if merge_existing_agent:
+        env["EXISTING_AGENT_DB_PATHS"] = str(runtime["agent_db_path"])
+        env["KB_EXISTING_AGENT_DB_PATHS"] = str(runtime["agent_db_path"])
+        env.pop("KB_SKIP_EXISTING_AGENT_MERGE", None)
+    else:
+        env["EXISTING_AGENT_DB_PATHS"] = ""
+        env["KB_EXISTING_AGENT_DB_PATHS"] = ""
+        env["KB_SKIP_EXISTING_AGENT_MERGE"] = "1"
     if paper_ids:
         env["KB_TARGET_PAPER_IDS"] = ",".join(paper_ids)
     return env
@@ -471,6 +487,22 @@ def _agent_output_summary(result: dict, limit: int = 500) -> str:
         if part and str(part).strip()
     )
     return output[-limit:] if output else ""
+
+
+def _friendly_reader_error(detail: str) -> str:
+    normalized = (detail or "").strip()
+    lower = normalized.lower()
+    if not normalized:
+        return "AI 读取没有返回完成结果，请重试。"
+    if "no parseable scores" in lower:
+        return "AI 已返回内容，但评分区块格式无法解析。已保留为失败状态，请重试；如果仍失败，减少读取维度或切换为 Title + Abstract。"
+    if "timeout" in lower or "timed out" in lower:
+        return "AI 读取超时。长论文可切换为 Section-by-section，或减少读取维度后重试。"
+    if "server disconnected" in lower or "read operation timed out" in lower:
+        return "AI 服务连接中断。请稍后重试，或减少读取维度。"
+    if "pdf extraction failed" in lower or "extracted text too short" in lower or "pdf_error" in lower:
+        return "PDF 文本抽取失败。请确认文件不是扫描版图片 PDF，并尝试上传可复制文本的 PDF。"
+    return normalized[-500:]
 
 
 def _agent_status_error(paper_record: sqlite3.Row | None) -> str:
@@ -913,10 +945,7 @@ async def process_paper(
         reader_record = _get_agent_paper(paper_id, runtime["agent_db_path"])
         if not reader_result["success"] or (reader_record is not None and reader_record["status"] != "completed"):
             detail = steps["reader"].get("detail") or _agent_status_error(reader_record)
-            steps["error"] = (
-                "Reader did not complete the target paper."
-                + (f" {detail}" if detail else "")
-            )
+            steps["error"] = _friendly_reader_error(str(detail or ""))
             return steps
     else:
         steps["reader"] = {
@@ -1053,10 +1082,7 @@ async def reprocess_existing_paper(
         reader_record = _get_agent_paper(paper_id, runtime["agent_db_path"])
         if not reader_result["success"] or (reader_record is not None and reader_record["status"] != "completed"):
             detail = steps["reader"].get("detail") or _agent_status_error(reader_record)
-            steps["error"] = (
-                "Reader did not complete the target paper."
-                + (f" {detail}" if detail else "")
-            )
+            steps["error"] = _friendly_reader_error(str(detail or ""))
             return steps
     else:
         steps["reader"] = {
@@ -1109,6 +1135,21 @@ def process_uploaded_pdf(
             )
         return result
 
+    if not _looks_like_pdf(pdf_bytes):
+        result = {
+            "error": "Uploaded file is not a valid PDF.",
+            "status": "failed",
+        }
+        if batch_id is not None:
+            add_import_batch_file(
+                batch_id=batch_id,
+                filename=filename or (paper_id or "upload.pdf"),
+                paper_id=paper_id or "",
+                status="failed",
+                detail=result["error"],
+            )
+        return result
+
     if not library_exists(library_id):
         result = {"error": "Library not found.", "status": "failed"}
         if batch_id is not None:
@@ -1131,16 +1172,18 @@ def process_uploaded_pdf(
 
     file_sha256 = hashlib.sha256(pdf_bytes).hexdigest()
     if is_duplicate_file_for_library(library_id, file_sha256):
+        existing_paper_id = get_duplicate_file_paper_id(library_id, file_sha256)
         result = {
-            "paper_id": paper_id or "",
+            "paper_id": existing_paper_id or paper_id or "",
             "status": "duplicate",
             "error": "This file already exists in the selected library.",
+            "duplicate": True,
         }
         if batch_id is not None:
             add_import_batch_file(
                 batch_id=batch_id,
                 filename=filename or ((paper_id or "").strip() + ".pdf"),
-                paper_id=paper_id or "",
+                paper_id=existing_paper_id or paper_id or "",
                 status="duplicate",
                 detail=result["error"],
             )
@@ -1495,7 +1538,10 @@ def update_graph_and_ideas_after_reading(
         if not update_ideas:
             result["thinker"] = {"skipped": True, "reason": "Ideas update disabled"}
             result["critic"] = {"skipped": True, "reason": "Ideas update disabled"}
-            result["refresh"] = {"status": "skipped", "reason": "no graph changes to refresh"}
+            result["refresh"] = refresh_website_db(runtime["id"]) if update_graph else {
+                "status": "skipped",
+                "reason": "no graph changes to refresh",
+            }
             return result
     else:
         linker_result = run_agent_pipeline("linker", runtime=runtime)
@@ -1589,40 +1635,44 @@ def get_pipeline_status(library_id: int | None = None) -> dict:
     try:
         status_clause = " WHERE folder = ?" if library_folder else ""
         status_binds = (library_folder,) if library_folder else ()
+        rows = conn.execute(
+            "SELECT paper_id, status, triage_decision, reading_profile, updated_at, completed_at "
+            "FROM papers" + status_clause,
+            status_binds,
+        ).fetchall()
+
+        if resolved_library_id is not None:
+            website_conn = get_connection()
+            try:
+                allowed_paper_ids = {
+                    str(row[0])
+                    for row in website_conn.execute(
+                        "SELECT paper_id FROM library_papers WHERE library_id = ?",
+                        (resolved_library_id,),
+                    ).fetchall()
+                }
+            finally:
+                website_conn.close()
+            rows = [row for row in rows if str(row["paper_id"]) in allowed_paper_ids]
+
         for s in ["pending", "triaged", "completed", "error", "pdf_error", "timeout"]:
-            row = conn.execute(
-                "SELECT COUNT(*) as cnt FROM papers WHERE status = ?"
-                + (" AND folder = ?" if library_folder else ""),
-                (s, *status_binds),
-            ).fetchone()
-            status["counts"][s] = row["cnt"]
+            status["counts"][s] = sum(1 for row in rows if row["status"] == s)
 
         # Count by triage decision
         for decision in ["DEEP_READ", "SKIM", "SKIP"]:
-            row = conn.execute(
-                "SELECT COUNT(*) as cnt FROM papers WHERE triage_decision = ?"
-                + (" AND folder = ?" if library_folder else ""),
-                (decision, *status_binds),
-            ).fetchone()
-            status["counts"][f"triage_{decision}"] = row["cnt"]
+            status["counts"][f"triage_{decision}"] = sum(
+                1 for row in rows if row["triage_decision"] == decision
+            )
 
-        # Total
-        row = conn.execute(
-            "SELECT COUNT(*) as cnt FROM papers" + status_clause,
-            status_binds,
-        ).fetchone()
-        status["counts"]["total"] = row["cnt"]
+        status["counts"]["total"] = len(rows)
 
         # Recently processed (last 10)
-        recent = conn.execute(
-            "SELECT paper_id, status, triage_decision, reading_profile, "
-            "updated_at, completed_at "
-            "FROM papers"
-            + status_clause
-            + " ORDER BY updated_at DESC LIMIT 10",
-            status_binds,
-        ).fetchall()
-        status["recent"] = [dict(r) for r in recent]
+        recent = sorted(
+            rows,
+            key=lambda row: str(row["updated_at"] or ""),
+            reverse=True,
+        )[:10]
+        status["recent"] = [dict(row) for row in recent]
 
     except Exception as exc:
         logger.error("Failed to read pipeline status: %s", exc)

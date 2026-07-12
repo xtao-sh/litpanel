@@ -35,6 +35,8 @@ backend/.venv/
 desktop-mvp/node_modules/
 desktop-mvp/dist/
 desktop-mvp/.runtime/
+desktop-mvp/.runtime*/
+desktop-mvp/.npm-cache/
 desktop-mvp/.bundle/
 desktop-mvp/.staging/
 

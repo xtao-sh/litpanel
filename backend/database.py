@@ -8,6 +8,7 @@ maps, ideas, triage cards, and a full-text search index.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sqlite3
 from pathlib import Path
@@ -565,14 +566,16 @@ def init_db() -> None:
     """)
 
     default_id = ensure_default_library_with_cursor(cur)
-    cur.execute(
-        """
-        INSERT OR IGNORE INTO library_papers (library_id, paper_id)
-        SELECT ?, p.paper_id
-        FROM papers p
-        """,
-        (default_id,),
-    )
+    existing_library_links = cur.execute("SELECT COUNT(*) FROM library_papers").fetchone()[0]
+    if int(existing_library_links or 0) == 0:
+        cur.execute(
+            """
+            INSERT OR IGNORE INTO library_papers (library_id, paper_id)
+            SELECT ?, p.paper_id
+            FROM papers p
+            """,
+            (default_id,),
+        )
     cur.execute(
         """
         INSERT OR IGNORE INTO library_field_maps (library_id, slug, title, content, updated_at)
@@ -741,7 +744,25 @@ def ensure_default_library_with_cursor(cur: sqlite3.Cursor) -> int:
         (default_name, slug, "% Library Library"),
     )
     row = cur.execute("SELECT id FROM libraries WHERE slug = ?", (slug,)).fetchone()
-    return int(row[0])
+    library_id = int(row[0])
+    desktop_mode = os.environ.get("KB_DESKTOP_MODE", "").strip().lower()
+    if desktop_mode in {"1", "true", "yes", "on"}:
+        demo_row = cur.execute(
+            "SELECT description FROM libraries WHERE id = ?",
+            (library_id,),
+        ).fetchone()
+        description = str(demo_row[0] or "") if demo_row else ""
+        if description.startswith("Synthetic public demo corpus"):
+            cur.execute(
+                """
+                UPDATE libraries
+                SET papers_dir = ?, knowledge_base_dir = ?, agent_db_path = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (str(PAPERS_DIR), str(KNOWLEDGE_BASE_DIR), str(AGENT_DB_PATH), library_id),
+            )
+    return library_id
 
 
 def ensure_default_library() -> int:
@@ -1781,6 +1802,31 @@ def purge_library_index_data(library_id: int) -> dict[str, int]:
         (library_id,),
     ).fetchall()
     paper_ids = [str(row["paper_id"]) for row in linked_rows]
+    exclusive_rows = cur.execute(
+        """
+        SELECT lp.paper_id, COALESCE(p.has_card, 0) AS has_card
+        FROM library_papers lp
+        JOIN papers p ON p.paper_id = lp.paper_id
+        WHERE lp.library_id = ?
+          AND NOT EXISTS (
+              SELECT 1
+              FROM library_papers other
+              WHERE other.paper_id = lp.paper_id
+                AND other.library_id <> lp.library_id
+          )
+        ORDER BY lp.paper_id
+        """,
+        (library_id,),
+    ).fetchall()
+    exclusive_paper_ids = [str(row["paper_id"]) for row in exclusive_rows]
+    rebuild_paper_ids = [
+        str(row["paper_id"])
+        for row in exclusive_rows
+        if int(row["has_card"] or 0) == 1
+    ]
+    # Library membership is source data, not a derived index. Keeping the links
+    # also preserves metadata-only imports across a website refresh.
+    cleared_library_links = 0
 
     cleared_maps = cur.execute(
         "DELETE FROM library_field_maps WHERE library_id = ?",
@@ -1799,7 +1845,7 @@ def purge_library_index_data(library_id: int) -> dict[str, int]:
         (library_id,),
     ).rowcount
     cleared_search_rows = cur.execute(
-        "DELETE FROM search_index WHERE library_id = ?",
+        "DELETE FROM search_index WHERE CAST(library_id AS TEXT) = ?",
         (str(library_id),),
     ).rowcount
 
@@ -1809,11 +1855,15 @@ def purge_library_index_data(library_id: int) -> dict[str, int]:
         return {
             "library_id": library_id,
             "paper_count": 0,
+            "exclusive_paper_count": 0,
+            "shared_paper_count": 0,
+            "rebuild_paper_count": 0,
             "cleared_maps": cleared_maps,
             "cleared_ideas": cleared_ideas,
             "cleared_idea_evaluations": cleared_idea_evaluations,
             "cleared_digests": cleared_digests,
             "cleared_search_rows": cleared_search_rows,
+            "cleared_library_links": cleared_library_links,
             "cleared_sections": 0,
             "cleared_scores": 0,
             "cleared_triage_cards": 0,
@@ -1822,27 +1872,50 @@ def purge_library_index_data(library_id: int) -> dict[str, int]:
             "removed_orphan_atoms": 0,
         }
 
-    placeholders = ",".join("?" for _ in paper_ids)
+    if not rebuild_paper_ids:
+        conn.commit()
+        conn.close()
+        return {
+            "library_id": library_id,
+            "paper_count": len(paper_ids),
+            "exclusive_paper_count": len(exclusive_paper_ids),
+            "shared_paper_count": len(paper_ids) - len(exclusive_paper_ids),
+            "rebuild_paper_count": 0,
+            "cleared_maps": cleared_maps,
+            "cleared_ideas": cleared_ideas,
+            "cleared_idea_evaluations": cleared_idea_evaluations,
+            "cleared_digests": cleared_digests,
+            "cleared_search_rows": cleared_search_rows,
+            "cleared_library_links": cleared_library_links,
+            "cleared_sections": 0,
+            "cleared_scores": 0,
+            "cleared_triage_cards": 0,
+            "cleared_atom_refs": 0,
+            "cleared_paper_embeddings": 0,
+            "removed_orphan_atoms": 0,
+        }
+
+    placeholders = ",".join("?" for _ in rebuild_paper_ids)
 
     cleared_sections = cur.execute(
         f"DELETE FROM card_sections WHERE paper_id IN ({placeholders})",
-        paper_ids,
+        rebuild_paper_ids,
     ).rowcount
     cleared_scores = cur.execute(
         f"DELETE FROM paper_scores WHERE paper_id IN ({placeholders})",
-        paper_ids,
+        rebuild_paper_ids,
     ).rowcount
     cleared_triage_cards = cur.execute(
         f"DELETE FROM triage_cards WHERE paper_id IN ({placeholders})",
-        paper_ids,
+        rebuild_paper_ids,
     ).rowcount
     cleared_atom_refs = cur.execute(
         f"DELETE FROM atom_paper_refs WHERE paper_id IN ({placeholders})",
-        paper_ids,
+        rebuild_paper_ids,
     ).rowcount
     cleared_paper_embeddings = cur.execute(
         f"DELETE FROM embeddings WHERE entity_type = 'paper' AND entity_id IN ({placeholders})",
-        paper_ids,
+        rebuild_paper_ids,
     ).rowcount
     cur.execute(
         f"""
@@ -1857,7 +1930,7 @@ def purge_library_index_data(library_id: int) -> dict[str, int]:
             abstract = NULL
         WHERE paper_id IN ({placeholders})
         """,
-        paper_ids,
+        rebuild_paper_ids,
     )
 
     orphan_atom_slugs = _delete_orphan_atoms_with_cursor(cur)
@@ -1867,11 +1940,15 @@ def purge_library_index_data(library_id: int) -> dict[str, int]:
     return {
         "library_id": library_id,
         "paper_count": len(paper_ids),
+        "exclusive_paper_count": len(exclusive_paper_ids),
+        "shared_paper_count": len(paper_ids) - len(exclusive_paper_ids),
+        "rebuild_paper_count": len(rebuild_paper_ids),
         "cleared_maps": cleared_maps,
         "cleared_ideas": cleared_ideas,
         "cleared_idea_evaluations": cleared_idea_evaluations,
         "cleared_digests": cleared_digests,
         "cleared_search_rows": cleared_search_rows,
+        "cleared_library_links": cleared_library_links,
         "cleared_sections": cleared_sections,
         "cleared_scores": cleared_scores,
         "cleared_triage_cards": cleared_triage_cards,
@@ -1899,7 +1976,10 @@ def delete_library(library_id: int) -> dict[str, object]:
     ).fetchall()
     affected_paper_ids = [str(row["paper_id"]) for row in linked_rows]
 
-    cur.execute("DELETE FROM search_index WHERE library_id = ?", (str(library_id),))
+    cur.execute(
+        "DELETE FROM search_index WHERE CAST(library_id AS TEXT) = ?",
+        (str(library_id),),
+    )
 
     cur.execute("DELETE FROM libraries WHERE id = ?", (library_id,))
 
@@ -1982,8 +2062,17 @@ def attach_paper_to_library(
     )
     cur.execute(
         """
-        INSERT OR IGNORE INTO library_papers (library_id, paper_id, source_path, file_sha256)
+        INSERT INTO library_papers (library_id, paper_id, source_path, file_sha256)
         VALUES (?, ?, ?, ?)
+        ON CONFLICT(library_id, paper_id) DO UPDATE SET
+            source_path = CASE
+                WHEN excluded.source_path != '' THEN excluded.source_path
+                ELSE library_papers.source_path
+            END,
+            file_sha256 = CASE
+                WHEN excluded.file_sha256 != '' THEN excluded.file_sha256
+                ELSE library_papers.file_sha256
+            END
         """,
         (library_id, paper_id, source_path, file_sha256),
     )
@@ -2073,6 +2162,24 @@ def is_duplicate_file_for_library(library_id: int, file_sha256: str) -> bool:
     ).fetchone()
     conn.close()
     return row is not None
+
+
+def get_duplicate_file_paper_id(library_id: int, file_sha256: str) -> str:
+    if not file_sha256:
+        return ""
+    conn = get_connection()
+    row = conn.execute(
+        """
+        SELECT paper_id
+        FROM library_papers
+        WHERE library_id = ? AND file_sha256 = ?
+        ORDER BY imported_at DESC, paper_id ASC
+        LIMIT 1
+        """,
+        (library_id, file_sha256),
+    ).fetchone()
+    conn.close()
+    return str(row["paper_id"] or "") if row else ""
 
 
 def create_import_batch(
