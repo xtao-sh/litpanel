@@ -73,7 +73,12 @@ jobs:
 
       - name: Build app and DMG
         working-directory: desktop-mvp
-        run: npm run dist:dmg
+        shell: bash
+        run: |
+          set -euo pipefail
+          ulimit -n 10240
+          echo "Open-file limit: $(ulimit -n)"
+          npm run dist:dmg
 
       - name: Verify package safety
         shell: bash
