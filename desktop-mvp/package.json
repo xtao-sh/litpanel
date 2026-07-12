@@ -12,7 +12,7 @@
     "rebuild:web": "node ./scripts/rebuild-frontend.mjs",
     "prepare:package": "node ./scripts/prepare-package.mjs",
     "prepare:icon": "node ./scripts/build-icon.mjs",
-    "dist:app": "npm run prepare:icon && npm run prepare:package && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir --publish never",
+    "dist:app": "npm run prepare:icon && npm run prepare:package && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir --publish never && node ./scripts/postprocess-app.mjs",
     "dist:dmg": "npm run dist:app && node ./scripts/build-dmg.mjs"
   },
   "devDependencies": {
@@ -33,15 +33,6 @@
       "package.json"
     ],
     "asar": true,
-    "extraResources": [
-      {
-        "from": ".bundle/app-bundle",
-        "to": "app-bundle",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "build/lit-panel.icns",

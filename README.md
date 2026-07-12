@@ -50,7 +50,8 @@ Keychain when configured through the app and are used only to authenticate with
 that provider.
 
 The public repository and packaged demo release exclude private databases,
-papers, `.env` files, API keys, local paths, and build-machine bytecode caches.
+papers, `.env` files, API keys, project workspace paths, and build-machine
+bytecode caches.
 
 ## Run From Source
 
@@ -136,7 +137,8 @@ cd ../desktop-mvp && npm audit && npm run smoke
 ```
 
 Release builds are additionally checked for clean demo data, absent API keys and
-private paths, process shutdown, code-signature integrity, and DMG checksums.
+project workspace paths, process shutdown, code-signature integrity, and DMG
+checksums.
 
 ## Limits
 

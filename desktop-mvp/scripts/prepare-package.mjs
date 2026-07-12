@@ -22,6 +22,17 @@ const FRONTEND_STANDALONE_DIR = path.join(FRONTEND_DIR, ".next", "standalone");
 const FRONTEND_STATIC_DIR = path.join(FRONTEND_DIR, ".next", "static");
 const FRONTEND_PUBLIC_DIR = path.join(FRONTEND_DIR, "public");
 const ROOT_RUNTIME_MODULES = ["llm_runtime.py"];
+const PYTHON_SITE_PACKAGES_DIR = path.join(
+  BUNDLE_PYTHON_DIR,
+  "lib",
+  "python3.11",
+  "site-packages"
+);
+const PYTHON_BUILD_ONLY_PATHS = [
+  path.join(BUNDLE_PYTHON_DIR, "include"),
+  path.join(PYTHON_SITE_PACKAGES_DIR, "torch", "include"),
+  path.join(PYTHON_SITE_PACKAGES_DIR, "torch", "share", "cmake"),
+];
 
 const PYTHON_ARCHIVE_NAME =
   "cpython-3.11.15+20260623-aarch64-apple-darwin-install_only_stripped.tar.gz";
@@ -92,6 +103,10 @@ async function removeBytecodeArtifacts(directory) {
 
 async function prunePythonRuntime() {
   await removeBytecodeArtifacts(BUNDLE_PYTHON_DIR);
+  for (const buildOnlyPath of PYTHON_BUILD_ONLY_PATHS) {
+    await fs.rm(buildOnlyPath, { recursive: true, force: true });
+  }
+
   const binDir = path.join(BUNDLE_PYTHON_DIR, "bin");
   const requiredExecutables = new Set([
     "python",
@@ -105,6 +120,33 @@ async function prunePythonRuntime() {
       await fs.rm(path.join(binDir, entry), { recursive: true, force: true });
     }
   }
+}
+
+async function verifyPythonRuntime() {
+  const imports = [
+    "aiosqlite",
+    "anthropic",
+    "fastapi",
+    "numpy",
+    "PyPDF2",
+    "requests",
+    "sentence_transformers",
+    "slowapi",
+    "strawberry",
+    "torch",
+    "uvicorn",
+  ];
+  await runCommand(
+    BUNDLE_PYTHON_BIN,
+    ["-c", `${imports.map((moduleName) => `import ${moduleName}`).join("; ")}; print('Portable Python imports verified')`],
+    {
+      env: {
+        ...process.env,
+        PYTHONDONTWRITEBYTECODE: "1",
+        PYTHONNOUSERSITE: "1",
+      },
+    }
+  );
 }
 
 async function runCommand(command, args, options = {}) {
@@ -230,6 +272,7 @@ async function main() {
   await createPublicDemoSeed();
   console.log("Pruning build-only Python artifacts...");
   await prunePythonRuntime();
+  await verifyPythonRuntime();
 
   console.log("Copying standalone frontend...");
   await copyStandaloneFrontend();

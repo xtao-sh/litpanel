@@ -52,7 +52,11 @@ async function main() {
 
   console.log("Replacing packaged app bundle with staged resources...");
   await fs.rm(resourceBundlePath, { recursive: true, force: true });
-  await fs.cp(stagedBundlePath, resourceBundlePath, { recursive: true, force: true });
+  await fs.cp(stagedBundlePath, resourceBundlePath, {
+    recursive: true,
+    force: true,
+    verbatimSymlinks: true,
+  });
 
   console.log("Re-signing patched app...");
   await runCommand("codesign", ["--force", "--deep", "--sign", "-", appPath]);

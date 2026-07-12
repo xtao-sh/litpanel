@@ -11,8 +11,8 @@ Packaged builds include:
 - a clean synthetic demo database and demo data files;
 - Electron as the frontend server runtime and desktop shell.
 
-Private `.env` files, working databases, PDFs, local paths, and Python bytecode
-are excluded from the bundle.
+Private `.env` files, working databases, PDFs, project workspace paths, and
+Python bytecode caches are excluded from the bundle.
 
 ## Install Build Dependencies
 
