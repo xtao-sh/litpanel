@@ -64,6 +64,11 @@ Outputs for version `0.1.0`:
 The current target is macOS Apple Silicon (`arm64`). The build is not
 Apple-notarized because no Developer ID credentials are stored in the project.
 
+Published Release assets are built by
+`.github/workflows/release-macos.yml` on GitHub's `macos-14` arm64 runner. The
+workflow validates the package and uploads both the DMG and its `.sha256` file;
+the Release workflow does not upload locally built DMG files.
+
 ## Runtime Data And Logs
 
 On first packaged launch, the immutable demo seed is copied to:

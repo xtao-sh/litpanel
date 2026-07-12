@@ -1,0 +1,146 @@
+name: Build macOS release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build
+        required: true
+        default: v0.1.0
+
+permissions:
+  contents: write
+
+concurrency:
+  group: macos-release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    name: Build Apple Silicon DMG
+    runs-on: macos-14
+    timeout-minutes: 90
+
+    steps:
+      - name: Resolve release ref
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid release tag: $tag" >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Check out release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify runner and version
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "arm64"
+          version="$(node -p "require('./desktop-mvp/package.json').version")"
+          test "v${version}" = "${{ steps.release.outputs.tag }}"
+          echo "Building Lit Panel ${version} on $(sw_vers -productVersion) / $(uname -m)"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install desktop build dependencies
+        working-directory: desktop-mvp
+        run: npm ci
+
+      - name: Validate frontend and desktop dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix frontend run lint
+          npm --prefix desktop-mvp audit --audit-level=high
+
+      - name: Build app and DMG
+        working-directory: desktop-mvp
+        run: npm run dist:dmg
+
+      - name: Verify package safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.release.outputs.tag }}"
+          version="${version#v}"
+          app="desktop-mvp/dist/mac-arm64/Lit Panel.app"
+          bundle="$app/Contents/Resources/app-bundle"
+          dmg="desktop-mvp/dist/Lit Panel-${version}-arm64.dmg"
+
+          codesign --verify --deep --strict "$app"
+          hdiutil verify "$dmg"
+          test "$(find "$bundle" -type f -name '*.pyc' | wc -l | tr -d ' ')" = "0"
+          test -z "$(find "$bundle" -type f \( -name '.env' -o -name '.env.local' -o -name '*.key' \) -print)"
+          test -z "$(rg -uuu -l '/Users/' "$bundle" || true)"
+          test "$(sqlite3 "$bundle/backend/kb.db" "select count(*) from papers;")" = "8"
+          test "$(sqlite3 "$bundle/backend/kb.db" "select count(*) from ai_provider_settings where trim(coalesce(api_key,'')) <> '' or enabled <> 0;")" = "0"
+
+      - name: Prepare release assets
+        id: assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.release.outputs.tag }}"
+          version="${version#v}"
+          source_dmg="desktop-mvp/dist/Lit Panel-${version}-arm64.dmg"
+          release_dmg="desktop-mvp/dist/Lit-Panel-${version}-arm64.dmg"
+          cp "$source_dmg" "$release_dmg"
+          shasum -a 256 "$release_dmg" > "${release_dmg}.sha256"
+          echo "dmg=$release_dmg" >> "$GITHUB_OUTPUT"
+          echo "sha=${release_dmg}.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Store workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lit-panel-${{ steps.release.outputs.tag }}-arm64
+          path: |
+            ${{ steps.assets.outputs.dmg }}
+            ${{ steps.assets.outputs.sha }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Create release when needed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Lit Panel ${RELEASE_TAG}" \
+              --generate-notes
+          fi
+
+      - name: Upload GitHub-built release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_DMG: ${{ steps.assets.outputs.dmg }}
+          RELEASE_SHA: ${{ steps.assets.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "$RELEASE_TAG" "$RELEASE_DMG" "$RELEASE_SHA" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber

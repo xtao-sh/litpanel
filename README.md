@@ -13,7 +13,7 @@ metadata remain in their original language.
 The first public desktop release is available from
 [GitHub Releases](https://github.com/xtao-sh/litpanel/releases/latest).
 
-- **macOS Apple Silicon:** download `Lit Panel-0.1.0-arm64.dmg`
+- **macOS Apple Silicon:** download `Lit-Panel-0.1.0-arm64.dmg`
 - The packaged app includes its own Node.js-compatible Electron runtime,
   portable Python runtime, backend dependencies, and a synthetic demo library.
 - The current build is ad-hoc signed but not Apple-notarized. macOS may require
